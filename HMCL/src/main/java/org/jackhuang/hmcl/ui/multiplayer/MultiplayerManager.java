@@ -209,7 +209,7 @@ public final class MultiplayerManager {
                 verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("wintun.dll"), packagesHash.get(String.format("%s/wintun.dll", HIPER_TARGET_NAME)));
                 // verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("tap-windows-9.21.2.exe"), packagesHash.get("tap-windows-9.21.2.exe"));
                 verifyChecksumAndDeleteIfNotMatched(GSUDO_LOCAL_FILE, packagesHash.get(GSUDO_FILE_NAME));
-                verifyChecksumAndDeleteIfNotMatched(HIPERKILLERBAT_LOCAL_FILE, packagesHash.get(HIPERKILLER_FILE_NAME));
+                verifyChecksumAndDeleteIfNotMatched(HIPERKILLERBAT_LOCAL_FILE, packagesHash.get(HIPERKILLERBAT_FILE_NAME));
             } else {
                 verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("hiper"), packagesHash.get(String.format("%s/hiper", HIPER_TARGET_NAME)));
             }
