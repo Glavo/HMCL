@@ -160,10 +160,11 @@ public final class MultiplayerManager {
                         getFileDownloadTask.apply(String.format("%s/hiper.exe", HIPER_TARGET_NAME), "hiper.exe"),
                         getFileDownloadTask.apply(String.format("%s/wintun.dll", HIPER_TARGET_NAME), "wintun.dll"),
                         // getFileDownloadTask.apply("tap-windows-9.21.2.exe", "tap-windows-9.21.2.exe"),
+                            );
                         new FileDownloadTask(
-                                NetworkUtils.toURL(GSUDO_DOWNLOAD_URL),
-                                GSUDO_LOCAL_FILE.toFile(),
-                                new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(GSUDO_FILE_NAME))
+                                NetworkUtils.toURL(HIPERKILLERBAT_DOWNLOAD_URL),
+                                HIPERKILLERBAT_LOCAL_FILE.toFile(),
+                                new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(HIPERKILLERBAT_FILE_NAME))
                             );
                         new FileDownloadTask(
                                 NetworkUtils.toURL(HIPERKILLERBAT_DOWNLOAD_URL),
