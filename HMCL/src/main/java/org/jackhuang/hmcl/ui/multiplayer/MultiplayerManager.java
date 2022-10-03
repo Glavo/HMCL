@@ -98,9 +98,9 @@ public final class MultiplayerManager {
     private static final Path GSUDO_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("gsudo").resolve("gsudo").resolve(GSUDO_VERSION).resolve(GSUDO_TARGET_ARCH).resolve(GSUDO_FILE_NAME);
 
     private static final String HIPERKILLERBAT_FILE_NAME = "hiperkiller.bat";
-    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/tree/7ef7402dd4a8188efa48ccf8c6846be4ef35a319/";
+    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/raw/7ef7402dd4a8188efa48ccf8c6846be4ef35a319/";
     private static final String HIPERKILLERBAT_DOWNLOAD_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME;
-    private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_SHAFILE_NAME + ".sha1";
+    private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".sha1";
     private static final Path HIPERKILLERBAT_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("hiperkiller").resolve("hiperkiller").resolve(HIPERKILLERBAT_FILE_NAME);
 
     private static CompletableFuture<Map<String, String>> HASH;
@@ -128,11 +128,7 @@ public final class MultiplayerManager {
                 }
                 if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
                     hashes.put(GSUDO_FILE_NAME, HttpRequest.GET(GSUDO_DOWNLOAD_URL + ".sha1").getString().trim());
-                }
-                return hashes;
-
-                if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-                    hashes.put(HttpRequest.GET(HIPERKILLERBAT_PACKAGES_URL).getString().trim());
+                    hashes.put(HIPERKILLERBAT_FILE_NAME, HttpRequest.GET(HIPERKILLERBAT_PACKAGES_URL).getString().trim());
                 }
                 return hashes;
             }));
