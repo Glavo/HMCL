@@ -98,7 +98,7 @@ public final class MultiplayerManager {
     private static final Path GSUDO_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("gsudo").resolve("gsudo").resolve(GSUDO_VERSION).resolve(GSUDO_TARGET_ARCH).resolve(GSUDO_FILE_NAME);
 
     private static final String HIPERKILLERBAT_FILE_NAME = "hiperkiller.bat";
-    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/raw/601840be93e5fe05b54f4f613a4c702f3a72e159/";
+    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/raw/master/";
     private static final String HIPERKILLERBAT_DOWNLOAD_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME;
     private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".sha1";
     private static final Path HIPERKILLERBAT_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("hiperkiller").resolve("hiperkiller").resolve(HIPERKILLERBAT_FILE_NAME);
