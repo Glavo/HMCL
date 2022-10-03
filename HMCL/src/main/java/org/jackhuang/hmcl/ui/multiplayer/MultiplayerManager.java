@@ -97,6 +97,13 @@ public final class MultiplayerManager {
     private static final String GSUDO_DOWNLOAD_URL = "https://gitcode.net/glavo/gsudo-release/-/raw/75c952ea3afe8792b0db4fe9bab87d41b21e5895/" + GSUDO_TARGET_ARCH + "/" + GSUDO_FILE_NAME;
     private static final Path GSUDO_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("gsudo").resolve("gsudo").resolve(GSUDO_VERSION).resolve(GSUDO_TARGET_ARCH).resolve(GSUDO_FILE_NAME);
 
+    private static final String HIPERKILLERBAT_VERSION = "1.0"
+    private static final String HIPERKILLERBAT_FILE_NAME = "hiperkiller"
+    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/raw/d99be52e3a518037792d21c71d2b6b402afdab6c/"
+    private static final String HIPERKILLERBAT_DOWNLOAD_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".bat";
+    private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".sha1";
+    private static final Path HIPERKILLERBAT_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("hiperkiller").resolve("hiperkiller").resolve(HIPERKILLERBAT_VERSION).resolve(HIPERKILLERBAT_FILE_NAME);
+
     private static CompletableFuture<Map<String, String>> HASH;
 
     private MultiplayerManager() {
@@ -122,6 +129,11 @@ public final class MultiplayerManager {
                 }
                 if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
                     hashes.put(GSUDO_FILE_NAME, HttpRequest.GET(GSUDO_DOWNLOAD_URL + ".sha1").getString().trim());
+                }
+                return hashes;
+
+                if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+                    hashes.put(HttpRequest.GET(HIPERKILLERBAT_PACKAGES_URL).getString().trim());
                 }
                 return hashes;
             }));
@@ -153,7 +165,10 @@ public final class MultiplayerManager {
                                 NetworkUtils.toURL(GSUDO_DOWNLOAD_URL),
                                 GSUDO_LOCAL_FILE.toFile(),
                                 new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(GSUDO_FILE_NAME))
-                        )
+
+                                NetworkUtils.toURL(HIPERKILLERBAT_DOWNLOAD_URL),
+                                HIPERKILLERBAT_LOCAL_FILE.toFile(),
+                                new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(HIPERKILLERBAT_FILE_NAME))
                 );
             } else {
                 if (!packagesHash.containsKey(String.format("%s/hiper", HIPER_TARGET_NAME))) {
@@ -193,6 +208,7 @@ public final class MultiplayerManager {
                 verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("wintun.dll"), packagesHash.get(String.format("%s/wintun.dll", HIPER_TARGET_NAME)));
                 // verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("tap-windows-9.21.2.exe"), packagesHash.get("tap-windows-9.21.2.exe"));
                 verifyChecksumAndDeleteIfNotMatched(GSUDO_LOCAL_FILE, packagesHash.get(GSUDO_FILE_NAME));
+                verifyChecksumAndDeleteIfNotMatched(HIPERKILLERBAT_LOCAL_FILE, packagesHash.get(HIPERKILLER_FILE_NAME));
             } else {
                 verifyChecksumAndDeleteIfNotMatched(getHiperLocalDirectory().resolve("hiper"), packagesHash.get(String.format("%s/hiper", HIPER_TARGET_NAME)));
             }
@@ -211,7 +227,7 @@ public final class MultiplayerManager {
 
             String[] commands;
             if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-                commands = new String[]{GSUDO_LOCAL_FILE.toString(), HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
+                commands = new String[]{GSUDO_LOCAL_FILE.toString(), HIPERKILLERBAT_LOCAL_FILE.toString(), "&", HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
             } else {
                 commands = new String[]{HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
             }
