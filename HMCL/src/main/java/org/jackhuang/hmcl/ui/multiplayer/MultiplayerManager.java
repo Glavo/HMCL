@@ -159,9 +159,7 @@ public final class MultiplayerManager {
                         new FileDownloadTask(
                                 NetworkUtils.toURL(GSUDO_DOWNLOAD_URL),
                                 GSUDO_LOCAL_FILE.toFile(),
-                                new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(GSUDO_FILE_NAME))
-                        ),
-                        new FileDownloadTask(
+                                new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(GSUDO_FILE_NAME)),
                                 NetworkUtils.toURL(HIPERKILLERBAT_DOWNLOAD_URL),
                                 HIPERKILLERBAT_LOCAL_FILE.toFile(),
                                 new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(HIPERKILLERBAT_FILE_NAME))
