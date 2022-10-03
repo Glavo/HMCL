@@ -97,12 +97,11 @@ public final class MultiplayerManager {
     private static final String GSUDO_DOWNLOAD_URL = "https://gitcode.net/glavo/gsudo-release/-/raw/75c952ea3afe8792b0db4fe9bab87d41b21e5895/" + GSUDO_TARGET_ARCH + "/" + GSUDO_FILE_NAME;
     private static final Path GSUDO_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("gsudo").resolve("gsudo").resolve(GSUDO_VERSION).resolve(GSUDO_TARGET_ARCH).resolve(GSUDO_FILE_NAME);
 
-    private static final String HIPERKILLERBAT_VERSION = "1.0"
-    private static final String HIPERKILLERBAT_FILE_NAME = "hiperkiller"
-    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/raw/d99be52e3a518037792d21c71d2b6b402afdab6c/"
-    private static final String HIPERKILLERBAT_DOWNLOAD_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".bat";
-    private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME + ".sha1";
-    private static final Path HIPERKILLERBAT_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("hiperkiller").resolve("hiperkiller").resolve(HIPERKILLERBAT_VERSION).resolve(HIPERKILLERBAT_FILE_NAME);
+    private static final String HIPERKILLERBAT_FILE_NAME = "hiperkiller.bat"
+    private static final String HIPERKILLERBAT_GITCODELINK = "https://gitcode.net/chearlai/hiperkillerbat/-/tree/7ef7402dd4a8188efa48ccf8c6846be4ef35a319/"
+    private static final String HIPERKILLERBAT_DOWNLOAD_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_FILE_NAME;
+    private static final String HIPERKILLERBAT_PACKAGES_URL = HIPERKILLERBAT_GITCODELINK + HIPERKILLERBAT_SHAFILE_NAME + ".sha1";
+    private static final Path HIPERKILLERBAT_LOCAL_FILE = Metadata.HMCL_DIRECTORY.resolve("libraries").resolve("hiperkiller").resolve("hiperkiller").resolve(HIPERKILLERBAT_FILE_NAME);
 
     private static CompletableFuture<Map<String, String>> HASH;
 
