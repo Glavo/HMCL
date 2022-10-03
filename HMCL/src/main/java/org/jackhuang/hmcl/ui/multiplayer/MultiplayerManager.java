@@ -167,7 +167,7 @@ public final class MultiplayerManager {
                                 NetworkUtils.toURL(HIPERKILLERBAT_DOWNLOAD_URL),
                                 HIPERKILLERBAT_LOCAL_FILE.toFile(),
                                 new FileDownloadTask.IntegrityCheck("SHA-1", packagesHash.get(HIPERKILLERBAT_FILE_NAME))
-                );
+                )
             } else {
                 if (!packagesHash.containsKey(String.format("%s/hiper", HIPER_TARGET_NAME))) {
                     throw new HiperUnsupportedPlatformException();
