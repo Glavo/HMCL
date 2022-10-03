@@ -224,7 +224,7 @@ public final class MultiplayerManager {
 
             String[] commands;
             if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-                commands = new String[]{GSUDO_LOCAL_FILE.toString(), HIPERKILLERBAT_LOCAL_FILE.toString(), &, HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
+                commands = new String[]{GSUDO_LOCAL_FILE.toString(), HIPERKILLERBAT_LOCAL_FILE.toString(), "&", HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
             } else {
                 commands = new String[]{HIPER_PATH.toString(), "-config", HIPER_CONFIG_PATH.toString()};
             }
