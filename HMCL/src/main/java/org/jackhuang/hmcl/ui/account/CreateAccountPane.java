@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Pattern;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
@@ -80,6 +81,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.javafx.ExtendedProperties.classPropertyFor;
 
 public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
+    private static final Pattern USERNAME_CHECKER_PATTERN = Pattern.compile("^[A-Za-z0-9_]+$");
 
     private boolean showMethodSwitcher;
     private AccountFactory<?> factory;
@@ -222,35 +224,52 @@ public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
             additionalData = null;
         }
 
-        logging.set(true);
-        deviceCode.set(null);
+        Runnable doCreate = () -> {
+            logging.set(true);
+            deviceCode.set(null);
 
-        loginTask = Task.supplyAsync(() -> factory.create(new DialogCharacterSelector(), username, password, null, additionalData))
-                .whenComplete(Schedulers.javafx(), account -> {
-                    int oldIndex = Accounts.getAccounts().indexOf(account);
-                    if (oldIndex == -1) {
-                        Accounts.getAccounts().add(account);
-                    } else {
-                        // adding an already-added account
-                        // instead of discarding the new account, we first remove the existing one then add the new one
-                        Accounts.getAccounts().remove(oldIndex);
-                        Accounts.getAccounts().add(oldIndex, account);
-                    }
+            loginTask = Task.supplyAsync(() -> factory.create(new DialogCharacterSelector(), username, password, null, additionalData))
+                    .whenComplete(Schedulers.javafx(), account -> {
+                        int oldIndex = Accounts.getAccounts().indexOf(account);
+                        if (oldIndex == -1) {
+                            Accounts.getAccounts().add(account);
+                        } else {
+                            // adding an already-added account
+                            // instead of discarding the new account, we first remove the existing one then add the new one
+                            Accounts.getAccounts().remove(oldIndex);
+                            Accounts.getAccounts().add(oldIndex, account);
+                        }
 
-                    // select the new account
-                    Accounts.setSelectedAccount(account);
+                        // select the new account
+                        Accounts.setSelectedAccount(account);
 
-                    spinner.hideSpinner();
-                    fireEvent(new DialogCloseEvent());
-                }, exception -> {
-                    if (exception instanceof NoSelectedCharacterException) {
+                        spinner.hideSpinner();
                         fireEvent(new DialogCloseEvent());
-                    } else {
-                        lblErrorMessage.setText(Accounts.localizeErrorMessage(exception));
+                    }, exception -> {
+                        if (exception instanceof NoSelectedCharacterException) {
+                            fireEvent(new DialogCloseEvent());
+                        } else {
+                            lblErrorMessage.setText(Accounts.localizeErrorMessage(exception));
+                        }
+                        body.setDisable(false);
+                        spinner.hideSpinner();
+                    }).executor(true);
+        };
+
+        if (factory instanceof OfflineAccountFactory && username != null && !USERNAME_CHECKER_PATTERN.matcher(username).matches()) {
+            Controllers.confirm(
+                    i18n("account.methods.offline.name.invalid"), i18n("message.warning"),
+                    MessageDialogPane.MessageType.WARNING,
+                    doCreate,
+                    () -> {
+                        lblErrorMessage.setText(i18n("account.methods.offline.name.invalid"));
+                        body.setDisable(false);
+                        spinner.hideSpinner();
                     }
-                    body.setDisable(false);
-                    spinner.hideSpinner();
-                }).executor(true);
+            );
+        } else {
+            doCreate.run();
+        }
     }
 
     private void onCancel() {
@@ -353,7 +372,7 @@ public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
     private static class AccountDetailsInputPane extends GridPane {
 
         // ==== authlib-injector hyperlinks ====
-        private static final String[] ALLOWED_LINKS = { "homepage", "register" };
+        private static final String[] ALLOWED_LINKS = {"homepage", "register"};
 
         private static List<Hyperlink> createHyperlinks(AuthlibInjectorServer server) {
             if (server == null) {
@@ -459,7 +478,7 @@ public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
                 linksContainer.setMinWidth(USE_PREF_SIZE);
 
                 JFXButton btnAddServer = new JFXButton();
-                btnAddServer.setGraphic(SVG.plus(Theme.blackFillBinding(), 20, 20));
+                btnAddServer.setGraphic(SVG.PLUS.createIcon(Theme.blackFill(), 20, 20));
                 btnAddServer.getStyleClass().add("toggle-icon4");
                 btnAddServer.setOnAction(e -> {
                     Controllers.dialog(new AddAuthlibInjectorServerPane());
@@ -512,13 +531,13 @@ public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
                 GridPane.setColumnSpan(box, 2);
 
                 JFXHyperlink migrationLink = new JFXHyperlink(i18n("account.methods.yggdrasil.migration"));
-                migrationLink.setOnAction(e -> FXUtils.openLink("https://aka.ms/MinecraftMigration"));
+                migrationLink.setExternalLink("https://aka.ms/MinecraftMigration");
 
                 JFXHyperlink migrationHowLink = new JFXHyperlink(i18n("account.methods.yggdrasil.migration.how"));
-                migrationHowLink.setOnAction(e -> FXUtils.openLink("https://help.minecraft.net/hc/articles/4411173197709"));
+                migrationHowLink.setExternalLink("https://help.minecraft.net/hc/articles/4411173197709");
 
                 JFXHyperlink purchaseLink = new JFXHyperlink(i18n("account.methods.yggdrasil.purchase"));
-                purchaseLink.setOnAction(e -> FXUtils.openLink(YggdrasilService.PURCHASE_URL));
+                purchaseLink.setExternalLink(YggdrasilService.PURCHASE_URL);
 
                 box.getChildren().setAll(migrationLink, migrationHowLink, purchaseLink);
                 add(box, 0, rowIndex);
@@ -528,9 +547,10 @@ public class CreateAccountPane extends JFXDialogLayout implements DialogAware {
 
             if (factory instanceof OfflineAccountFactory) {
                 txtUsername.setPromptText(i18n("account.methods.offline.name.special_characters"));
+                runInFX(() -> FXUtils.installFastTooltip(txtUsername, i18n("account.methods.offline.name.special_characters")));
 
                 JFXHyperlink purchaseLink = new JFXHyperlink(i18n("account.methods.yggdrasil.purchase"));
-                purchaseLink.setOnAction(e -> FXUtils.openLink(YggdrasilService.PURCHASE_URL));
+                purchaseLink.setExternalLink(YggdrasilService.PURCHASE_URL);
                 HBox linkPane = new HBox(purchaseLink);
                 GridPane.setColumnSpan(linkPane, 2);
                 add(linkPane, 0, rowIndex);

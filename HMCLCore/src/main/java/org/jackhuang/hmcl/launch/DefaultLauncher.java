@@ -26,6 +26,7 @@ import org.jackhuang.hmcl.util.gson.UUIDTypeAdapter;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.io.IOUtils;
 import org.jackhuang.hmcl.util.io.Unzipper;
+import org.jackhuang.hmcl.util.platform.Bits;
 import org.jackhuang.hmcl.util.platform.*;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
@@ -207,7 +208,7 @@ public class DefaultLauncher extends Launcher {
             res.addDefault("-Dfml.ignorePatchDiscrepancies=", "true");
         }
 
-        List<String> classpath = repository.getClasspath(version);
+        Set<String> classpath = repository.getClasspath(version);
 
         File jar = repository.getVersionJar(version);
         if (!jar.exists() || !jar.isFile())
@@ -255,10 +256,15 @@ public class DefaultLauncher extends Launcher {
 
         if (StringUtils.isNotBlank(options.getServerIp())) {
             String[] args = options.getServerIp().split(":");
-            res.add("--server");
-            res.add(args[0]);
-            res.add("--port");
-            res.add(args.length > 1 ? args[1] : "25565");
+            if (version.compareTo(new Version("1.20")) < 0) {
+                res.add("--server");
+                res.add(args[0]);
+                res.add("--port");
+                res.add(args.length > 1 ? args[1] : "25565");
+            } else {
+                res.add("--quickPlayMultiplayer");
+                res.add(args[0] + ":" + (args.length > 1 ? args[1] : "25565"));
+            }
         }
 
         if (options.isFullscreen())
@@ -414,6 +420,9 @@ public class DefaultLauncher extends Launcher {
 
         // To guarantee that when failed to generate launch command line, we will not call pre-launch command
         List<String> rawCommandLine = command.commandLine.asList();
+        if (StringUtils.isNotBlank(options.getWrapper())) {
+            rawCommandLine.addAll(0, StringUtils.parseCommand(options.getWrapper(), getEnvVars()));
+        }
 
         if (command.tempNativeFolder != null) {
             Files.deleteIfExists(command.tempNativeFolder);
@@ -434,7 +443,7 @@ public class DefaultLauncher extends Launcher {
         File runDirectory = repository.getRunDirectory(version.getId());
 
         if (StringUtils.isNotBlank(options.getPreLaunchCommand())) {
-            ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPreLaunchCommand())).directory(runDirectory);
+            ProcessBuilder builder = new ProcessBuilder(StringUtils.parseCommand(options.getPreLaunchCommand(), getEnvVars())).directory(runDirectory);
             builder.environment().putAll(getEnvVars());
             SystemUtils.callExternalProcess(builder);
         }
@@ -462,16 +471,29 @@ public class DefaultLauncher extends Launcher {
 
     private Map<String, String> getEnvVars() {
         String versionName = Optional.ofNullable(options.getVersionName()).orElse(version.getId());
-        Map<String, String> env = new HashMap<>();
+        Map<String, String> env = new LinkedHashMap<>();
         env.put("INST_NAME", versionName);
         env.put("INST_ID", versionName);
         env.put("INST_DIR", repository.getVersionRoot(version.getId()).getAbsolutePath());
         env.put("INST_MC_DIR", repository.getRunDirectory(version.getId()).getAbsolutePath());
         env.put("INST_JAVA", options.getJava().getBinary().toString());
 
-        if (options.isUseSoftwareRenderer() && OperatingSystem.CURRENT_OS == OperatingSystem.LINUX) {
-            env.put("LIBGL_ALWAYS_SOFTWARE", "1");
-            env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
+        Renderer renderer = options.getRenderer();
+        if (renderer != Renderer.DEFAULT) {
+            if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+                if (renderer != Renderer.LLVMPIPE)
+                    env.put("GALLIUM_DRIVER", renderer.name().toLowerCase(Locale.ROOT));
+            } else if (OperatingSystem.CURRENT_OS == OperatingSystem.LINUX) {
+                env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
+                switch (renderer) {
+                    case LLVMPIPE:
+                        env.put("LIBGL_ALWAYS_SOFTWARE", "1");
+                        break;
+                    case ZINK:
+                        env.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
+                        break;
+                }
+            }
         }
 
         LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(version);
@@ -490,6 +512,9 @@ public class DefaultLauncher extends Launcher {
         if (analyzer.has(LibraryAnalyzer.LibraryType.QUILT)) {
             env.put("INST_QUILT", "1");
         }
+
+        env.putAll(options.getEnvironmentVariables());
+
         return env;
     }
 
@@ -533,91 +558,92 @@ public class DefaultLauncher extends Launcher {
         if (!FileUtils.makeFile(scriptFile))
             throw new IOException("Script file: " + scriptFile + " cannot be created.");
 
-        OutputStream outputStream = new FileOutputStream(scriptFile);
-        Charset charset = StandardCharsets.UTF_8;
+        try (OutputStream outputStream = Files.newOutputStream(scriptFile.toPath())) {
+            Charset charset = StandardCharsets.UTF_8;
 
-        if (isWindows) {
-            if (usePowerShell) {
-                // Write UTF-8 BOM
-                try {
-                    outputStream.write(0xEF);
-                    outputStream.write(0xBB);
-                    outputStream.write(0xBF);
-                } catch (IOException e) {
-                    outputStream.close();
-                    throw e;
+            if (isWindows) {
+                if (usePowerShell) {
+                    // Write UTF-8 BOM
+                    try {
+                        outputStream.write(0xEF);
+                        outputStream.write(0xBB);
+                        outputStream.write(0xBF);
+                    } catch (IOException e) {
+                        outputStream.close();
+                        throw e;
+                    }
+                } else {
+                    charset = OperatingSystem.NATIVE_CHARSET;
                 }
-            } else {
-                charset = OperatingSystem.NATIVE_CHARSET;
             }
-        }
 
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, charset))) {
-            if (usePowerShell) {
-                if (isWindows) {
-                    writer.write("$Env:APPDATA=");
-                    writer.write(CommandBuilder.pwshString(options.getGameDir().getAbsoluteFile().getParent()));
-                    writer.newLine();
-                }
-                for (Map.Entry<String, String> entry : getEnvVars().entrySet()) {
-                    writer.write("$Env:" + entry.getKey() + "=");
-                    writer.write(CommandBuilder.pwshString(entry.getValue()));
-                    writer.newLine();
-                }
-                writer.write("Set-Location -Path ");
-                writer.write(CommandBuilder.pwshString(repository.getRunDirectory(version.getId()).getAbsolutePath()));
-                writer.newLine();
-
-                writer.write('&');
-                for (String rawCommand : commandLine.commandLine.asList()) {
-                    writer.write(' ');
-                    writer.write(CommandBuilder.pwshString(rawCommand));
-                }
-                writer.newLine();
-            } else {
-                if (isWindows) {
-                    writer.write("@echo off");
-                    writer.newLine();
-                    writer.write("set APPDATA=" + options.getGameDir().getAbsoluteFile().getParent());
-                    writer.newLine();
-                    for (Map.Entry<String, String> entry : getEnvVars().entrySet()) {
-                        writer.write("set " + entry.getKey() + "=" + CommandBuilder.toBatchStringLiteral(entry.getValue()));
+            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, charset))) {
+                if (usePowerShell) {
+                    if (isWindows) {
+                        writer.write("$Env:APPDATA=");
+                        writer.write(CommandBuilder.pwshString(options.getGameDir().getAbsoluteFile().getParent()));
                         writer.newLine();
                     }
-                    writer.newLine();
-                    writer.write(new CommandBuilder().add("cd", "/D", repository.getRunDirectory(version.getId()).getAbsolutePath()).toString());
-                } else {
-                    writer.write("#!/usr/bin/env bash");
-                    writer.newLine();
                     for (Map.Entry<String, String> entry : getEnvVars().entrySet()) {
-                        writer.write("export " + entry.getKey() + "=" + CommandBuilder.toShellStringLiteral(entry.getValue()));
+                        writer.write("$Env:" + entry.getKey() + "=");
+                        writer.write(CommandBuilder.pwshString(entry.getValue()));
+                        writer.newLine();
+                    }
+                    writer.write("Set-Location -Path ");
+                    writer.write(CommandBuilder.pwshString(repository.getRunDirectory(version.getId()).getAbsolutePath()));
+                    writer.newLine();
+
+                    writer.write('&');
+                    for (String rawCommand : commandLine.commandLine.asList()) {
+                        writer.write(' ');
+                        writer.write(CommandBuilder.pwshString(rawCommand));
+                    }
+                    writer.newLine();
+                } else {
+                    if (isWindows) {
+                        writer.write("@echo off");
+                        writer.newLine();
+                        writer.write("set APPDATA=" + options.getGameDir().getAbsoluteFile().getParent());
+                        writer.newLine();
+                        for (Map.Entry<String, String> entry : getEnvVars().entrySet()) {
+                            writer.write("set " + entry.getKey() + "=" + CommandBuilder.toBatchStringLiteral(entry.getValue()));
+                            writer.newLine();
+                        }
+                        writer.newLine();
+                        writer.write(new CommandBuilder().add("cd", "/D", repository.getRunDirectory(version.getId()).getAbsolutePath()).toString());
+                    } else {
+                        writer.write("#!/usr/bin/env bash");
+                        writer.newLine();
+                        for (Map.Entry<String, String> entry : getEnvVars().entrySet()) {
+                            writer.write("export " + entry.getKey() + "=" + CommandBuilder.toShellStringLiteral(entry.getValue()));
+                            writer.newLine();
+                        }
+                        if (commandLine.tempNativeFolder != null) {
+                            writer.write(new CommandBuilder().add("ln", "-s", nativeFolder.getAbsolutePath(), commandLine.tempNativeFolder.toString()).toString());
+                            writer.newLine();
+                        }
+                        writer.write(new CommandBuilder().add("cd", repository.getRunDirectory(version.getId()).getAbsolutePath()).toString());
+                    }
+                    writer.newLine();
+                    if (StringUtils.isNotBlank(options.getPreLaunchCommand())) {
+                        writer.write(options.getPreLaunchCommand());
+                        writer.newLine();
+                    }
+                    writer.write(command);
+                    writer.newLine();
+                    if (StringUtils.isNotBlank(options.getPostExitCommand())) {
+                        writer.write(options.getPostExitCommand());
+                        writer.newLine();
+                    }
+
+                    if (isWindows) {
+                        writer.write("pause");
                         writer.newLine();
                     }
                     if (commandLine.tempNativeFolder != null) {
-                        writer.write(new CommandBuilder().add("ln", "-s", nativeFolder.getAbsolutePath(), commandLine.tempNativeFolder.toString()).toString());
+                        writer.write(new CommandBuilder().add("rm", commandLine.tempNativeFolder.toString()).toString());
                         writer.newLine();
                     }
-                    writer.write(new CommandBuilder().add("cd", repository.getRunDirectory(version.getId()).getAbsolutePath()).toString());
-                }
-                writer.newLine();
-                if (StringUtils.isNotBlank(options.getPreLaunchCommand())) {
-                    writer.write(options.getPreLaunchCommand());
-                    writer.newLine();
-                }
-                writer.write(command);
-                writer.newLine();
-                if (StringUtils.isNotBlank(options.getPostExitCommand())) {
-                    writer.write(options.getPostExitCommand());
-                    writer.newLine();
-                }
-
-                if (isWindows) {
-                    writer.write("pause");
-                    writer.newLine();
-                }
-                if (commandLine.tempNativeFolder != null) {
-                    writer.write(new CommandBuilder().add("rm", commandLine.tempNativeFolder.toString()).toString());
-                    writer.newLine();
                 }
             }
         }
@@ -628,7 +654,7 @@ public class DefaultLauncher extends Launcher {
             throw new ExecutionPolicyLimitException();
     }
 
-    private static void startMonitors(ManagedProcess managedProcess, ProcessListener processListener, Charset encoding, boolean isDaemon) {
+    private void startMonitors(ManagedProcess managedProcess, ProcessListener processListener, Charset encoding, boolean isDaemon) {
         processListener.setProcess(managedProcess);
         Thread stdout = Lang.thread(new StreamPump(managedProcess.getProcess().getInputStream(), it -> {
             processListener.onLog(it, false);
@@ -640,7 +666,19 @@ public class DefaultLauncher extends Launcher {
             managedProcess.addLine(it);
         }, encoding), "stderr-pump", isDaemon);
         managedProcess.addRelatedThread(stderr);
-        managedProcess.addRelatedThread(Lang.thread(new ExitWaiter(managedProcess, Arrays.asList(stdout, stderr), processListener::onExit), "exit-waiter", isDaemon));
+        managedProcess.addRelatedThread(Lang.thread(new ExitWaiter(managedProcess, Arrays.asList(stdout, stderr), (exitCode, exitType) -> {
+            processListener.onExit(exitCode, exitType);
+
+            if (StringUtils.isNotBlank(options.getPostExitCommand())) {
+                try {
+                    ProcessBuilder builder = new ProcessBuilder(StringUtils.parseCommand(options.getPostExitCommand(), getEnvVars())).directory(options.getGameDir());
+                    builder.environment().putAll(getEnvVars());
+                    SystemUtils.callExternalProcess(builder);
+                } catch (Throwable e) {
+                    LOG.log(Level.WARNING, "An Exception happened while running exit command.", e);
+                }
+            }
+        }), "exit-waiter", isDaemon));
     }
 
     private static final class Command {

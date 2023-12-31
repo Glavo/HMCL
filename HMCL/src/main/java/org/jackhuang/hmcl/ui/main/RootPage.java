@@ -80,7 +80,7 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
         return new Skin(this);
     }
 
-    private MainPage getMainPage() {
+    public MainPage getMainPage() {
         if (mainPage == null) {
             MainPage mainPage = new MainPage();
             FXUtils.applyDragListener(mainPage, ModpackHelper::isFileModpackByExtension, modpacks -> {
@@ -137,21 +137,22 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
 
             // third item in left sidebar
             AdvancedListItem gameItem = new AdvancedListItem();
-            gameItem.setLeftGraphic(wrap(SVG::viewList));
+            gameItem.setLeftGraphic(wrap(SVG.VIEW_LIST));
             gameItem.setActionButtonVisible(false);
             gameItem.setTitle(i18n("version.manage"));
             gameItem.setOnAction(e -> Controllers.navigate(Controllers.getGameListPage()));
 
             // forth item in left sidebar
             AdvancedListItem downloadItem = new AdvancedListItem();
-            downloadItem.setLeftGraphic(wrap(SVG::downloadOutline));
+            downloadItem.setLeftGraphic(wrap(SVG.DOWNLOAD_OUTLINE));
             downloadItem.setActionButtonVisible(false);
             downloadItem.setTitle(i18n("download"));
             downloadItem.setOnAction(e -> Controllers.navigate(Controllers.getDownloadPage()));
+            runInFX(() -> FXUtils.installFastTooltip(downloadItem, i18n("download.hint")));
 
             // fifth item in left sidebar
             AdvancedListItem launcherSettingsItem = new AdvancedListItem();
-            launcherSettingsItem.setLeftGraphic(wrap(SVG::gearOutline));
+            launcherSettingsItem.setLeftGraphic(wrap(SVG.GEAR_OUTLINE));
             launcherSettingsItem.setActionButtonVisible(false);
             launcherSettingsItem.setTitle(i18n("settings"));
             launcherSettingsItem.setOnAction(e -> Controllers.navigate(Controllers.getSettingsPage()));

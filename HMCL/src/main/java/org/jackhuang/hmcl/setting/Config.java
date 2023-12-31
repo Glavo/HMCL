@@ -158,7 +158,7 @@ public final class Config implements Cloneable, Observable {
     private StringProperty launcherFontFamily = new SimpleStringProperty();
 
     @SerializedName("logLines")
-    private IntegerProperty logLines = new SimpleIntegerProperty(100);
+    private IntegerProperty logLines = new SimpleIntegerProperty(1000);
 
     @SerializedName("titleTransparent")
     private BooleanProperty titleTransparent = new SimpleBooleanProperty(false);
@@ -193,6 +193,9 @@ public final class Config implements Cloneable, Observable {
 
     @SerializedName("animationDisabled")
     private BooleanProperty animationDisabled = new SimpleBooleanProperty();
+
+    @SerializedName("shownTips")
+    private ObservableMap<String, Object> shownTips = FXCollections.observableHashMap();
 
     private transient ObservableHelper helper = new ObservableHelper(this);
 
@@ -638,5 +641,9 @@ public final class Config implements Cloneable, Observable {
 
     public void setPromptedVersion(String promptedVersion) {
         this.promptedVersion.set(promptedVersion);
+    }
+
+    public ObservableMap<String, Object> getShownTips() {
+        return shownTips;
     }
 }

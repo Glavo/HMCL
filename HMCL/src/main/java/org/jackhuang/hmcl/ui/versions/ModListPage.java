@@ -188,7 +188,7 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
                             return null;
                         })
                         .whenComplete(Schedulers.javafx(), (result, exception) -> {
-                            if (exception != null) {
+                            if (exception != null || result == null) {
                                 Controllers.dialog("Failed to check updates", "failed", MessageDialogPane.MessageType.ERROR);
                             } else if (result.isEmpty()) {
                                 Controllers.dialog(i18n("mods.check_updates.empty"));
@@ -233,5 +233,13 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
 
     public void setModded(boolean modded) {
         this.modded.set(modded);
+    }
+
+    public Profile getProfile() {
+        return this.profile;
+    }
+
+    public String getVersionId() {
+        return this.versionId;
     }
 }

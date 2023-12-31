@@ -150,8 +150,9 @@ public final class LauncherHelper {
                                 }
                             }),
                             Task.composeAsync(() -> {
-                                if (setting.isUseSoftwareRenderer() && OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-                                    Library lib = NativePatcher.getSoftwareRendererLoader(javaVersion);
+                                Renderer renderer = setting.getRenderer();
+                                if (renderer != Renderer.DEFAULT && OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+                                    Library lib = NativePatcher.getMesaLoader(javaVersion, renderer);
                                     if (lib == null)
                                         return null;
                                     File file = dependencyManager.getGameRepository().getLibraryFile(version.get(), lib);
@@ -160,11 +161,13 @@ public final class LauncherHelper {
                                         return null;
                                     }
 
+                                    String agent = file.getAbsolutePath() + "=" + renderer.name().toLowerCase(Locale.ROOT);
+
                                     if (GameLibrariesTask.shouldDownloadLibrary(repository, version.get(), lib, integrityCheck)) {
                                         return new LibraryDownloadTask(dependencyManager, file, lib)
-                                                .thenRunAsync(() -> javaAgents.add(file.getAbsolutePath()));
+                                                .thenRunAsync(() -> javaAgents.add(agent));
                                     } else {
-                                        javaAgents.add(file.getAbsolutePath());
+                                        javaAgents.add(agent);
                                         return null;
                                     }
                                 } else {
@@ -828,6 +831,10 @@ public final class LauncherHelper {
 
         @Override
         public void onExit(int exitCode, ExitType exitType) {
+            if (showLogs) {
+                Platform.runLater(() -> logWindow.logLine(String.format("[HMCL ProcessListener] Minecraft exit with code %d.", exitCode), Log4jLevel.INFO));
+            }
+
             launchingLatch.countDown();
 
             if (exitType == ExitType.INTERRUPTED)

@@ -216,6 +216,11 @@ public final class Controllers {
                 Controllers.dialog(i18n("fatal.unsupported_platform.osx_arm64"), null, MessageType.INFO, continueAction);
             } else if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS && Architecture.SYSTEM_ARCH == Architecture.ARM64) {
                 Controllers.dialog(i18n("fatal.unsupported_platform.windows_arm64"), null, MessageType.INFO, continueAction);
+            } else if (OperatingSystem.CURRENT_OS == OperatingSystem.LINUX &&
+                    (Architecture.SYSTEM_ARCH == Architecture.LOONGARCH64
+                            || Architecture.SYSTEM_ARCH == Architecture.LOONGARCH64_OW
+                            || Architecture.SYSTEM_ARCH == Architecture.MIPS64EL)) {
+                Controllers.dialog(i18n("fatal.unsupported_platform.loongarch"), null, MessageType.INFO, continueAction);
             } else {
                 Controllers.dialog(i18n("fatal.unsupported_platform"), null, MessageType.WARNING, continueAction);
             }
@@ -227,7 +232,7 @@ public final class Controllers {
             agreementPane.setHeading(new Label(i18n("launcher.agreement")));
             agreementPane.setBody(new Label(i18n("launcher.agreement.hint")));
             JFXHyperlink agreementLink = new JFXHyperlink(i18n("launcher.agreement"));
-            agreementLink.setOnAction(e -> FXUtils.openLink(Metadata.EULA_URL));
+            agreementLink.setExternalLink(Metadata.EULA_URL);
             JFXButton yesButton = new JFXButton(i18n("launcher.agreement.accept"));
             yesButton.getStyleClass().add("dialog-accept");
             yesButton.setOnAction(e -> {
@@ -236,9 +241,7 @@ public final class Controllers {
             });
             JFXButton noButton = new JFXButton(i18n("launcher.agreement.decline"));
             noButton.getStyleClass().add("dialog-cancel");
-            noButton.setOnAction(e -> {
-                System.exit(1);
-            });
+            noButton.setOnAction(e -> System.exit(1));
             agreementPane.setActions(agreementLink, yesButton, noButton);
             Controllers.dialog(agreementPane);
         }
@@ -325,9 +328,14 @@ public final class Controllers {
 
     public static void onHyperlinkAction(String href) {
         if (href.startsWith("hmcl://")) {
-            if ("hmcl://settings/feedback".equals(href)) {
-                Controllers.getSettingsPage().showFeedback();
-                Controllers.navigate(Controllers.getSettingsPage());
+            switch (href) {
+                case "hmcl://settings/feedback":
+                    Controllers.getSettingsPage().showFeedback();
+                    Controllers.navigate(Controllers.getSettingsPage());
+                    break;
+                case "hmcl://hide-announcement":
+                    Controllers.getRootPage().getMainPage().hideAnnouncementPane();
+                    break;
             }
         } else {
             FXUtils.openLink(href);
