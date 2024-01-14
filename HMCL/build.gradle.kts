@@ -1,14 +1,16 @@
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import java.net.URI
-import java.nio.file.FileSystems
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
-import java.util.zip.ZipFile
+import java.util.TreeMap
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 buildscript {
     repositories {
@@ -53,46 +55,6 @@ dependencies {
 }
 
 fun digest(algorithm: String, bytes: ByteArray): ByteArray = MessageDigest.getInstance(algorithm).digest(bytes)
-
-fun createChecksum(file: File) {
-    val algorithms = linkedMapOf(
-        "MD5" to "md5",
-        "SHA-1" to "sha1",
-        "SHA-256" to "sha256",
-        "SHA-512" to "sha512"
-    )
-
-    algorithms.forEach { (algorithm, ext) ->
-        File(file.parentFile, "${file.name}.$ext").writeText(
-            digest(algorithm, file.readBytes()).joinToString(separator = "", postfix = "\n") { "%02x".format(it) }
-        )
-    }
-}
-
-fun attachSignature(jar: File) {
-    val keyLocation = System.getenv("HMCL_SIGNATURE_KEY")
-    if (keyLocation == null) {
-        logger.warn("Missing signature key")
-        return
-    }
-
-    val privatekey = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(File(keyLocation).readBytes()))
-    val signer = Signature.getInstance("SHA512withRSA")
-    signer.initSign(privatekey)
-    ZipFile(jar).use { zip ->
-        zip.stream()
-            .sorted(Comparator.comparing { it.name })
-            .filter { it.name != "META-INF/hmcl_signature" }
-            .forEach {
-                signer.update(digest("SHA-512", it.name.toByteArray()))
-                signer.update(digest("SHA-512", zip.getInputStream(it).readBytes()))
-            }
-    }
-    val signature = signer.sign()
-    FileSystems.newFileSystem(URI.create("jar:" + jar.toURI()), emptyMap<String, Any>()).use { zipfs ->
-        Files.newOutputStream(zipfs.getPath("META-INF/hmcl_signature")).use { it.write(signature) }
-    }
-}
 
 tasks.getByName<JavaCompile>("compileJava") {
     dependsOn(tasks.create("computeDynamicResources") {
@@ -174,9 +136,7 @@ tasks.jar {
 
 val jarPath = tasks.jar.get().archiveFile.get().asFile
 
-tasks.getByName<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
-    archiveClassifier.set(null as String?)
-
+tasks.shadowJar {
     exclude("**/package-info.class")
     exclude("META-INF/maven/**")
 
@@ -217,22 +177,6 @@ tasks.getByName<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("sha
             attributes("GitHub-SHA" to it)
         }
     }
-
-    doLast {
-        attachSignature(jarPath)
-        createChecksum(jarPath)
-    }
-}
-
-fun createExecutable(suffix: String, header: String) {
-    val output = File(jarPath.parentFile, jarPath.nameWithoutExtension + '.' + suffix)
-
-    output.outputStream().use {
-        it.write(File(project.projectDir, header).readBytes())
-        it.write(jarPath.readBytes())
-    }
-
-    createChecksum(output)
 }
 
 tasks.processResources {
@@ -266,11 +210,115 @@ tasks.processResources {
 }
 
 val makeExecutables = tasks.create("makeExecutables") {
-    dependsOn(tasks.jar)
-    doLast {
-        createExecutable("exe", "src/main/resources/assets/HMCLauncher.exe")
-        createExecutable("sh", "src/main/resources/assets/HMCLauncher.sh")
+    dependsOn(tasks.shadowJar)
+
+    outputs.file(jarPath)
+
+    fun executablePath(ext: String) = File(jarPath.parentFile, jarPath.nameWithoutExtension + '.' + ext)
+
+    val executables = mapOf(
+        "exe" to "src/main/resources/assets/HMCLauncher.exe",
+        "sh" to "src/main/resources/assets/HMCLauncher.sh"
+    )
+
+    for ((ext, _) in executables) {
+        outputs.file(executablePath(ext))
     }
+
+    fun createChecksum(file: File) {
+        val algorithms = arrayOf(
+            "MD5" to "md5",
+            "SHA-1" to "sha1",
+            "SHA-256" to "sha256",
+            "SHA-512" to "sha512"
+        )
+
+        algorithms.forEach { (algorithm, ext) ->
+            File(file.parentFile, "${file.name}.$ext").writeText(
+                digest(algorithm, file.readBytes()).joinToString(separator = "", postfix = "\n") { "%02x".format(it) }
+            )
+        }
+    }
+
+    class SignatureBuilder(keyLocation: String) {
+        private val signer = Signature.getInstance("SHA512withRSA").apply {
+            initSign(KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(File(keyLocation).readBytes())))
+        }
+
+        private val sha512: TreeMap<String, ByteArray> = TreeMap()
+        private val md = MessageDigest.getInstance("SHA-512")
+
+        fun add(name: String, content: ByteArray) {
+            md.reset()
+            md.update(content)
+            sha512[name] = md.digest()
+        }
+
+        fun sign(): ByteArray {
+            for ((name, content) in sha512) {
+                md.reset()
+                md.update(name.toByteArray())
+
+                signer.update(md.digest())
+                signer.update(content)
+            }
+
+            return signer.sign()
+        }
+    }
+
+    doLast {
+        val signatureBuilder = System.getenv("HMCL_SIGNATURE_KEY")?.let { SignatureBuilder(it) }
+        if (signatureBuilder == null) {
+            logger.warn("Missing signature key")
+        }
+
+        val zipBytes = ByteArrayOutputStream()
+
+        ZipInputStream(tasks.shadowJar.get().archiveFile.get().asFile.inputStream()).use { zipIn ->
+            ZipOutputStream(zipBytes).use { zipOut ->
+                while (true) {
+                    val entry = zipIn.nextEntry ?: break
+                    val entryBytes = zipIn.readAllBytes()
+
+                    if (entry.compressedSize >= entry.size) {
+                        entry.method = ZipEntry.STORED
+                        entry.size = entryBytes.size.toLong()
+                        entry.compressedSize = entryBytes.size.toLong()
+                    }
+
+                    zipOut.putNextEntry(entry)
+                    zipOut.write(entryBytes)
+
+                    if (entry.name != "META-INF/hmcl_signature")
+                        signatureBuilder?.add(entry.name, entryBytes)
+                }
+
+                if (signatureBuilder != null) {
+                    zipOut.putNextEntry(ZipEntry("META-INF/hmcl_signature"))
+                    zipOut.write(signatureBuilder.sign())
+                }
+            }
+        }
+
+        jarPath.outputStream().use { zipBytes.writeTo(it) }
+        createChecksum(jarPath)
+
+        for ((ext, header) in executables) {
+            val executable = executablePath(ext)
+            executable.outputStream().use { out ->
+                out.write(File(project.projectDir, header).readBytes())
+                zipBytes.writeTo(out)
+            }
+
+            createChecksum(executable)
+        }
+    }
+
+}
+
+tasks.jar {
+
 }
 
 tasks.build {
