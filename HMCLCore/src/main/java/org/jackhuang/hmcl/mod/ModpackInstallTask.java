@@ -72,7 +72,7 @@ public class ModpackInstallTask<T> extends Task<Void> {
 
 
         for (String subDirectory : subDirectories) {
-            new Unzipper(modpackFile, dest)
+            new Unzipper(modpackFile.toPath(), dest.toPath())
                     .setSubDirectory(subDirectory)
                     .setTerminateIfSubDirectoryNotExists()
                     .setReplaceExistentFile(true)

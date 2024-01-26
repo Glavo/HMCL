@@ -20,7 +20,6 @@ package org.jackhuang.hmcl.util.io;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -32,7 +31,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 
 public final class Unzipper {
-    private final Path zipFile, dest;
+    private final Path zipFile;
+    private final Path dest;
     private boolean replaceExistentFile = false;
     private boolean terminateIfSubDirectoryNotExists = false;
     private String subDirectory = "/";
@@ -48,16 +48,6 @@ public final class Unzipper {
     public Unzipper(Path zipFile, Path destDir) {
         this.zipFile = zipFile;
         this.dest = destDir;
-    }
-
-    /**
-     * Decompress the given zip file to a directory.
-     *
-     * @param zipFile the input zip file to be uncompressed
-     * @param destDir the dest directory to hold uncompressed files
-     */
-    public Unzipper(File zipFile, File destDir) {
-        this(zipFile.toPath(), destDir.toPath());
     }
 
     /**

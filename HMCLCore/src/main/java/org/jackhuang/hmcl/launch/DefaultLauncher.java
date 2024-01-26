@@ -333,7 +333,7 @@ public class DefaultLauncher extends Launcher {
             FileUtils.cleanDirectoryQuietly(destination);
             for (Library library : version.getLibraries())
                 if (library.isNative())
-                    new Unzipper(repository.getLibraryFile(version, library), destination)
+                    new Unzipper(repository.getLibraryFile(version, library).toPath(), destination.toPath())
                             .setFilter((zipEntry, destFile, path) -> {
                                 if (!zipEntry.isDirectory() && Files.isRegularFile(destFile) && Files.size(destFile) == zipEntry.getSize())
                                     return false;
