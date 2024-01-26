@@ -167,7 +167,6 @@ public final class CompressingUtils {
     public static final class Builder {
         private boolean autoDetectEncoding = false;
         private Charset encoding = StandardCharsets.UTF_8;
-        private boolean useTempFile = false;
         private final boolean create;
         private final Path zip;
 
@@ -186,27 +185,18 @@ public final class CompressingUtils {
             return this;
         }
 
-        public Builder setUseTempFile(boolean useTempFile) {
-            this.useTempFile = useTempFile;
-            return this;
-        }
-
         public FileSystem build() throws IOException {
             if (autoDetectEncoding) {
                 if (!testEncoding(zip, encoding)) {
                     encoding = findSuitableEncoding(zip);
                 }
             }
-            return createZipFileSystem(zip, create, useTempFile, encoding);
+            return createZipFileSystem(zip, create, false, encoding);
         }
     }
 
     public static Builder readonly(Path zipFile) {
         return new Builder(zipFile, false);
-    }
-
-    public static Builder writable(Path zipFile) {
-        return new Builder(zipFile, true).setUseTempFile(true);
     }
 
     public static FileSystem createReadOnlyZipFileSystem(Path zipFile) throws IOException {
@@ -225,7 +215,7 @@ public final class CompressingUtils {
         return createZipFileSystem(zipFile, true, true, charset);
     }
 
-    public static FileSystem createZipFileSystem(Path zipFile, boolean create, boolean useTempFile, Charset encoding) throws IOException {
+    private static FileSystem createZipFileSystem(Path zipFile, boolean create, boolean useTempFile, Charset encoding) throws IOException {
         Map<String, Object> env = new HashMap<>();
         if (create)
             env.put("create", "true");
