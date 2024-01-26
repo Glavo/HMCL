@@ -138,7 +138,7 @@ public final class CompressingUtils {
     }
 
     public static ZipFile openZipFile(Path zipFile, Charset charset) throws IOException {
-        return new ZipFile(Files.newByteChannel(zipFile), charset.name());
+        return new ZipFile(Files.newByteChannel(zipFile), charset == null ? "UTF-8" : charset.name());
     }
 
     public static ZipFile openZipFileWithSuitableEncoding(Path zipFile) throws IOException {

@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.game;
 
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.jackhuang.hmcl.mod.*;
 import org.jackhuang.hmcl.mod.curse.CurseModpackProvider;
@@ -102,8 +103,8 @@ public final class ModpackHelper {
         } catch (IOException ignored) {
         }
 
-        try (FileSystem fs = CompressingUtils.createReadOnlyZipFileSystem(file, charset)) {
-            findMinecraftDirectoryInManuallyCreatedModpack(file.toString(), fs);
+        try {
+            findMinecraftDirectoryInManuallyCreatedModpack(file, charset);
             throw new ManuallyCreatedModpackException(file);
         } catch (IOException e) {
             // ignore it
@@ -112,7 +113,11 @@ public final class ModpackHelper {
         throw new UnsupportedModpackException(file.toString());
     }
 
-    public static Path findMinecraftDirectoryInManuallyCreatedModpack(String modpackName, FileSystem fs) throws IOException, UnsupportedModpackException {
+    public static String findMinecraftDirectoryInManuallyCreatedModpack(Path file, Charset charset) throws IOException, UnsupportedModpackException {
+        try (ZipFile zf = CompressingUtils.openZipFile(file, charset)) {
+
+        }
+
         Path root = fs.getPath("/");
         if (isMinecraftDirectory(root)) return root;
         try (Stream<Path> firstLayer = Files.list(root)) {
@@ -128,10 +133,15 @@ public final class ModpackHelper {
             }
         } catch (IOException ignored) {
         }
-        throw new UnsupportedModpackException(modpackName);
+        throw new UnsupportedModpackException(file.toString());
     }
 
     private static boolean isMinecraftDirectory(Path path) {
+        return Files.isDirectory(path.resolve("versions")) &&
+                (path.getFileName() == null || ".minecraft".equals(FileUtils.getName(path)));
+    }
+
+    private static boolean isMinecraftDirectory(ZipFile zf, ZipArchiveEntry entry) {
         return Files.isDirectory(path.resolve("versions")) &&
                 (path.getFileName() == null || ".minecraft".equals(FileUtils.getName(path)));
     }
