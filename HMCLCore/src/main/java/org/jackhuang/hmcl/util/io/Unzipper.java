@@ -36,7 +36,7 @@ public final class Unzipper {
     private boolean replaceExistentFile = false;
     private boolean terminateIfSubDirectoryNotExists = false;
     private String subDirectory = "/";
-    private FileFilter filter2 = null;
+    private FileFilter filter;
     private Charset encoding = StandardCharsets.UTF_8;
 
     /**
@@ -64,7 +64,7 @@ public final class Unzipper {
      * Callback returns false if you want leave the specific file uncompressed.
      */
     public Unzipper setFilter(FileFilter filter) {
-        this.filter2 = filter;
+        this.filter = filter;
         return this;
     }
 
@@ -122,7 +122,7 @@ public final class Unzipper {
                     throw new IOException("Invalid entry: " + entry.getName());
                 }
 
-                if (filter2 != null && !filter2.accept(entry, destFile, relativePath))
+                if (filter != null && !filter.accept(entry, destFile, relativePath))
                     continue;
 
                 subDirectoryNotExists = false;
