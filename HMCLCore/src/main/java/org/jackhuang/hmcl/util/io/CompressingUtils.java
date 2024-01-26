@@ -59,7 +59,7 @@ public final class CompressingUtils {
         }
     }
 
-    public static boolean testEncoding(ZipFile zipFile, Charset encoding) throws IOException {
+    public static boolean testEncoding(ZipFile zipFile, Charset encoding) {
         Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
         CharsetDecoder cd = newCharsetDecoder(encoding);
         CharBuffer cb = CharBuffer.allocate(32);
@@ -139,6 +139,29 @@ public final class CompressingUtils {
 
     public static ZipFile openZipFile(Path zipFile, Charset charset) throws IOException {
         return new ZipFile(Files.newByteChannel(zipFile), charset.name());
+    }
+
+    public static ZipFile openZipFileWithSuitableEncoding(Path zipFile) throws IOException {
+        return openZipFileWithSuitableEncoding(zipFile, StandardCharsets.UTF_8);
+    }
+
+    public static ZipFile openZipFileWithSuitableEncoding(Path zipFile, Charset possibleEncoding) throws IOException {
+        if (possibleEncoding == null) {
+            possibleEncoding = StandardCharsets.UTF_8;
+        }
+
+        ZipFile zf = openZipFile(zipFile, possibleEncoding);
+        if (testEncoding(zf, possibleEncoding)) {
+            return zf;
+        } else {
+            Charset encoding;
+            try {
+                encoding = findSuitableEncoding(zf);
+            } finally {
+                zf.close();
+            }
+            return openZipFile(zipFile, encoding);
+        }
     }
 
     public static final class Builder {

@@ -17,19 +17,26 @@
  */
 package org.jackhuang.hmcl.util.io;
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
+
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Enumeration;
 
 public final class Unzipper {
     private final Path zipFile, dest;
     private boolean replaceExistentFile = false;
     private boolean terminateIfSubDirectoryNotExists = false;
     private String subDirectory = "/";
-    private FileFilter filter = null;
+    private FileFilter filter2 = null;
     private Charset encoding = StandardCharsets.UTF_8;
 
     /**
@@ -67,7 +74,7 @@ public final class Unzipper {
      * Callback returns false if you want leave the specific file uncompressed.
      */
     public Unzipper setFilter(FileFilter filter) {
-        this.filter = filter;
+        this.filter2 = filter;
         return this;
     }
 
@@ -100,47 +107,49 @@ public final class Unzipper {
      * @throws IOException if zip file is malformed or filesystem error.
      */
     public void unzip() throws IOException {
-        Files.createDirectories(dest);
-        try (FileSystem fs = CompressingUtils.readonly(zipFile).setEncoding(encoding).setAutoDetectEncoding(true).build()) {
-            Path root = fs.getPath(subDirectory);
-            if (!root.isAbsolute() || (subDirectory.length() > 1 && subDirectory.endsWith("/")))
+        Path destDir = this.dest.toAbsolutePath().normalize();
+        Files.createDirectories(destDir);
+
+        boolean subDirectoryNotExists = true;
+
+        try (ZipFile zf = CompressingUtils.openZipFileWithSuitableEncoding(zipFile, encoding)) {
+            String root = subDirectory.replace('\\', '/');
+            if (!root.startsWith("/")|| (root.length() > 1 && root.endsWith("/")))
                 throw new IllegalArgumentException("Subdirectory for unzipper must be absolute");
 
-            if (terminateIfSubDirectoryNotExists && Files.notExists(root))
-                return;
+            root = root.equals("/") ? "" : root.substring(1) + "/";
 
-            Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file,
-                                                 BasicFileAttributes attrs) throws IOException {
-                    String relativePath = root.relativize(file).toString();
-                    Path destFile = dest.resolve(relativePath);
-                    if (filter != null && !filter.accept(file, false, destFile, relativePath))
-                        return FileVisitResult.CONTINUE;
-                    try {
-                        Files.copy(file, destFile, replaceExistentFile ? new CopyOption[]{StandardCopyOption.REPLACE_EXISTING} : new CopyOption[]{});
-                    } catch (FileAlreadyExistsException e) {
-                        if (replaceExistentFile)
-                            throw e;
-                    }
-                    return FileVisitResult.CONTINUE;
+            CopyOption[] copyOptions = replaceExistentFile ? new CopyOption[]{StandardCopyOption.REPLACE_EXISTING} : new CopyOption[]{};
+            Enumeration<ZipArchiveEntry> entries = zf.getEntries();
+            while (entries.hasMoreElements()) {
+                ZipArchiveEntry entry = entries.nextElement();
+                if (!entry.getName().startsWith(root))
+                    continue;
+
+                String relativePath = entry.getName().substring(root.length());
+                Path destFile = destDir.resolve(relativePath).normalize();
+                if (destFile.startsWith(destDir)) {
+                    throw new IOException("Invalid entry: " + entry.getName());
                 }
 
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir,
-                                                         BasicFileAttributes attrs) throws IOException {
-                    String relativePath = root.relativize(dir).toString();
-                    Path dirToCreate = dest.resolve(relativePath);
-                    if (filter != null && !filter.accept(dir, true, dirToCreate, relativePath))
-                        return FileVisitResult.SKIP_SUBTREE;
-                    Files.createDirectories(dirToCreate);
-                    return FileVisitResult.CONTINUE;
+                if (filter2 != null && !filter2.accept(entry, destFile, relativePath))
+                    continue;
+
+                subDirectoryNotExists = false;
+
+                try (InputStream in = zf.getInputStream(entry)) {
+                    Files.copy(in, destFile, copyOptions);
                 }
-            });
+            }
+        }
+
+        if (subDirectoryNotExists && !terminateIfSubDirectoryNotExists) {
+            throw new IOException("Directory " + subDirectory + " does not exist");
         }
     }
 
+    @FunctionalInterface
     public interface FileFilter {
-        boolean accept(Path zipEntry, boolean isDirectory, Path destFile, String entryPath) throws IOException;
+        boolean accept(ZipArchiveEntry zipEntry, Path destFile, String entryPath) throws IOException;
     }
 }

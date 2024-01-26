@@ -334,8 +334,8 @@ public class DefaultLauncher extends Launcher {
             for (Library library : version.getLibraries())
                 if (library.isNative())
                     new Unzipper(repository.getLibraryFile(version, library), destination)
-                            .setFilter((zipEntry, isDirectory, destFile, path) -> {
-                                if (!isDirectory && Files.isRegularFile(destFile) && Files.size(destFile) == Files.size(zipEntry))
+                            .setFilter((zipEntry, destFile, path) -> {
+                                if (!zipEntry.isDirectory() && Files.isRegularFile(destFile) && Files.size(destFile) == zipEntry.getSize())
                                     return false;
                                 String ext = FileUtils.getExtension(destFile);
                                 if (ext.equals("sha1") || ext.equals("git"))

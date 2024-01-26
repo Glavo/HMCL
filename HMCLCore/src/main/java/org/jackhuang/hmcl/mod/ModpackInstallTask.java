@@ -77,8 +77,8 @@ public class ModpackInstallTask<T> extends Task<Void> {
                     .setTerminateIfSubDirectoryNotExists()
                     .setReplaceExistentFile(true)
                     .setEncoding(charset)
-                    .setFilter((destPath, isDirectory, zipEntry, entryPath) -> {
-                        if (isDirectory) return true;
+                    .setFilter((zipEntry, destPath, entryPath) -> {
+                        if (zipEntry.isDirectory()) return true;
                         if (!callback.test(entryPath)) return false;
                         entries.add(entryPath);
 
