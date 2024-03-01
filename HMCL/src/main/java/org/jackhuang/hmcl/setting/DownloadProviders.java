@@ -55,7 +55,6 @@ public final class DownloadProviders {
 
     private static final MojangDownloadProvider MOJANG;
     private static final BMCLAPIDownloadProvider BMCLAPI;
-    // private static final BMCLAPIDownloadProvider MCBBS;
 
     public static final String DEFAULT_PROVIDER_ID = "balanced";
     public static final String DEFAULT_RAW_PROVIDER_ID = "bmclapi";
@@ -73,18 +72,11 @@ public final class DownloadProviders {
         rawProviders = mapOf(
                 pair("mojang", MOJANG),
                 pair("bmclapi", BMCLAPI)
-                // pair("mcbbs", MCBBS)
         );
 
         AdaptedDownloadProvider fileProvider = new AdaptedDownloadProvider();
-        fileProvider.setDownloadProviderCandidates(Arrays.asList(
-            // MCBBS,
-            BMCLAPI,
-            MOJANG));
-        BalancedDownloadProvider balanced = new BalancedDownloadProvider(
-            MOJANG,
-            // MCBBS,
-            BMCLAPI);
+        fileProvider.setDownloadProviderCandidates(Arrays.asList(BMCLAPI, MOJANG));
+        BalancedVersionListProvider balanced = new BalancedVersionListProvider(MOJANG, BMCLAPI);
 
         providersById = mapOf(
                 pair("official", new AutoDownloadProvider(MOJANG, fileProvider)),

@@ -29,9 +29,7 @@ import java.util.stream.Collectors;
  *
  * @author huangyuhui
  */
-public interface DownloadProvider {
-
-    String getVersionListURL();
+public interface DownloadProvider extends VersionListProvider {
 
     String getAssetBaseURL();
 
@@ -66,15 +64,6 @@ public interface DownloadProvider {
     default List<URL> injectURLsWithCandidates(List<String> urls) {
         return urls.stream().flatMap(url -> injectURLWithCandidates(url).stream()).collect(Collectors.toList());
     }
-
-    /**
-     * the specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
-     *
-     * @param id the id of specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
-     * @return the version list
-     * @throws IllegalArgumentException if the version list does not exist
-     */
-    VersionList<?> getVersionListById(String id);
 
     /**
      * The maximum download concurrency that this download provider supports.

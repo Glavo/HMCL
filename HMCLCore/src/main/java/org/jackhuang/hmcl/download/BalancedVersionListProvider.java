@@ -20,33 +20,17 @@ package org.jackhuang.hmcl.download;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Official Download Provider fetches version list from Mojang and
- * download files from mcbbs.
- *
- * @author huangyuhui
- */
-public final class BalancedDownloadProvider implements DownloadProvider {
-    private final DownloadProvider[] candidates;
+public final class BalancedVersionListProvider implements VersionListProvider {
+    private final VersionListProvider[] candidates;
     private final Map<String, VersionList<?>> versionLists = new HashMap<>();
 
-    public BalancedDownloadProvider(DownloadProvider... candidates) {
+    public BalancedVersionListProvider(VersionListProvider... candidates) {
         this.candidates = candidates;
     }
 
     @Override
     public String getVersionListURL() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String getAssetBaseURL() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String injectURL(String baseURL) {
-        throw new UnsupportedOperationException();
+        return candidates[0].getVersionListURL();
     }
 
     @Override
@@ -58,10 +42,5 @@ public final class BalancedDownloadProvider implements DownloadProvider {
             }
             return new MultipleSourceVersionList(lists);
         });
-    }
-
-    @Override
-    public int getConcurrency() {
-        throw new UnsupportedOperationException();
     }
 }

@@ -19,11 +19,14 @@ package org.jackhuang.hmcl.download.game;
 
 import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.VersionList;
-import org.jackhuang.hmcl.util.io.HttpRequest;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jackhuang.hmcl.util.io.NetworkUtils;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+
+import static org.jackhuang.hmcl.util.Lang.wrap;
 
 /**
  *
@@ -48,22 +51,22 @@ public final class GameVersionList extends VersionList<GameRemoteVersion> {
 
     @Override
     public CompletableFuture<?> refreshAsync() {
-        return HttpRequest.GET(downloadProvider.getVersionListURL()).getJsonAsync(GameRemoteVersions.class)
-                .thenAcceptAsync(root -> {
-                    lock.writeLock().lock();
-                    try {
-                        versions.clear();
+        return CompletableFuture.runAsync(wrap(() -> {
+            GameRemoteVersions root = JsonUtils.fromNonNullJson(NetworkUtils.doGet(NetworkUtils.toURL(downloadProvider.getVersionListURL())), GameRemoteVersions.class);
+            lock.writeLock().lock();
+            try {
+                versions.clear();
 
-                        for (GameRemoteVersionInfo remoteVersion : root.getVersions()) {
-                            versions.put(remoteVersion.getGameVersion(), new GameRemoteVersion(
-                                    remoteVersion.getGameVersion(),
-                                    remoteVersion.getGameVersion(),
-                                    Collections.singletonList(remoteVersion.getUrl()),
-                                    remoteVersion.getType(), remoteVersion.getReleaseTime()));
-                        }
-                    } finally {
-                        lock.writeLock().unlock();
-                    }
-                });
+                for (GameRemoteVersionInfo remoteVersion : root.getVersions()) {
+                    versions.put(remoteVersion.getGameVersion(), new GameRemoteVersion(
+                            remoteVersion.getGameVersion(),
+                            remoteVersion.getGameVersion(),
+                            Collections.singletonList(remoteVersion.getUrl()),
+                            remoteVersion.getType(), remoteVersion.getReleaseTime()));
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }));
     }
 }

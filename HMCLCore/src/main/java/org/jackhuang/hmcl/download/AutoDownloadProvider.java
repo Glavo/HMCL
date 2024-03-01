@@ -27,10 +27,10 @@ import java.util.List;
  * @author huangyuhui
  */
 public class AutoDownloadProvider implements DownloadProvider {
-    private final DownloadProvider versionListProvider;
+    private final VersionListProvider versionListProvider;
     private final DownloadProvider fileProvider;
 
-    public AutoDownloadProvider(DownloadProvider versionListProvider, DownloadProvider fileProvider) {
+    public AutoDownloadProvider(VersionListProvider versionListProvider, DownloadProvider fileProvider) {
         this.versionListProvider = versionListProvider;
         this.fileProvider = fileProvider;
     }
