@@ -173,7 +173,7 @@ public abstract class YggdrasilAccount extends ClassicAccount {
     public Map<Object, Object> toStorage() {
         Map<Object, Object> storage = new HashMap<>();
         storage.put("username", username);
-        storage.putAll(session.toStorage());
+        storage.putAll(session. toStorage());
         service.getProfileRepository().getImmediately(characterUUID).ifPresent(profile ->
                 storage.put("profileProperties", profile.getProperties()));
         return storage;

@@ -77,7 +77,7 @@ public class OAuthAccountLoginDialog extends DialogPane {
         vbox.getChildren().setAll(usernameLabel, hintPane, box);
         setBody(vbox);
 
-        holder.add(Accounts.OAUTH_CALLBACK.onGrantDeviceCode.registerWeak(this::onGrantDeviceCode));
+        holder.add(Accounts.MICROSOFT_OAUTH_CALLBACK.onGrantDeviceCode.registerWeak(this::onGrantDeviceCode));
     }
 
     private void onGrantDeviceCode(OAuthServer.GrantDeviceCodeEvent event) {
