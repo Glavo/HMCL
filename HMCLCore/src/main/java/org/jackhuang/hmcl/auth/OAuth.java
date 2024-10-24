@@ -245,10 +245,16 @@ public class OAuth {
     public static final class Result {
         private final String accessToken;
         private final String refreshToken;
+        private final String idToken;
 
         public Result(String accessToken, String refreshToken) {
+            this(accessToken, refreshToken, null);
+        }
+
+        public Result(String accessToken, String refreshToken, String idToken) {
             this.accessToken = accessToken;
             this.refreshToken = refreshToken;
+            this.idToken = idToken;
         }
 
         public String getAccessToken() {
@@ -257,6 +263,10 @@ public class OAuth {
 
         public String getRefreshToken() {
             return refreshToken;
+        }
+
+        public String getIdToken() {
+            return idToken;
         }
     }
 
@@ -302,6 +312,11 @@ public class OAuth {
         @SerializedName("refresh_token")
         public String refreshToken;
 
+        /**
+         * LittleSkin ID Token
+         */
+        @SerializedName("id_token")
+        public String idToken;
     }
 
     private static class ErrorResponse {

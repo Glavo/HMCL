@@ -24,7 +24,6 @@ import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
 import org.jackhuang.hmcl.util.io.HttpRequest;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 
 /**
  * @author Glavo
