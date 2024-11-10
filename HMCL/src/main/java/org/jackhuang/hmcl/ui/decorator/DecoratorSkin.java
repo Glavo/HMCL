@@ -73,7 +73,6 @@ public class DecoratorSkin extends SkinBase<Decorator> {
 
         minus.fillProperty().bind(Theme.foregroundFillBinding());
 
-        Decorator skinnable = getSkinnable();
         root = new StackPane();
         root.getStyleClass().add("window");
 
@@ -89,7 +88,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         clip.setArcHeight(8);
         parent.setClip(clip);
 
-        skinnable.getSnackbar().registerSnackbarContainer(parent);
+        control.getSnackbar().registerSnackbarContainer(parent);
 
         root.addEventFilter(MouseEvent.MOUSE_RELEASED, this::onMouseReleased);
         root.addEventFilter(MouseEvent.MOUSE_DRAGGED, this::onMouseDragged);
@@ -102,7 +101,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         BorderPane frame = new BorderPane();
         frame.getStyleClass().addAll("jfx-decorator");
         wrapper.getChildren().setAll(frame);
-        skinnable.setDrawerWrapper(wrapper);
+        control.setDrawerWrapper(wrapper);
 
         parent.getChildren().add(wrapper);
 
@@ -114,7 +113,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         {
             StackPane contentPlaceHolder = new StackPane();
             contentPlaceHolder.getStyleClass().add("jfx-decorator-content-container");
-            Bindings.bindContent(contentPlaceHolder.getChildren(), skinnable.contentProperty());
+            Bindings.bindContent(contentPlaceHolder.getChildren(), control.contentProperty());
 
             container.getChildren().add(contentPlaceHolder);
         }
@@ -122,9 +121,9 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         // welcome and hint layer at top
         {
             StackPane floatLayer = new StackPane();
-            Bindings.bindContent(floatLayer.getChildren(), skinnable.containerProperty());
+            Bindings.bindContent(floatLayer.getChildren(), control.containerProperty());
             ListChangeListener<Node> listener = c -> {
-                if (skinnable.getContainer().isEmpty()) {
+                if (control.getContainer().isEmpty()) {
                     floatLayer.setMouseTransparent(true);
                     floatLayer.setVisible(false);
                 } else {
@@ -132,7 +131,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                     floatLayer.setVisible(true);
                 }
             };
-            skinnable.containerProperty().addListener(listener);
+            control.containerProperty().addListener(listener);
             listener.onChanged(null);
 
             container.getChildren().add(floatLayer);
@@ -146,15 +145,15 @@ public class DecoratorSkin extends SkinBase<Decorator> {
 
         // Maybe, we can automatically identify whether the top part of the picture is light-coloured or dark when the title is transparent,
         // and decide whether the whole top bar should be rendered in white or black. TODO
-        FXUtils.onChangeAndOperate(skinnable.titleTransparentProperty(), titleTransparent -> {
+        FXUtils.onChangeAndOperate(control.titleTransparentProperty(), titleTransparent -> {
             if (titleTransparent) {
-                wrapper.backgroundProperty().bind(skinnable.contentBackgroundProperty());
+                wrapper.backgroundProperty().bind(control.contentBackgroundProperty());
                 container.backgroundProperty().unbind();
                 container.setBackground(null);
                 titleContainer.getStyleClass().remove("background");
                 titleContainer.getStyleClass().add("gray-background");
             } else {
-                container.backgroundProperty().bind(skinnable.contentBackgroundProperty());
+                container.backgroundProperty().bind(control.contentBackgroundProperty());
                 wrapper.backgroundProperty().unbind();
                 wrapper.setBackground(null);
                 titleContainer.getStyleClass().add("background");
@@ -171,19 +170,19 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         {
             navBarPane = new TransitionPane();
             navBarPane.setId("decoratorTitleTransitionPane");
-            FXUtils.onChangeAndOperate(skinnable.stateProperty(), s -> {
+            FXUtils.onChangeAndOperate(control.stateProperty(), s -> {
                 if (s == null) return;
-                Node node = createNavBar(skinnable, s.getLeftPaneWidth(), s.isBackable(), skinnable.canCloseProperty().get(), skinnable.showCloseAsHomeProperty().get(), s.isRefreshable(), s.getTitle(), s.getTitleNode());
+                Node node = createNavBar(control, s.getLeftPaneWidth(), s.isBackable(), control.canCloseProperty().get(), control.showCloseAsHomeProperty().get(), s.isRefreshable(), s.getTitle(), s.getTitleNode());
                 if (s.isAnimate()) {
                     AnimationProducer animation;
-                    if (skinnable.getNavigationDirection() == Navigation.NavigationDirection.NEXT) {
+                    if (control.getNavigationDirection() == Navigation.NavigationDirection.NEXT) {
                         animation = ContainerAnimations.SWIPE_LEFT_FADE_SHORT;
-                    } else if (skinnable.getNavigationDirection() == Navigation.NavigationDirection.PREVIOUS) {
+                    } else if (control.getNavigationDirection() == Navigation.NavigationDirection.PREVIOUS) {
                         animation = ContainerAnimations.SWIPE_RIGHT_FADE_SHORT;
                     } else {
                         animation = ContainerAnimations.FADE;
                     }
-                    skinnable.setNavigationDirection(Navigation.NavigationDirection.START);
+                    control.setNavigationDirection(Navigation.NavigationDirection.START);
                     navBarPane.setContent(node, animation);
                 } else {
                     navBarPane.getChildren().setAll(node);
@@ -209,12 +208,12 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 pane.setAlignment(Pos.CENTER);
                 btnMin.setGraphic(pane);
                 btnMin.getStyleClass().add("jfx-decorator-button");
-                btnMin.setOnAction(e -> skinnable.minimize());
+                btnMin.setOnAction(e -> control.minimize());
 
                 JFXButton btnClose = new JFXButton();
                 btnClose.setGraphic(SVG.CLOSE.createIcon(Theme.foregroundFillBinding(), -1, -1));
                 btnClose.getStyleClass().add("jfx-decorator-button");
-                btnClose.setOnAction(e -> skinnable.close());
+                btnClose.setOnAction(e -> control.close());
 
                 buttonsContainer.getChildren().setAll(btnHelp, btnMin, btnClose);
             }
