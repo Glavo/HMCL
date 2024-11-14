@@ -18,7 +18,7 @@
 package org.jackhuang.hmcl.ui;
 
 import com.jfoenix.controls.*;
-import com.twelvemonkeys.imageio.plugins.webp.WebPImageReaderSpi;
+import com.twelvemonkeys.imageio.plugins.webp.WebPImageReader;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -715,8 +715,7 @@ public final class FXUtils {
     }
 
     private static Image loadWebPImage(InputStream input) throws IOException {
-        WebPImageReaderSpi spi = new WebPImageReaderSpi();
-        ImageReader reader = spi.createReaderInstance(null);
+        ImageReader reader = new WebPImageReader(null);
 
         try (ImageInputStream imageInput = ImageIO.createImageInputStream(input)) {
             reader.setInput(imageInput, true, true);
