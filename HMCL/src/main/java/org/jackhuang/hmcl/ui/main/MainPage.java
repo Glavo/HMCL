@@ -226,6 +226,13 @@ public final class MainPage extends StackPane implements DecoratorPage {
             FXUtils.installFastTooltip(menuButton, i18n("version.switch"));
             menuButton.setGraphic(graphic);
 
+            Rectangle clip = new Rectangle();
+            clip.widthProperty().bind(launchPane.widthProperty());
+            clip.heightProperty().bind(launchPane.heightProperty());
+            clip.setArcWidth(16);
+            clip.setArcHeight(16);
+            launchPane.setClip(clip);
+
             launchPane.getChildren().setAll(launchButton, separator, menuButton);
         }
 

@@ -73,8 +73,8 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(parent.widthProperty());
         clip.heightProperty().bind(parent.heightProperty());
-        clip.setArcWidth(8);
-        clip.setArcHeight(8);
+        clip.setArcWidth(16);
+        clip.setArcHeight(16);
         parent.setClip(clip);
 
         skinnable.getSnackbar().registerSnackbarContainer(parent);
