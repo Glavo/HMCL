@@ -98,13 +98,7 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
                                     new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file),
                                     i18n("install.modpack"));
                         } else if (NBTHelper.isNBTFileByExtension(file)) {
-                            try {
-                                Controllers.navigate(new NBTEditorPage(file));
-                            } catch (Throwable e) {
-                                LOG.warning("Fail to open nbt file", e);
-                                Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(e),
-                                        i18n("message.error"), MessageDialogPane.MessageType.ERROR);
-                            }
+                            Controllers.navigate(new NBTEditorPage(file));
                         }
                     });
 

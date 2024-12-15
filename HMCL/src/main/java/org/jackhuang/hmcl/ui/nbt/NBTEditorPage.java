@@ -1,11 +1,12 @@
 package org.jackhuang.hmcl.ui.nbt;
 
 import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXSpinner;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -27,7 +28,7 @@ public class NBTEditorPage extends BorderPane implements DecoratorPage {
     private final File file;
     private final NBTFileType type;
 
-    public NBTEditorPage(File file) throws IOException {
+    public NBTEditorPage(File file) {
         getStyleClass().add("gray-background");
 
         this.state = new ReadOnlyObjectWrapper<>(DecoratorPage.State.fromTitle(i18n("nbt.title", file.getAbsolutePath())));
@@ -35,10 +36,11 @@ public class NBTEditorPage extends BorderPane implements DecoratorPage {
         this.type = NBTFileType.ofFile(file);
 
         if (type == null) {
-            throw new IOException("Unknown type of file " + file);
+            setCenter(new Label(i18n("nbt.open.failed")));
+            return;
         }
 
-        setCenter(new ProgressIndicator());
+        setCenter(new JFXSpinner());
 
         HBox actions = new HBox(8);
         actions.setPadding(new Insets(8));
@@ -64,7 +66,7 @@ public class NBTEditorPage extends BorderPane implements DecoratorPage {
 
         actions.getChildren().setAll(saveButton, cancelButton);
 
-        Task.supplyAsync(() -> type.readAsTree(file))
+        Task.supplyAsync(() -> this.type.readAsTree(this.file))
                 .whenComplete(Schedulers.javafx(), (result, exception) -> {
                     if (exception == null) {
                         setCenter(new NBTTreeView(result));
