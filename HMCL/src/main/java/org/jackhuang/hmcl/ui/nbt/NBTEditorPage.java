@@ -9,15 +9,14 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import org.jackhuang.hmcl.task.Schedulers;
+import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jackhuang.hmcl.ui.construct.PageCloseEvent;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
-import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 
 import java.io.*;
-import java.util.concurrent.CompletableFuture;
 
 import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -65,18 +64,16 @@ public class NBTEditorPage extends BorderPane implements DecoratorPage {
 
         actions.getChildren().setAll(saveButton, cancelButton);
 
-        CompletableFuture.supplyAsync(Lang.wrap(() -> type.readAsTree(file)))
-                .thenAcceptAsync(tree -> {
-                    setCenter(new NBTTreeView(tree));
-                    // setBottom(actions);
-                }, Schedulers.javafx())
-                .handleAsync((result, e) -> {
-                    if (e != null) {
-                        LOG.warning("Fail to open nbt file", e);
-                        Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(e), null, MessageDialogPane.MessageType.WARNING, cancelButton::fire);
+        Task.supplyAsync(() -> type.readAsTree(file))
+                .whenComplete(Schedulers.javafx(), (result, exception) -> {
+                    if (exception == null) {
+                        setCenter(new NBTTreeView(result));
+                        setBottom(actions);
+                    } else {
+                        LOG.warning("Fail to open nbt file", exception);
+                        Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(exception), null, MessageDialogPane.MessageType.WARNING, cancelButton::fire);
                     }
-                    return null;
-                }, Schedulers.javafx());
+                }).start();
     }
 
     public void save() throws IOException {

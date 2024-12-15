@@ -173,4 +173,8 @@ public class NBTTreeView extends TreeView<Tag> {
             return name == null ? getValue().getName() : name;
         }
     }
+
+    public static final class A extends Item {
+
+    }
 }
