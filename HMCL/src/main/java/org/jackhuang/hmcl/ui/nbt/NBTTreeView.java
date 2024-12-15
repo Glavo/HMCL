@@ -1,19 +1,37 @@
+/*
+ * Hello Minecraft! Launcher
+ * Copyright (C) 2024 huangyuhui <huanghongxun2008@126.com> and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package org.jackhuang.hmcl.ui.nbt;
 
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.ListTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.util.Callback;
-import org.jackhuang.hmcl.util.Holder;
+import org.jackhuang.hmcl.ui.FXUtils;
 
 import java.lang.reflect.Array;
-import java.util.EnumMap;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
+/**
+ * @author Glavo
+ */
 public class NBTTreeView extends TreeView<Tag> {
 
     public NBTTreeView(NBTTreeView.Item tree) {
@@ -22,80 +40,7 @@ public class NBTTreeView extends TreeView<Tag> {
     }
 
     private static Callback<TreeView<Tag>, TreeCell<Tag>> cellFactory() {
-        Holder<Object> lastCell = new Holder<>();
-        EnumMap<NBTTagType, Image> icons = new EnumMap<>(NBTTagType.class);
-
-        return view -> new TreeCell<Tag>() {
-            private void setTagText(String text) {
-                String name = ((Item) getTreeItem()).getName();
-
-                if (name == null) {
-                    setText(text);
-                } else if (text == null) {
-                    setText(name);
-                } else {
-                    setText(name + ": " + text);
-                }
-            }
-
-            private void setTagText(int nEntries) {
-                setTagText(i18n("nbt.entries", nEntries));
-            }
-
-            @Override
-            public void updateItem(Tag item, boolean empty) {
-                super.updateItem(item, empty);
-
-                // https://mail.openjdk.org/pipermail/openjfx-dev/2022-July/034764.html
-                if (this == lastCell.value && !isVisible())
-                    return;
-                lastCell.value = this;
-
-                ImageView imageView = (ImageView) this.getGraphic();
-                if (imageView == null) {
-                    imageView = new ImageView();
-                    this.setGraphic(imageView);
-                }
-
-                if (item == null) {
-                    imageView.setImage(null);
-                    setText(null);
-                    return;
-                }
-
-                NBTTagType tagType = NBTTagType.typeOf(item);
-                imageView.setImage(icons.computeIfAbsent(tagType, type -> new Image(type.getIconUrl())));
-
-                if (((Item) getTreeItem()).getText() != null) {
-                    setText(((Item) getTreeItem()).getText());
-                } else {
-                    switch (tagType) {
-                        case BYTE:
-                        case SHORT:
-                        case INT:
-                        case LONG:
-                        case FLOAT:
-                        case DOUBLE:
-                        case STRING:
-                            setTagText(item.getValue().toString());
-                            break;
-                        case BYTE_ARRAY:
-                        case INT_ARRAY:
-                        case LONG_ARRAY:
-                            setTagText(Array.getLength(item.getValue()));
-                            break;
-                        case LIST:
-                            setTagText(((ListTag) item).size());
-                            break;
-                        case COMPOUND:
-                            setTagText(((CompoundTag) item).size());
-                            break;
-                        default:
-                            setTagText(null);
-                    }
-                }
-            }
-        };
+        return new CellFactory();
     }
 
     public static Item buildTree(Tag tag) {
@@ -119,6 +64,85 @@ public class NBTTreeView extends TreeView<Tag> {
 
     public CompoundTag getRootTag() {
         return ((CompoundTag) getRoot().getValue());
+    }
+
+    private static final class CellFactory implements Callback<TreeView<Tag>, TreeCell<Tag>> {
+        Object lastCell;
+
+        @Override
+        public TreeCell<Tag> call(TreeView<Tag> view) {
+            return new TreeCell<Tag>() {
+                private void setTagText(String text) {
+                    String name = ((Item) getTreeItem()).getName();
+
+                    if (name == null) {
+                        setText(text);
+                    } else if (text == null) {
+                        setText(name);
+                    } else {
+                        setText(name + ": " + text);
+                    }
+                }
+
+                private void setTagText(int nEntries) {
+                    setTagText(i18n("nbt.entries", nEntries));
+                }
+
+                @Override
+                public void updateItem(Tag item, boolean empty) {
+                    super.updateItem(item, empty);
+
+                    // https://mail.openjdk.org/pipermail/openjfx-dev/2022-July/034764.html
+                    if (this == lastCell && !isVisible())
+                        return;
+                    lastCell = this;
+
+                    ImageView imageView = (ImageView) this.getGraphic();
+                    if (imageView == null) {
+                        imageView = new ImageView();
+                        this.setGraphic(imageView);
+                    }
+
+                    if (item == null) {
+                        imageView.setImage(null);
+                        setText(null);
+                        return;
+                    }
+
+                    NBTTagType tagType = NBTTagType.typeOf(item);
+                    imageView.setImage(FXUtils.newBuiltinImage(tagType.getIconUrl()));
+
+                    if (((Item) getTreeItem()).getText() != null) {
+                        setText(((Item) getTreeItem()).getText());
+                    } else {
+                        switch (tagType) {
+                            case BYTE:
+                            case SHORT:
+                            case INT:
+                            case LONG:
+                            case FLOAT:
+                            case DOUBLE:
+                            case STRING:
+                                setTagText(item.getValue().toString());
+                                break;
+                            case BYTE_ARRAY:
+                            case INT_ARRAY:
+                            case LONG_ARRAY:
+                                setTagText(Array.getLength(item.getValue()));
+                                break;
+                            case LIST:
+                                setTagText(((ListTag) item).size());
+                                break;
+                            case COMPOUND:
+                                setTagText(((CompoundTag) item).size());
+                                break;
+                            default:
+                                setTagText(null);
+                        }
+                    }
+                }
+            };
+        }
     }
 
     public static class Item extends TreeItem<Tag> {
