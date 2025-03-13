@@ -24,8 +24,12 @@ import org.jackhuang.hmcl.game.World;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.wizard.WizardSinglePage;
 
+import java.io.BufferedOutputStream;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.zip.ZipOutputStream;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -73,6 +77,12 @@ public class WorldExportPage extends WizardSinglePage {
 
     @Override
     protected Object finish() {
-        return Task.runAsync(i18n("world.export.wizard", worldName.get()), () -> world.export(Paths.get(path.get()), worldName.get()));
+        return Task.runAsync(i18n("world.export.wizard", worldName.get()), () -> {
+            try (FileChannel lockChannel = world.lock()) {
+                try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(Paths.get(path.get()))))) {
+                    world.export(zos, worldName.get());
+                }
+            }
+        });
     }
 }

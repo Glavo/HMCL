@@ -25,9 +25,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -66,20 +64,7 @@ public final class WorldBackupTask extends Task<Path> {
                 throw new IOException("Too many attempts");
 
             try (ZipOutputStream zipOutputStream = new ZipOutputStream(new BufferedOutputStream(outputStream))) {
-                String rootName = world.getFileName();
-                Path rootDir = this.world.getFile();
-                Files.walkFileTree(this.world.getFile(), new SimpleFileVisitor<Path>() {
-                    @Override
-                    public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                        if (path.endsWith("session.lock")) {
-                            return FileVisitResult.CONTINUE;
-                        }
-                        zipOutputStream.putNextEntry(new ZipEntry(rootName + "/" + rootDir.relativize(path).toString().replace('\\', '/')));
-                        Files.copy(path, zipOutputStream);
-                        zipOutputStream.closeEntry();
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
+                world.export(zipOutputStream, world.getFileName());
             }
 
             setResult(backupFile);

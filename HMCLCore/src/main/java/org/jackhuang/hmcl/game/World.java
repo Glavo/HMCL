@@ -23,7 +23,10 @@ import com.github.steveice10.opennbt.tag.builtin.LongTag;
 import com.github.steveice10.opennbt.tag.builtin.StringTag;
 import com.github.steveice10.opennbt.tag.builtin.Tag;
 import javafx.scene.image.Image;
-import org.jackhuang.hmcl.util.io.*;
+import org.jackhuang.hmcl.util.io.CompressingUtils;
+import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.io.IOUtils;
+import org.jackhuang.hmcl.util.io.Unzipper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,11 +36,14 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
@@ -233,13 +239,21 @@ public class World {
         }
     }
 
-    public void export(Path zip, String worldName) throws IOException {
-        if (!Files.isDirectory(file))
-            throw new IOException();
-
-        try (Zipper zipper = new Zipper(zip)) {
-            zipper.putDirectory(file, worldName);
-        }
+    public void export(ZipOutputStream zos, String worldName) throws IOException {
+        Path rootDir = file.toAbsolutePath().normalize();
+        Files.walkFileTree(rootDir, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+                if (path.endsWith("session.lock")) {
+                    return FileVisitResult.CONTINUE;
+                }
+                ZipEntry entry = new ZipEntry(worldName + "/" + rootDir.relativize(path).toString().replace('\\', '/'));
+                zos.putNextEntry(entry);
+                Files.copy(path, zos);
+                zos.closeEntry();
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     public CompoundTag readLevelDat() throws IOException {
@@ -265,7 +279,7 @@ public class World {
             }
         } catch (IOException e) {
             IOUtils.closeQuietly(channel);
-            throw new WorldLockedException(e);
+            throw new WorldLockedException("The world " + getFile() + " has been locked", e);
         }
     }
 
