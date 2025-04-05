@@ -17,7 +17,11 @@
  */
 package org.jackhuang.hmcl.util.io;
 
+import jdk.internal.org.objectweb.asm.tree.MethodInsnNode;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -61,6 +65,10 @@ public final class MemoryOutputStream extends OutputStream {
         return count;
     }
 
+    public byte[] getArray() {
+        return buf;
+    }
+
     @Override
     public void write(int b) {
         ensureCapacity(count + 1);
@@ -83,15 +91,53 @@ public final class MemoryOutputStream extends OutputStream {
         out.write(buf, 0, count);
     }
 
+    public void copyFrom(InputStream inputStream) throws IOException {
+        int available = inputStream.available();
+        if (available > 0) {
+            ensureCapacity((int) Math.min((long) count + available, SOFT_MAX_ARRAY_LENGTH));
+        }
+
+        while (true) {
+            int maxRead = buf.length - count;
+
+            if (maxRead > 0) {
+                int n = inputStream.read(buf, count, maxRead);
+                if (n == -1)
+                    return;
+
+                if (n > maxRead)
+                    throw new IOException("Unreachable: The bytes read exceed the remaining capacity of the array");
+
+                count += n;
+            } else {
+                int b = inputStream.read();
+                if (b < 0)
+                    return;
+
+                ensureCapacity(count + 1);
+                buf[count++] = (byte) b;
+            }
+        }
+    }
+
     public byte[] toByteArray() {
         return Arrays.copyOf(buf, count);
     }
 
+    public byte[] toByteArrayNoCopy() {
+        return buf.length == count ? buf : Arrays.copyOf(buf, count);
+    }
+
+    @Override
     public String toString() {
         return new String(buf, 0, count, StandardCharsets.UTF_8);
     }
 
     public String toString(Charset charset) {
         return new String(buf, 0, count, charset);
+    }
+
+    public ByteArrayInputStream toInputStream() {
+        return new ByteArrayInputStream(buf, 0, count);
     }
 }
