@@ -1,6 +1,24 @@
+/*
+ * Hello Minecraft! Launcher
+ * Copyright (C) 2025 huangyuhui <huanghongxun2008@126.com> and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package org.jackhuang.hmcl.util.logging;
 
 import org.jackhuang.hmcl.util.Pair;
+import org.jackhuang.hmcl.util.io.MemoryOutputStream;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
@@ -51,7 +69,7 @@ public final class Logger {
     private final StringBuilder builder = new StringBuilder(512);
 
     private Path logFile;
-    private ByteArrayOutputStream rawLogs;
+    private MemoryOutputStream rawLogs;
     private PrintWriter logWriter;
 
     private Thread loggerThread;
@@ -227,7 +245,7 @@ public final class Logger {
         }
 
         if (logWriter == null) {
-            rawLogs = new ByteArrayOutputStream(256 * 1024);
+            rawLogs = new MemoryOutputStream(256 * 1024);
             logWriter = new PrintWriter(new OutputStreamWriter(rawLogs, UTF_8));
         }
 
@@ -287,10 +305,10 @@ public final class Logger {
     }
 
     public String getLogs() {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
+            MemoryOutputStream output = new MemoryOutputStream();
             exportLogs(output);
-            return output.toString("UTF-8");
+            return output.toString();
         } catch (IOException e) {
             log(Level.WARNING, CLASS_NAME + ".getLogs", "Failed to export logs", e);
             return "";

@@ -18,8 +18,8 @@
 package org.jackhuang.hmcl.task;
 
 import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.io.MemoryOutputStream;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -73,7 +73,7 @@ public final class GetTask extends FetchTask<String> {
     @Override
     protected Context getContext(URLConnection conn, boolean checkETag) {
         return new Context() {
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            final MemoryOutputStream baos = new MemoryOutputStream();
 
             @Override
             public void write(byte[] buffer, int offset, int len) {
@@ -84,7 +84,7 @@ public final class GetTask extends FetchTask<String> {
             public void close() throws IOException {
                 if (!isSuccess()) return;
 
-                String result = baos.toString(charset.name());
+                String result = baos.toString(charset);
                 setResult(result);
 
                 if (checkETag) {

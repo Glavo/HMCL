@@ -26,9 +26,9 @@ import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.io.HttpRequest;
 import org.jackhuang.hmcl.util.io.JarUtils;
+import org.jackhuang.hmcl.util.io.MemoryOutputStream;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -144,7 +144,7 @@ public final class CurseForgeRemoteModRepository implements RemoteModRepository 
 
     @Override
     public Optional<RemoteMod.Version> getRemoteVersionByLocalFile(LocalModFile localModFile, Path file) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        MemoryOutputStream baos = new MemoryOutputStream();
         try (InputStream stream = Files.newInputStream(file)) {
             byte[] buf = new byte[1024];
             int len;

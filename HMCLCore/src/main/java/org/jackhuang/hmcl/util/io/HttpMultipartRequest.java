@@ -17,7 +17,6 @@
  */
 package org.jackhuang.hmcl.util.io;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +30,7 @@ public final class HttpMultipartRequest implements Closeable {
 
     private final String boundary = "*****" + System.currentTimeMillis() + "*****";
     private final HttpURLConnection urlConnection;
-    private final ByteArrayOutputStream stream;
+    private final MemoryOutputStream stream;
 
     public HttpMultipartRequest(HttpURLConnection urlConnection) throws IOException {
         this.urlConnection = urlConnection;
@@ -39,7 +38,7 @@ public final class HttpMultipartRequest implements Closeable {
         urlConnection.setUseCaches(false);
         urlConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-        stream = new ByteArrayOutputStream();
+        stream = new MemoryOutputStream();
     }
 
     private void addLine(String content) throws IOException {
@@ -52,7 +51,7 @@ public final class HttpMultipartRequest implements Closeable {
         addLine(String.format("Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"", name, filename));
         addLine("Content-Type: " + contentType);
         addLine("");
-        IOUtils.copyTo(inputStream, stream);
+        stream.copyFrom(inputStream);
         addLine("");
         return this;
     }

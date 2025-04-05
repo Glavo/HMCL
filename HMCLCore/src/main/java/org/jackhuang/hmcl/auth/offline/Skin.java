@@ -27,10 +27,10 @@ import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.io.MemoryOutputStream;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -249,7 +249,7 @@ public class Skin {
         @Override
         protected Context getContext(URLConnection conn, boolean checkETag) throws IOException {
             return new Context() {
-                final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                final MemoryOutputStream baos = new MemoryOutputStream();
 
                 @Override
                 public void write(byte[] buffer, int offset, int len) {
@@ -260,10 +260,11 @@ public class Skin {
                 public void close() throws IOException {
                     if (!isSuccess()) return;
 
-                    setResult(new ByteArrayInputStream(baos.toByteArray()));
+                    byte[] bytes = baos.toByteArrayNoCopy();
 
+                    setResult(new ByteArrayInputStream(bytes));
                     if (checkETag) {
-                        repository.cacheBytes(baos.toByteArray(), conn);
+                        repository.cacheBytes(bytes, conn);
                     }
                 }
             };

@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.DigestUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.io.IOUtils;
+import org.jackhuang.hmcl.util.io.MemoryOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -164,12 +165,12 @@ public class LibraryDownloadTask extends Task<Void> {
         JarInputStream jar = new JarInputStream(new ByteArrayInputStream(data));
         JarEntry entry = jar.getNextJarEntry();
         while (entry != null) {
-            byte[] eData = IOUtils.readFullyWithoutClosing(jar);
+            MemoryOutputStream eData = IOUtils.readFullyWithoutClosing(jar);
             if (entry.getName().equals("checksums.sha1")) {
-                hashes = new String(eData, StandardCharsets.UTF_8).split("\n");
+                hashes = eData.toString().split("\n");
             }
             if (!entry.isDirectory()) {
-                files.put(entry.getName(), DigestUtils.digestToString("SHA-1", eData));
+                files.put(entry.getName(), DigestUtils.digestToString("SHA-1", eData.toByteArrayNoCopy()));
             }
             entry = jar.getNextJarEntry();
         }

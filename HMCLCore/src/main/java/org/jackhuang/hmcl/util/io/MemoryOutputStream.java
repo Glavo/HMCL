@@ -17,15 +17,11 @@
  */
 package org.jackhuang.hmcl.util.io;
 
-import org.jackhuang.hmcl.util.DigestUtils;
-
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Arrays;
 
 /**
@@ -121,6 +117,10 @@ public final class MemoryOutputStream extends OutputStream {
         }
     }
 
+    public byte[] toByteArray() {
+        return Arrays.copyOf(buf, count);
+    }
+
     public byte[] toByteArrayNoCopy() {
         return buf.length == count ? buf : Arrays.copyOf(buf, count);
     }
@@ -132,15 +132,5 @@ public final class MemoryOutputStream extends OutputStream {
 
     public String toString(Charset charset) {
         return new String(buf, 0, count, charset);
-    }
-
-    public ByteArrayInputStream toInputStream() {
-        return new ByteArrayInputStream(buf, 0, count);
-    }
-
-    public byte[] digest(String algorithm) {
-        MessageDigest digest = DigestUtils.getDigest(algorithm);
-        digest.update(buf, 0, count);
-        return digest.digest();
     }
 }
