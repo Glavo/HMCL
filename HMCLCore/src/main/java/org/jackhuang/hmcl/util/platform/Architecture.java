@@ -21,6 +21,7 @@ import org.jackhuang.hmcl.util.io.IOUtils;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -205,9 +206,11 @@ public enum Architecture {
             if (CURRENT_ARCH == X86_64) {
                 try {
                     Process process = Runtime.getRuntime().exec(new String[]{"/usr/sbin/sysctl", "-n", "sysctl.proc_translated"});
-                    if (process.waitFor(3, TimeUnit.SECONDS) && process.exitValue() == 0
-                            && "1".equals(IOUtils.readFullyAsString(process.getInputStream(), OperatingSystem.NATIVE_CHARSET).trim())) {
-                        sysArch = ARM64;
+                    if (process.waitFor(3, TimeUnit.SECONDS) && process.exitValue() == 0) {
+                        InputStream stream = process.getInputStream();
+                        if ("1".equals(IOUtils.readFully(stream).toString(OperatingSystem.NATIVE_CHARSET).trim())) {
+                            sysArch = ARM64;
+                        }
                     }
                 } catch (Throwable e) {
                     e.printStackTrace(System.err);
@@ -222,7 +225,8 @@ public enum Architecture {
                     try {
                         Process process = Runtime.getRuntime().exec(new String[]{uname, "-m"});
                         if (process.waitFor(3, TimeUnit.SECONDS) && process.exitValue() == 0) {
-                            sysArch = parseArchName(IOUtils.readFullyAsString(process.getInputStream(), OperatingSystem.NATIVE_CHARSET).trim());
+                            InputStream stream = process.getInputStream();
+                            sysArch = parseArchName(IOUtils.readFully(stream).toString(OperatingSystem.NATIVE_CHARSET).trim());
                         }
                     } catch (Throwable e) {
                         e.printStackTrace(System.err);
