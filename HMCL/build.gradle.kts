@@ -110,13 +110,24 @@ tasks.getByName<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("sha
     archiveClassifier.set(null as String?)
 
     exclude("**/package-info.class")
+    exclude("**/package.html")
     exclude("META-INF/maven/**")
 
     exclude("META-INF/services/javax.imageio.spi.ImageReaderSpi")
     exclude("META-INF/services/javax.imageio.spi.ImageInputStreamSpi")
 
+    exclude("com/sun/jna/aix-*/**")
+    exclude("com/sun/jna/dragonflybsd-*/**")
+    exclude("com/sun/jna/openbsd-*/**")
+    exclude("com/sun/jna/sunos-*/**")
+    exclude("com/sun/jna/*-ppc/**")
+    exclude("com/sun/jna/*-ppc64le/**")
+    exclude("com/sun/jna/*-s390x/**")
+    exclude("com/sun/jna/*-armel/**")
+
     minimize {
         exclude(dependency("com.google.code.gson:.*:.*"))
+        exclude(dependency("net.java.dev.jna:jna:.*"))
         exclude(dependency("libs:JFoenix:.*"))
     }
 
