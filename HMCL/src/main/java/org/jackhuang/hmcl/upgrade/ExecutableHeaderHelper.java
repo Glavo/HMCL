@@ -45,7 +45,7 @@ final class ExecutableHeaderHelper {
 
     private static Map<String, String> suffix2header = mapOf(
             pair("exe", "assets/HMCLauncher.exe"),
-            pair("sh", "assets/HMCLauncher.sh")
+            pair("sh", "src/main/launcher/HMCLauncher.sh")
     );
 
     private static Optional<String> getSuffix(Path file) {

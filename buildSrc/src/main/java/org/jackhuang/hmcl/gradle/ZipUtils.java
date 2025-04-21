@@ -17,10 +17,16 @@
  */
 package org.jackhuang.hmcl.gradle;
 
+import org.gradle.api.logging.Logging;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.function.UnaryOperator;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -28,7 +34,7 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ZipUtils {
 
-    public static void copyEntries(ZipInputStream inputStream, ZipOutputStream outputStream,
+    public static void copyEntries(ZipFile input, ZipOutputStream output,
                                    SignatureBuilder signatureBuilder,
                                    UnaryOperator<String> nameMapper)
             throws IOException {
@@ -37,8 +43,7 @@ public final class ZipUtils {
 
         byte[] buffer = new byte[32 * 1024];
 
-        ZipEntry entry;
-        while ((entry = inputStream.getNextEntry()) != null) {
+        for (ZipEntry entry : Collections.list(input.entries())) {
             String newName = nameMapper.apply(entry.getName());
             if (newName == null)
                 continue;
@@ -51,17 +56,19 @@ public final class ZipUtils {
                 newEntry.setMethod(ZipEntry.STORED);
             }
 
-            outputStream.putNextEntry(newEntry);
+            output.putNextEntry(newEntry);
 
             if (signatureBuilder != null) {
                 signatureBuilder.md.reset();
             }
 
-            int n;
-            while ((n = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, n);
-                if (signatureBuilder != null)
-                    signatureBuilder.md.update(buffer, 0, n);
+            try (InputStream inputStream = input.getInputStream(entry)) {
+                int n;
+                while ((n = inputStream.read(buffer)) > 0) {
+                    output.write(buffer, 0, n);
+                    if (signatureBuilder != null)
+                        signatureBuilder.md.update(buffer, 0, n);
+                }
             }
 
             if (signatureBuilder != null) {
@@ -69,7 +76,7 @@ public final class ZipUtils {
                 signatureBuilder.md.reset();
             }
 
-            outputStream.closeEntry();
+            output.closeEntry();
         }
     }
 

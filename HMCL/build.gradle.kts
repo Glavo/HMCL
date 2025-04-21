@@ -3,6 +3,7 @@ import org.jackhuang.hmcl.gradle.ZipUtils
 import org.jackhuang.hmcl.gradle.mod.ParseModDataTask
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
+import java.util.TreeMap
 import java.util.zip.*
 
 plugins {
@@ -31,20 +32,24 @@ val microsoftAuthId = System.getenv("MICROSOFT_AUTH_ID") ?: ""
 val microsoftAuthSecret = System.getenv("MICROSOFT_AUTH_SECRET") ?: ""
 val curseForgeApiKey = System.getenv("CURSEFORGE_API_KEY") ?: ""
 
-val launcherExe = System.getenv("HMCL_LAUNCHER_EXE")
+val launcherExe = System.getenv("HMCL_LAUNCHER_EXE")?.let { file(it) }
 
 version = "$versionRoot.$buildNumber"
 
-val hmclauncher = configurations.create("hmclauncher")
+val hmclauncher by configurations.creating
+
+fun createSignatureBuilder(): SignatureBuilder? =
+    System.getenv("HMCL_SIGNATURE_KEY")?.let { SignatureBuilder(file(it).toPath()) } ?: run {
+        logger.warn("Missing signature key")
+        null
+    }
 
 dependencies {
     implementation(project(":HMCLCore"))
     implementation("libs:JFoenix")
     implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
 
-    if (launcherExe == null) {
-        hmclauncher("org.glavo.hmcl:HMCLauncher:3.6.0.1")
-    }
+    hmclauncher("org.glavo.hmcl:HMCLauncher:3.6.0.1")
 }
 
 fun digest(algorithm: String, bytes: ByteArray): ByteArray = MessageDigest.getInstance(algorithm).digest(bytes)
@@ -142,20 +147,20 @@ tasks.shadowJar {
     }
 
     doLast {
-        val signatureBuilder = System.getenv("HMCL_SIGNATURE_KEY")?.let { SignatureBuilder(file(it).toPath()) }
-        if (signatureBuilder == null) {
-            logger.warn("Missing signature key")
-        }
+        val signatureBuilder = createSignatureBuilder()
 
         val zipBytes = ByteArrayOutputStream()
-        ZipInputStream(jarPath.inputStream()).use { zipInput ->
-            ZipOutputStream(zipBytes).use { zipOutput ->
-                zipOutput.setLevel(Deflater.BEST_COMPRESSION)
+        ZipOutputStream(zipBytes).use { zipOutput ->
+            zipOutput.setLevel(Deflater.BEST_COMPRESSION)
+
+            ZipFile(jarPath).use { zipInput ->
                 ZipUtils.copyEntries(zipInput, zipOutput, signatureBuilder, null)
-                if (signatureBuilder != null) {
-                    zipOutput.putNextEntry(ZipEntry("META-INF/hmcl_signature"))
-                    zipOutput.write(signatureBuilder.sign())
-                }
+            }
+
+            if (signatureBuilder != null) {
+                zipOutput.putNextEntry(ZipEntry("META-INF/hmcl_signature"))
+                zipOutput.write(signatureBuilder.sign())
+                zipOutput.closeEntry()
             }
         }
         jarPath.writeBytes(zipBytes.toByteArray())
@@ -171,18 +176,75 @@ tasks.processResources {
     dependsOn(tasks["java11Classes"])
 }
 
-val makeExecutables = tasks.create("makeExecutables") {
+
+val updateJarPath = jarPath.resolveSibling(jarPath.nameWithoutExtension + "-update.jar")
+val updateJar by tasks.registering {
+    dependsOn(tasks.shadowJar)
+
+    val launcherSh = project.file("src/main/launcher/HMCLauncher.sh")
+
+    inputs.files(jarPath, launcherSh)
+    if (launcherExe == null)
+        inputs.files(hmclauncher)
+    else
+        inputs.file(launcherExe)
+
+    outputs.file(updateJarPath)
+
+    doLast {
+        val signatureBuilder = createSignatureBuilder()
+        ZipOutputStream(updateJarPath.outputStream()).use { zipOutput ->
+            zipOutput.setLevel(Deflater.BEST_COMPRESSION)
+
+            ZipFile(jarPath).use { zipInput ->
+                ZipUtils.copyEntries(zipInput, zipOutput, signatureBuilder) {
+                    if (it != "META-INF/hmcl_signature")
+                        it
+                    else
+                        "META-INF/hmcl_signature_lite"
+                }
+            }
+
+            fun addLauncher(extension: String, content: ByteArray) {
+                val name = "assets/HMCLauncher.$extension"
+
+                zipOutput.putNextEntry(ZipEntry(name))
+                zipOutput.write(content)
+                zipOutput.closeEntry()
+
+                signatureBuilder?.add(name, content)
+            }
+
+            addLauncher("exe", launcherExe?.readBytes() ?: ZipFile(hmclauncher.resolve().single()).use { zipFile ->
+                val entry = zipFile.getEntry("assets/HMCLauncher.exe")
+                    ?: throw GradleException("Missing HMCLauncher.exe")
+                zipFile.getInputStream(entry).readBytes()
+            })
+            addLauncher("sh", launcherSh.readBytes())
+
+            if (signatureBuilder != null) {
+                zipOutput.putNextEntry(ZipEntry("META-INF/hmcl_signature"))
+                zipOutput.write(signatureBuilder.sign())
+                zipOutput.closeEntry()
+            }
+        }
+
+        createChecksum(updateJarPath)
+    }
+}
+
+val makeExecutables by tasks.registering {
     val extensions = listOf("exe", "sh")
 
-    dependsOn(tasks.jar)
+    dependsOn(tasks.jar, updateJar)
 
-    inputs.file(jarPath)
+    inputs.files(jarPath, updateJar)
     outputs.files(extensions.map { File(jarPath.parentFile, jarPath.nameWithoutExtension + '.' + it) })
 
     doLast {
         val jarContent = jarPath.readBytes()
 
-        ZipFile(jarPath).use { zipFile ->
+        ZipFile(updateJarPath).use { zipFile ->
             for (extension in extensions) {
                 val output = File(jarPath.parentFile, jarPath.nameWithoutExtension + '.' + extension)
                 val entry = zipFile.getEntry("assets/HMCLauncher.$extension")
