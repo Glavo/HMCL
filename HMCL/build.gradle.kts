@@ -1,18 +1,16 @@
+import org.jackhuang.hmcl.gradle.SignatureBuilder
+import org.jackhuang.hmcl.gradle.ZipUtils
 import org.jackhuang.hmcl.gradle.mod.ParseModDataTask
-import java.net.URI
-import java.nio.file.FileSystems
-import java.nio.file.Files
-import java.security.KeyFactory
+import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
-import java.security.Signature
-import java.security.spec.PKCS8EncodedKeySpec
-import java.util.zip.ZipFile
+import java.util.zip.*
 
 plugins {
     id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
-val isOfficial = System.getenv("HMCL_SIGNATURE_KEY") != null
+val keyLocation = System.getenv("HMCL_SIGNATURE_KEY")
+val isOfficial = keyLocation != null
         || (System.getenv("GITHUB_REPOSITORY_OWNER") == "HMCL-dev" && System.getenv("GITHUB_BASE_REF")
     .isNullOrEmpty())
 
@@ -37,13 +35,15 @@ val launcherExe = System.getenv("HMCL_LAUNCHER_EXE")
 
 version = "$versionRoot.$buildNumber"
 
+val hmclauncher = configurations.create("hmclauncher")
+
 dependencies {
     implementation(project(":HMCLCore"))
     implementation("libs:JFoenix")
     implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
 
     if (launcherExe == null) {
-        implementation("org.glavo.hmcl:HMCLauncher:3.6.0.1")
+        hmclauncher("org.glavo.hmcl:HMCLauncher:3.6.0.1")
     }
 }
 
@@ -60,31 +60,6 @@ fun createChecksum(file: File) {
         File(file.parentFile, "${file.name}.$ext").writeText(
             digest(algorithm, file.readBytes()).joinToString(separator = "", postfix = "\n") { "%02x".format(it) }
         )
-    }
-}
-
-fun attachSignature(jar: File) {
-    val keyLocation = System.getenv("HMCL_SIGNATURE_KEY")
-    if (keyLocation == null) {
-        logger.warn("Missing signature key")
-        return
-    }
-
-    val privatekey = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(File(keyLocation).readBytes()))
-    val signer = Signature.getInstance("SHA512withRSA")
-    signer.initSign(privatekey)
-    ZipFile(jar).use { zip ->
-        zip.stream()
-            .sorted(Comparator.comparing { it.name })
-            .filter { it.name != "META-INF/hmcl_signature" }
-            .forEach {
-                signer.update(digest("SHA-512", it.name.toByteArray()))
-                signer.update(digest("SHA-512", zip.getInputStream(it).readBytes()))
-            }
-    }
-    val signature = signer.sign()
-    FileSystems.newFileSystem(URI.create("jar:" + jar.toURI()), emptyMap<String, Any>()).use { zipfs ->
-        Files.newOutputStream(zipfs.getPath("META-INF/hmcl_signature")).use { it.write(signature) }
     }
 }
 
@@ -107,12 +82,12 @@ tasks.getByName<JavaCompile>(java11.compileJavaTaskName) {
 
 tasks.jar {
     enabled = false
-    dependsOn(tasks["shadowJar"])
+    dependsOn(tasks.shadowJar)
 }
 
 val jarPath = tasks.jar.get().archiveFile.get().asFile
 
-tasks.getByName<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.shadowJar {
     archiveClassifier.set(null as String?)
 
     exclude("**/package-info.class")
@@ -167,7 +142,24 @@ tasks.getByName<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("sha
     }
 
     doLast {
-        attachSignature(jarPath)
+        val signatureBuilder = System.getenv("HMCL_SIGNATURE_KEY")?.let { SignatureBuilder(file(it).toPath()) }
+        if (signatureBuilder == null) {
+            logger.warn("Missing signature key")
+        }
+
+        val zipBytes = ByteArrayOutputStream()
+        ZipInputStream(jarPath.inputStream()).use { zipInput ->
+            ZipOutputStream(zipBytes).use { zipOutput ->
+                zipOutput.setLevel(Deflater.BEST_COMPRESSION)
+                ZipUtils.copyEntries(zipInput, zipOutput, signatureBuilder, null)
+                if (signatureBuilder != null) {
+                    zipOutput.putNextEntry(ZipEntry("META-INF/hmcl_signature"))
+                    zipOutput.write(signatureBuilder.sign())
+                }
+            }
+        }
+        jarPath.writeBytes(zipBytes.toByteArray())
+
         createChecksum(jarPath)
     }
 }
