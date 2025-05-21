@@ -96,18 +96,27 @@ public final class AboutPage extends StackPane {
 
             List<GraphicsCard> graphicsCards = SystemInfo.getGraphicsCards();
             if (graphicsCards != null && !graphicsCards.isEmpty()) {
-                int i = 1;
-                for (GraphicsCard graphicsCard : graphicsCards) {
-                    IconedTwoLineListItem cardItem = new IconedTwoLineListItem();
-                    cardItem.setImage(FXUtils.newBuiltinImage("/assets/img/platform/gpu.png"));
+                IconedTwoLineListItem cardItem = new IconedTwoLineListItem();
+                cardItem.setImage(FXUtils.newBuiltinImage("/assets/img/platform/gpu.png"));
+                cardItem.setTitle(i18n("about.platform.gpu"));
 
-                    cardItem.setTitle(graphicsCards.size() == 1
-                            ? i18n("about.platform.gpu")
-                            : i18n("about.platform.gpu.n", i++));
-                    cardItem.setSubtitle(graphicsCard.getName());
 
-                    platform.getContent().add(cardItem);
+                if (graphicsCards.size() == 1)
+                    cardItem.setSubtitle(graphicsCards.get(0).getName());
+                else {
+                    int i = 1;
+
+                    StringBuilder builder = new StringBuilder();
+                    for (GraphicsCard card : graphicsCards) {
+                        builder.append(i18n("about.platform.gpu.n", i)).append(": ").append(card.getName());
+                        if (i < graphicsCards.size())
+                            builder.append('\n');
+                        i++;
+                    }
+                    cardItem.setSubtitle(builder.toString());
                 }
+
+                platform.getContent().add(cardItem);
             }
         }
 
