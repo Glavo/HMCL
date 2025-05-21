@@ -26,6 +26,17 @@ import java.util.*;
  */
 public final class GraphicsCard {
 
+    public static String cleanName(String name) {
+        if (name == null)
+            return null;
+
+        if (name.contains("Intel")) {
+            name = name.replace("Intel(R) ", "Intel ");
+        }
+
+        return name;
+    }
+
     public static Builder builder() {
         return new Builder();
     }

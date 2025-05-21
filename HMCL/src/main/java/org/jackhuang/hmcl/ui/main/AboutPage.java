@@ -31,12 +31,16 @@ import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.IconedTwoLineListItem;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jackhuang.hmcl.util.platform.SystemInfo;
+import org.jackhuang.hmcl.util.platform.hardware.CentralProcessor;
+import org.jackhuang.hmcl.util.platform.hardware.GraphicsCard;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -59,6 +63,52 @@ public final class AboutPage extends StackPane {
             author.setExternalLink("https://space.bilibili.com/1445341");
 
             about.getContent().setAll(launcher, author);
+        }
+
+        ComponentList platform = new ComponentList();
+        {
+            CentralProcessor cpu = SystemInfo.getCentralProcessor();
+            if (cpu != null) {
+                CentralProcessor.Cores cores = cpu.getCores();
+
+                IconedTwoLineListItem cpuItem = new IconedTwoLineListItem();
+                cpuItem.setImage(FXUtils.newBuiltinImage("/assets/img/platform/cpu.png"));
+                cpuItem.setTitle(i18n("about.platform.cpu"));
+
+                StringBuilder builder = new StringBuilder(128);
+                if (cores != null && cores.packages > 1)
+                    builder.append(cores.packages).append(" x ");
+
+                builder.append(cpu.getName());
+
+                if (cores != null) {
+                    builder.append(" (");
+                    builder.append(cores.logical <= 0 || cores.logical == cores.physical
+                            ? i18n("about.platform.cpu.cores", cores.physical)
+                            : i18n("about.platform.cpu.cores.hyperthreading", cores.physical, cores.logical));
+                    builder.append(")");
+                }
+
+                cpuItem.setSubtitle(builder.toString());
+
+                platform.getContent().add(cpuItem);
+            }
+
+            List<GraphicsCard> graphicsCards = SystemInfo.getGraphicsCards();
+            if (graphicsCards != null && !graphicsCards.isEmpty()) {
+                int i = 1;
+                for (GraphicsCard graphicsCard : graphicsCards) {
+                    IconedTwoLineListItem cardItem = new IconedTwoLineListItem();
+                    cardItem.setImage(FXUtils.newBuiltinImage("/assets/img/platform/gpu.png"));
+
+                    cardItem.setTitle(graphicsCards.size() == 1
+                            ? i18n("about.platform.gpu")
+                            : i18n("about.platform.gpu.n", i++));
+                    cardItem.setSubtitle(graphicsCard.getName());
+
+                    platform.getContent().add(cardItem);
+                }
+            }
         }
 
         ComponentList thanks = loadIconedTwoLineList("/assets/about/thanks.json");
@@ -90,6 +140,9 @@ public final class AboutPage extends StackPane {
         content.getChildren().setAll(
                 ComponentList.createComponentListTitle(i18n("about")),
                 about,
+
+                ComponentList.createComponentListTitle(i18n("about.platform")),
+                platform,
 
                 ComponentList.createComponentListTitle(i18n("about.thanks_to")),
                 thanks,
