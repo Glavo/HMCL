@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.JFXHyperlink;
 import org.jackhuang.hmcl.upgrade.RemoteVersion;
+import org.jackhuang.hmcl.upgrade.UpdateChannel;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
@@ -82,7 +83,15 @@ public final class UpgradeDialog extends JFXDialogLayout {
             }
         }).start();
 
-        JFXHyperlink openInBrowser = new JFXHyperlink(i18n("web.view_in_browser"));
+        if (remoteVersion.getChannel() == UpdateChannel.STABLE || remoteVersion.getChannel() == UpdateChannel.DEVELOPMENT) {
+            JFXHyperlink bilibili = new JFXHyperlink(i18n("update.changelog.view_on_bilibili"));
+            bilibili.setExternalLink(remoteVersion.getChannel() == UpdateChannel.STABLE
+                    ? "https://www.bilibili.com/read/readlist/rl807757"
+                    : "https://www.bilibili.com/read/readlist/rl923126");
+            getActions().add(bilibili);
+        }
+
+        JFXHyperlink openInBrowser = new JFXHyperlink(i18n("update.changelog.view_in_browser"));
         openInBrowser.setExternalLink(url);
 
         JFXButton updateButton = new JFXButton(i18n("update.accept"));
@@ -93,7 +102,7 @@ public final class UpgradeDialog extends JFXDialogLayout {
         cancelButton.getStyleClass().add("dialog-cancel");
         cancelButton.setOnAction(e -> fireEvent(new DialogCloseEvent()));
 
-        setActions(openInBrowser, updateButton, cancelButton);
+        getActions().addAll(openInBrowser, updateButton, cancelButton);
         onEscPressed(this, cancelButton::fire);
     }
 }
