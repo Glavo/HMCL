@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.game;
 
 import com.google.gson.JsonParseException;
+import kala.compress.archivers.zip.ZipArchiveEntry;
 import kala.compress.archivers.zip.ZipArchiveReader;
 import org.jackhuang.hmcl.mod.*;
 import org.jackhuang.hmcl.mod.curse.CurseModpackProvider;
@@ -40,6 +41,8 @@ import org.jackhuang.hmcl.util.function.ExceptionalRunnable;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.tree.ArchiveFileTree;
+import org.jackhuang.hmcl.util.tree.ZipFileTree;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -61,7 +64,8 @@ import static org.jackhuang.hmcl.util.Lang.toIterable;
 import static org.jackhuang.hmcl.util.Pair.pair;
 
 public final class ModpackHelper {
-    private ModpackHelper() {}
+    private ModpackHelper() {
+    }
 
     private static final Map<String, ModpackProvider> providers = mapOf(
             pair(CurseModpackProvider.INSTANCE.getName(), CurseModpackProvider.INSTANCE),
@@ -78,34 +82,43 @@ public final class ModpackHelper {
     }
 
     public static boolean isFileModpackByExtension(File file) {
-        String ext = FileUtils.getExtension(file);
+        return isFileModpackByExtension(FileUtils.getExtension(file));
+    }
+
+    public static boolean isFileModpackByExtension(String ext) {
         return "zip".equals(ext) || "mrpack".equals(ext);
+    }
+
+    public static Modpack readModpackManifest(ZipArchiveReader zipReader, Path file, Charset charset) throws UnsupportedModpackException, ManuallyCreatedModpackException {
+        // Order for trying detecting manifest is necessary here.
+        // Do not change to iterating providers.
+        for (ModpackProvider provider : new ModpackProvider[]{
+                McbbsModpackProvider.INSTANCE,
+                CurseModpackProvider.INSTANCE,
+                ModrinthModpackProvider.INSTANCE,
+                HMCLModpackProvider.INSTANCE,
+                MultiMCModpackProvider.INSTANCE,
+                ServerModpackProvider.INSTANCE}) {
+            try {
+                return provider.readManifest(zipReader, file, charset);
+            } catch (Exception ignored) {
+            }
+        }
+
+        try (ZipFileTree tree = new ZipFileTree(zipReader, false)) {
+            findMinecraftDirectoryInManuallyCreatedModpack(file.toString(), tree);
+            throw new ManuallyCreatedModpackException(file);
+        } catch (IOException e) {
+            // ignore it
+        }
+
+        throw new UnsupportedModpackException(file.toString());
     }
 
     public static Modpack readModpackManifest(Path file, Charset charset) throws UnsupportedModpackException, ManuallyCreatedModpackException {
         try (ZipArchiveReader zipFile = CompressingUtils.openZipFile(file, charset)) {
-            // Order for trying detecting manifest is necessary here.
-            // Do not change to iterating providers.
-            for (ModpackProvider provider : new ModpackProvider[]{
-                    McbbsModpackProvider.INSTANCE,
-                    CurseModpackProvider.INSTANCE,
-                    ModrinthModpackProvider.INSTANCE,
-                    HMCLModpackProvider.INSTANCE,
-                    MultiMCModpackProvider.INSTANCE,
-                    ServerModpackProvider.INSTANCE}) {
-                try {
-                    return provider.readManifest(zipFile, file, charset);
-                } catch (Exception ignored) {
-                }
-            }
+            return readModpackManifest(zipFile, file, charset);
         } catch (IOException ignored) {
-        }
-
-        try (FileSystem fs = CompressingUtils.createReadOnlyZipFileSystem(file, charset)) {
-            findMinecraftDirectoryInManuallyCreatedModpack(file.toString(), fs);
-            throw new ManuallyCreatedModpackException(file);
-        } catch (IOException e) {
-            // ignore it
         }
 
         throw new UnsupportedModpackException(file.toString());
@@ -130,9 +143,28 @@ public final class ModpackHelper {
         throw new UnsupportedModpackException(modpackName);
     }
 
+    public static ArchiveFileTree.Dir<ZipArchiveEntry> findMinecraftDirectoryInManuallyCreatedModpack(String modpackName, ZipFileTree zipTree) throws UnsupportedModpackException {
+        var root = zipTree.getRoot();
+
+        if (isMinecraftDirectory(root)) return root;
+        for (var dir : root.getSubDirs().values()) {
+            if (isMinecraftDirectory(dir)) return dir;
+
+            for (var subdir : dir.getSubDirs().values()) {
+                if (isMinecraftDirectory(subdir)) return subdir;
+            }
+        }
+
+        throw new UnsupportedModpackException(modpackName);
+    }
+
     private static boolean isMinecraftDirectory(Path path) {
         return Files.isDirectory(path.resolve("versions")) &&
                 (path.getFileName() == null || ".minecraft".equals(FileUtils.getName(path)));
+    }
+
+    private static boolean isMinecraftDirectory(ArchiveFileTree.Dir<ZipArchiveEntry> dir) {
+        return dir.getSubDirs().containsKey("versions") && (dir.isRoot() || ".minecraft".equals(dir.getName()));
     }
 
     public static ModpackConfiguration<?> readModpackConfiguration(File file) throws IOException {

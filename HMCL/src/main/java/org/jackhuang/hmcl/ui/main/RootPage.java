@@ -23,8 +23,10 @@ import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.RefreshedVersionsEvent;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
+import org.jackhuang.hmcl.game.ManuallyCreatedModpackException;
 import org.jackhuang.hmcl.game.ModpackHelper;
 import org.jackhuang.hmcl.game.Version;
+import org.jackhuang.hmcl.mod.UnsupportedModpackException;
 import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.setting.Profile;
 import org.jackhuang.hmcl.setting.Profiles;
@@ -49,9 +51,12 @@ import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.TaskCancellationAction;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
+import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -88,27 +93,55 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
         return new Skin(this);
     }
 
+    private void handleFile(Path file) {
+        String ext = FileUtils.getExtension(file);
+
+        if ("zip".equals(ext)) {
+            try (var zipReader = CompressingUtils.openZipFile(file)) {
+                boolean isModpack = false;
+
+                try {
+                    ModpackHelper.readModpackManifest(zipReader, file, zipReader.getEncoding());
+                    isModpack = true;
+                } catch (ManuallyCreatedModpackException e) {
+                    isModpack = true;
+                } catch (UnsupportedModpackException ignored) {
+                }
+
+                if (isModpack) {
+                    zipReader.close();
+                    Controllers.getDecorator().startWizard(
+                            new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
+                            i18n("install.modpack"));
+                    return;
+                }
+
+            } catch (IOException e) {
+                throw new AssertionError(e); // TODO
+            }
+
+            throw new AssertionError("Unknown zip file: " + file); // TODO
+        } else if (ModpackHelper.isFileModpackByExtension(ext)) {
+            Controllers.getDecorator().startWizard(
+                    new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
+                    i18n("install.modpack"));
+        } else if (NBTFileType.isNBTFileByExtension(file)) {
+            try {
+                Controllers.navigate(new NBTEditorPage(file));
+            } catch (Throwable e) {
+                LOG.warning("Fail to open nbt file", e);
+                Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(e),
+                        i18n("message.error"), MessageDialogPane.MessageType.ERROR);
+            }
+        }
+    }
+
     public MainPage getMainPage() {
         if (mainPage == null) {
             MainPage mainPage = new MainPage();
             FXUtils.applyDragListener(mainPage,
-                    file -> ModpackHelper.isFileModpackByExtension(file) || NBTFileType.isNBTFileByExtension(file.toPath()),
-                    modpacks -> {
-                        File file = modpacks.get(0);
-                        if (ModpackHelper.isFileModpackByExtension(file)) {
-                            Controllers.getDecorator().startWizard(
-                                    new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file),
-                                    i18n("install.modpack"));
-                        } else if (NBTFileType.isNBTFileByExtension(file.toPath())) {
-                            try {
-                                Controllers.navigate(new NBTEditorPage(file.toPath()));
-                            } catch (Throwable e) {
-                                LOG.warning("Fail to open nbt file", e);
-                                Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(e),
-                                        i18n("message.error"), MessageDialogPane.MessageType.ERROR);
-                            }
-                        }
-                    });
+                    file -> true,
+                    modpacks -> handleFile(modpacks.get(0).toPath().toAbsolutePath().normalize()));
 
             FXUtils.onChangeAndOperate(Profiles.selectedVersionProperty(), mainPage::setCurrentGame);
             mainPage.showUpdateProperty().bind(UpdateChecker.outdatedProperty());
@@ -193,8 +226,7 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
                     .add(downloadItem)
                     .startCategory(i18n("settings.launcher.general").toUpperCase(Locale.ROOT))
                     .add(launcherSettingsItem)
-                    .add(chatItem)
-                    ;
+                    .add(chatItem);
 
             // the root page, with the sidebar in left, navigator in center.
             setLeft(sideBar);
