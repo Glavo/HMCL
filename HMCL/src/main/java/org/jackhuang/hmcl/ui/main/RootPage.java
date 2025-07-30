@@ -28,6 +28,7 @@ import org.jackhuang.hmcl.game.ModpackHelper;
 import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.mod.UnsupportedModpackException;
 import org.jackhuang.hmcl.setting.Accounts;
+import org.jackhuang.hmcl.setting.EnumBackgroundImage;
 import org.jackhuang.hmcl.setting.Profile;
 import org.jackhuang.hmcl.setting.Profiles;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -63,6 +64,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import static org.jackhuang.hmcl.setting.ConfigHolder.config;
+import static org.jackhuang.hmcl.ui.FXUtils.parseSegment;
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.ui.versions.VersionPage.wrap;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -133,6 +136,15 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
                 Controllers.dialog(i18n("nbt.open.failed") + "\n\n" + StringUtils.getStackTrace(e),
                         i18n("message.error"), MessageDialogPane.MessageType.ERROR);
             }
+        } else if (FXUtils.IMAGE_EXTENSIONS.contains(ext)) {
+            Controllers.confirm(i18n("root_page.drag.set_background", file), null,
+                    () -> {
+                        config().setBackgroundImage(file.toString());
+                        config().setBackgroundImageType(EnumBackgroundImage.CUSTOM);
+                    }
+                    , null);
+        } else {
+            throw new AssertionError("Unknown extension: " + ext); // TODO: dialog
         }
     }
 
