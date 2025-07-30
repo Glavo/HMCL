@@ -49,11 +49,10 @@ import org.jackhuang.hmcl.ui.versions.GameAdvancedListItem;
 import org.jackhuang.hmcl.ui.versions.Versions;
 import org.jackhuang.hmcl.ui.wizard.SinglePageWizardProvider;
 import org.jackhuang.hmcl.upgrade.UpdateChecker;
-import org.jackhuang.hmcl.util.Lang;
-import org.jackhuang.hmcl.util.StringUtils;
-import org.jackhuang.hmcl.util.TaskCancellationAction;
+import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.platform.Platform;
 import org.jackhuang.hmcl.util.platform.UnsupportedPlatformException;
 import org.jackhuang.hmcl.util.tree.ZipFileTree;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
@@ -98,6 +97,7 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
         return new Skin(this);
     }
 
+    @FXThread
     private void handleFile(Path file) {
         String ext = FileUtils.getExtension(file);
 
@@ -155,6 +155,21 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
                         config().setBackgroundImageType(EnumBackgroundImage.CUSTOM);
                     }
                     , null);
+        } else if (ExecutableFileType.detect(file) != null) {
+            ExecutableFileType executableFileType = ExecutableFileType.detect(file);
+            if (executableFileType.isCompatible(Platform.SYSTEM_PLATFORM)) {
+                Controllers.confirm(i18n("root_page.drag.executable", file), null, () -> {
+                    Lang.thread(() -> {
+                        try {
+                            executableFileType.execute(file, List.of());
+                        } catch (Throwable e) {
+                            LOG.warning("Fail to execute executable file: " + file, e);
+                        }
+                    });
+                }, null);
+            } else {
+                Controllers.dialog(i18n("root_page.drag.executable.unsupported", file), i18n("message.warning"), MessageDialogPane.MessageType.WARNING);
+            }
         } else {
             throw new AssertionError("Unknown extension: " + ext); // TODO: dialog
         }
