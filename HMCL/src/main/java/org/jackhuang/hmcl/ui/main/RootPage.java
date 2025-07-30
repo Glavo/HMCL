@@ -23,10 +23,10 @@ import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.RefreshedVersionsEvent;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
-import org.jackhuang.hmcl.game.ManuallyCreatedModpackException;
 import org.jackhuang.hmcl.game.ModpackHelper;
 import org.jackhuang.hmcl.game.Version;
-import org.jackhuang.hmcl.mod.UnsupportedModpackException;
+import org.jackhuang.hmcl.java.JavaInfo;
+import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.setting.EnumBackgroundImage;
 import org.jackhuang.hmcl.setting.Profile;
@@ -47,12 +47,15 @@ import org.jackhuang.hmcl.ui.nbt.NBTEditorPage;
 import org.jackhuang.hmcl.ui.nbt.NBTFileType;
 import org.jackhuang.hmcl.ui.versions.GameAdvancedListItem;
 import org.jackhuang.hmcl.ui.versions.Versions;
+import org.jackhuang.hmcl.ui.wizard.SinglePageWizardProvider;
 import org.jackhuang.hmcl.upgrade.UpdateChecker;
 import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.TaskCancellationAction;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
+import org.jackhuang.hmcl.util.platform.UnsupportedPlatformException;
+import org.jackhuang.hmcl.util.tree.ZipFileTree;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
 import java.io.File;
@@ -65,7 +68,6 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static org.jackhuang.hmcl.setting.ConfigHolder.config;
-import static org.jackhuang.hmcl.ui.FXUtils.parseSegment;
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.ui.versions.VersionPage.wrap;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -100,30 +102,40 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
         String ext = FileUtils.getExtension(file);
 
         if ("zip".equals(ext)) {
-            try (var zipReader = CompressingUtils.openZipFile(file)) {
-                boolean isModpack = false;
+            Task.<Runnable>supplyAsync(() -> {
+                try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
+                    if (ModpackHelper.isModpackFile(zipTree.getFile(), file)) {
+                        return () -> Controllers.getDecorator().startWizard(
+                                new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
+                                i18n("install.modpack"));
+                    }
 
-                try {
-                    ModpackHelper.readModpackManifest(zipReader, file, zipReader.getEncoding());
-                    isModpack = true;
-                } catch (ManuallyCreatedModpackException e) {
-                    isModpack = true;
-                } catch (UnsupportedModpackException ignored) {
+                    try {
+                        JavaInfo javaInfo = JavaInfo.fromArchive(zipTree);
+                        if (!JavaManager.isCompatible(javaInfo.getPlatform()))
+                            return () -> Controllers.dialog(i18n("java.install.failed.unsupported_platform"), null, MessageDialogPane.MessageType.WARNING);
+
+                        String rootDirName = zipTree.getRoot().getSubDirs().keySet().iterator().next();
+                        return () -> Controllers.getDecorator().startWizard(new SinglePageWizardProvider(controller ->
+                                new JavaInstallPage(controller::onFinish, javaInfo, null, null, rootDirName, file)));
+                    } catch (IOException ignored) {
+                        // Not a Java archive, continue to check other file types
+                    }
                 }
 
-                if (isModpack) {
-                    zipReader.close();
-                    Controllers.getDecorator().startWizard(
-                            new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
-                            i18n("install.modpack"));
-                    return;
+                return null;
+            }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
+                if (result != null) {
+                    result.run();
+                } else if (exception == null) {
+                    LOG.warning("Unsupported archive file: " + file, exception);
+                    throw new AssertionError(); // TODO: dialog
+                } else {
+                    LOG.warning("Failed to open archive file: " + file, exception);
+                    throw new AssertionError(exception); // TODO: dialog
                 }
+            })).start();
 
-            } catch (IOException e) {
-                throw new AssertionError(e); // TODO
-            }
-
-            throw new AssertionError("Unknown zip file: " + file); // TODO
         } else if (ModpackHelper.isFileModpackByExtension(ext)) {
             Controllers.getDecorator().startWizard(
                     new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),

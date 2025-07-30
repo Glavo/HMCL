@@ -81,6 +81,17 @@ public final class ModpackHelper {
         return providers.get(type);
     }
 
+    public static boolean isModpackFile(ZipArchiveReader reader, Path file) {
+        try {
+            ModpackHelper.readModpackManifest(reader, file, reader.getEncoding());
+            return true;
+        } catch (ManuallyCreatedModpackException e) {
+            return true;
+        } catch (UnsupportedModpackException ignored) {
+            return false;
+        }
+    }
+
     public static boolean isFileModpackByExtension(File file) {
         return isFileModpackByExtension(FileUtils.getExtension(file));
     }
