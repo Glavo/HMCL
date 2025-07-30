@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.ui.main;
 
 import javafx.beans.property.ReadOnlyObjectProperty;
 
+import kala.compress.archivers.zip.ZipArchiveEntry;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.RefreshedVersionsEvent;
@@ -53,7 +54,6 @@ import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.platform.Platform;
-import org.jackhuang.hmcl.util.platform.UnsupportedPlatformException;
 import org.jackhuang.hmcl.util.tree.ZipFileTree;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
@@ -64,6 +64,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import static org.jackhuang.hmcl.setting.ConfigHolder.config;
@@ -135,7 +136,36 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
                     throw new AssertionError(exception); // TODO: dialog
                 }
             })).start();
+        } else if ("jar".equals(ext)) {
+            Task.<Runnable>supplyAsync(() -> {
+                try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
+                    Manifest manifest = null;
+                    {
+                        ZipArchiveEntry entry = zipTree.getFile().getEntry("META-INF/MANIFEST.MF");
+                        if (entry != null) {
+                            try (var input = zipTree.getInputStream(entry)) {
+                                manifest = new Manifest(input);
+                            }
+                        }
+                    }
 
+                    if (manifest != null) {
+                        String mainClass = manifest.getMainAttributes().getValue("Main-Class");
+                    }
+                }
+
+                return null;
+            }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
+                if (result != null) {
+                    result.run();
+                } else if (exception == null) {
+                    LOG.warning("Unsupported archive file: " + file, exception);
+                    throw new AssertionError(); // TODO: dialog
+                } else {
+                    LOG.warning("Failed to open archive file: " + file, exception);
+                    throw new AssertionError(exception); // TODO: dialog
+                }
+            })).start();
         } else if (ModpackHelper.isFileModpackByExtension(ext)) {
             Controllers.getDecorator().startWizard(
                     new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
