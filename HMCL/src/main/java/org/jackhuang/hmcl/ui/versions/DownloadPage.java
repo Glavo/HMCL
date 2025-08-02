@@ -49,12 +49,12 @@ import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.i18n.I18n;
-import org.jackhuang.hmcl.util.io.NetworkUtils;
 import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -180,7 +180,7 @@ public class DownloadPage extends Control implements DecoratorPage {
 
         Controllers.taskDialog(
                 Task.composeAsync(() -> {
-                    FileDownloadTask task = new FileDownloadTask(NetworkUtils.toURL(file.getFile().getUrl()), dest, file.getFile().getIntegrityCheck());
+                    var task = new FileDownloadTask(URI.create(file.getFile().getUrl()), dest.toPath(), file.getFile().getIntegrityCheck());
                     task.setName(file.getName());
                     return task;
                 }),
@@ -220,7 +220,7 @@ public class DownloadPage extends Control implements DecoratorPage {
             {
                 ImageView imageView = new ImageView();
                 if (StringUtils.isNotBlank(getSkinnable().addon.getIconUrl())) {
-                    imageView.setImage(FXUtils.newRemoteImage(getSkinnable().addon.getIconUrl(), 40, 40, true, true, true));
+                    imageView.imageProperty().bind(FXUtils.newRemoteImage(getSkinnable().addon.getIconUrl(), 40, 40, true, true));
                 }
                 descriptionPane.getChildren().add(FXUtils.limitingSize(imageView, 40, 40));
 
@@ -359,7 +359,7 @@ public class DownloadPage extends Control implements DecoratorPage {
                         .collect(Collectors.toList()));
 
                 if (StringUtils.isNotBlank(addon.getIconUrl())) {
-                    imageView.setImage(FXUtils.newRemoteImage(addon.getIconUrl(), 40, 40, true, true, true));
+                    imageView.imageProperty().bind(FXUtils.newRemoteImage(addon.getIconUrl(), 40, 40, true, true));
                 }
             } else {
                 content.setTitle(i18n("mods.broken_dependency.title"));
