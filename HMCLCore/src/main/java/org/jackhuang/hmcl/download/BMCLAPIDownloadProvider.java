@@ -26,15 +26,12 @@ import org.jackhuang.hmcl.download.neoforge.NeoForgeBMCLVersionList;
 import org.jackhuang.hmcl.download.optifine.OptiFineBMCLVersionList;
 import org.jackhuang.hmcl.download.quilt.QuiltAPIVersionList;
 import org.jackhuang.hmcl.download.quilt.QuiltVersionList;
-import org.jackhuang.hmcl.util.Pair;
+import org.jackhuang.hmcl.util.io.UrlReplacer;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.jackhuang.hmcl.util.Pair.pair;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
- *
  * @author huang
  */
 public final class BMCLAPIDownloadProvider implements DownloadProvider {
@@ -48,7 +45,7 @@ public final class BMCLAPIDownloadProvider implements DownloadProvider {
     private final OptiFineBMCLVersionList optifine;
     private final QuiltVersionList quilt;
     private final QuiltAPIVersionList quiltApi;
-    private final List<Pair<String, String>> replacement;
+    private final UrlReplacer replacer;
 
     public BMCLAPIDownloadProvider(String apiRoot) {
         this.apiRoot = apiRoot;
@@ -61,25 +58,28 @@ public final class BMCLAPIDownloadProvider implements DownloadProvider {
         this.optifine = new OptiFineBMCLVersionList(apiRoot);
         this.quilt = new QuiltVersionList(this);
         this.quiltApi = new QuiltAPIVersionList(this);
-        this.replacement = Arrays.asList(
-                pair("https://bmclapi2.bangbang93.com", apiRoot),
-                pair("https://launchermeta.mojang.com", apiRoot),
-                pair("https://piston-meta.mojang.com", apiRoot),
-                pair("https://piston-data.mojang.com", apiRoot),
-                pair("https://launcher.mojang.com", apiRoot),
-                pair("https://libraries.minecraft.net", apiRoot + "/libraries"),
-                pair("http://files.minecraftforge.net/maven", apiRoot + "/maven"),
-                pair("https://files.minecraftforge.net/maven", apiRoot + "/maven"),
-                pair("https://maven.minecraftforge.net", apiRoot + "/maven"),
-                pair("https://maven.neoforged.net/releases/", apiRoot + "/maven/"),
-                pair("http://dl.liteloader.com/versions/versions.json", apiRoot + "/maven/com/mumfrey/liteloader/versions.json"),
-                pair("http://dl.liteloader.com/versions", apiRoot + "/maven"),
-                pair("https://meta.fabricmc.net", apiRoot + "/fabric-meta"),
-                pair("https://maven.fabricmc.net", apiRoot + "/maven"),
-                pair("https://authlib-injector.yushi.moe", apiRoot + "/mirrors/authlib-injector"),
-                pair("https://repo1.maven.org/maven2", "https://mirrors.cloud.tencent.com/nexus/repository/maven-public"),
-                pair("https://zkitefly.github.io/unlisted-versions-of-minecraft", "https://alist.8mi.tech/d/mirror/unlisted-versions-of-minecraft/Auto")
-        );
+
+        final String apiLibraries = apiRoot + "/libraries";
+        final String apiMaven = apiRoot + "/maven";
+
+        this.replacer = new UrlReplacer();
+        replacer.addHttpsReplacement("bmclapi2.bangbang93.com", apiRoot);
+        replacer.addHttpsReplacement("launchermeta.mojang.com", apiRoot);
+        replacer.addHttpsReplacement("piston-meta.mojang.com", apiRoot);
+        replacer.addHttpsReplacement("piston-data.mojang.com", apiRoot);
+        replacer.addHttpsReplacement("launcher.mojang.com", apiRoot);
+        replacer.addHttpsReplacement("libraries.minecraft.net", apiLibraries);
+        replacer.addHttpOrHttpsReplacement("files.minecraftforge.net", "/maven", apiLibraries);
+        replacer.addHttpsReplacement("maven.minecraftforge.net", apiMaven);
+        replacer.addHttpsReplacement("maven.neoforged.net", "/releases", apiMaven);
+        replacer.addHttpOrHttpsReplacement("dl.liteloader.com", "/versions/versions.json", apiRoot + "/maven/com/mumfrey/liteloader/versions.json");
+        replacer.addHttpOrHttpsReplacement("dl.liteloader.com", "/versions", apiMaven);
+        replacer.addHttpsReplacement("meta.fabricmc.net", apiRoot + "/fabric-meta");
+        replacer.addHttpsReplacement("maven.fabricmc.net", apiRoot + "/maven");
+        replacer.addHttpsReplacement("authlib-injector.yushi.moe", apiRoot + "/mirrors/authlib-injector");
+        replacer.addHttpsReplacement("repo1.maven.org", "/maven2", "https://mirrors.cloud.tencent.com/nexus/repository/maven-public");
+        replacer.addHttpsReplacement("zkitefly.github.io", "/unlisted-versions-of-minecraft", "https://alist.8mi.tech/d/mirror/unlisted-versions-of-minecraft/Auto");
+
     }
 
     public String getApiRoot() {
@@ -124,13 +124,11 @@ public final class BMCLAPIDownloadProvider implements DownloadProvider {
 
     @Override
     public String injectURL(String baseURL) {
-        for (Pair<String, String> pair : replacement) {
-            if (baseURL.startsWith(pair.getKey())) {
-                return pair.getValue() + baseURL.substring(pair.getKey().length());
-            }
+        try {
+            return replacer.replace(new URI(baseURL));
+        } catch (URISyntaxException e) {
+            return baseURL;
         }
-
-        return baseURL;
     }
 
     @Override
