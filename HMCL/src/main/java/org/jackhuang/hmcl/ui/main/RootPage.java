@@ -98,74 +98,82 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
         return new Skin(this);
     }
 
+    private void handleZipFile(Path file) {
+        Task.<Runnable>supplyAsync(() -> {
+            try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
+                if (ModpackHelper.isModpackFile(zipTree.getFile(), file)) {
+                    return () -> Controllers.getDecorator().startWizard(
+                            new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
+                            i18n("install.modpack"));
+                }
+
+                try {
+                    JavaInfo javaInfo = JavaInfo.fromArchive(zipTree);
+                    if (!JavaManager.isCompatible(javaInfo.getPlatform()))
+                        return () -> Controllers.dialog(i18n("java.install.failed.unsupported_platform"), null, MessageDialogPane.MessageType.WARNING);
+
+                    String rootDirName = zipTree.getRoot().getSubDirs().keySet().iterator().next();
+                    return () -> Controllers.getDecorator().startWizard(new SinglePageWizardProvider(controller ->
+                            new JavaInstallPage(controller::onFinish, javaInfo, null, null, rootDirName, file)));
+                } catch (IOException ignored) {
+                    // Not a Java archive, continue to check other file types
+                }
+            }
+
+            return null;
+        }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
+            if (result != null) {
+                result.run();
+            } else if (exception == null) {
+                LOG.warning("Unsupported archive file: " + file, exception);
+                throw new AssertionError(); // TODO: dialog
+            } else {
+                LOG.warning("Failed to open archive file: " + file, exception);
+                throw new AssertionError(exception); // TODO: dialog
+            }
+        })).start();
+    }
+
+    private void handleJarFile(Path file) {
+        Task.<Runnable>supplyAsync(() -> {
+            try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
+                Manifest manifest = null;
+                {
+                    ZipArchiveEntry entry = zipTree.getFile().getEntry("META-INF/MANIFEST.MF");
+                    if (entry != null) {
+                        try (var input = zipTree.getInputStream(entry)) {
+                            manifest = new Manifest(input);
+                        }
+                    }
+                }
+
+                if (manifest != null) {
+                    String mainClass = manifest.getMainAttributes().getValue("Main-Class");
+                }
+            }
+
+            return null;
+        }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
+            if (result != null) {
+                result.run();
+            } else if (exception == null) {
+                LOG.warning("Unsupported archive file: " + file, exception);
+                throw new AssertionError(); // TODO: dialog
+            } else {
+                LOG.warning("Failed to open archive file: " + file, exception);
+                throw new AssertionError(exception); // TODO: dialog
+            }
+        })).start();
+    }
+
     @FXThread
     private void handleFile(Path file) {
         String ext = FileUtils.getExtension(file);
 
         if ("zip".equals(ext)) {
-            Task.<Runnable>supplyAsync(() -> {
-                try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
-                    if (ModpackHelper.isModpackFile(zipTree.getFile(), file)) {
-                        return () -> Controllers.getDecorator().startWizard(
-                                new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
-                                i18n("install.modpack"));
-                    }
-
-                    try {
-                        JavaInfo javaInfo = JavaInfo.fromArchive(zipTree);
-                        if (!JavaManager.isCompatible(javaInfo.getPlatform()))
-                            return () -> Controllers.dialog(i18n("java.install.failed.unsupported_platform"), null, MessageDialogPane.MessageType.WARNING);
-
-                        String rootDirName = zipTree.getRoot().getSubDirs().keySet().iterator().next();
-                        return () -> Controllers.getDecorator().startWizard(new SinglePageWizardProvider(controller ->
-                                new JavaInstallPage(controller::onFinish, javaInfo, null, null, rootDirName, file)));
-                    } catch (IOException ignored) {
-                        // Not a Java archive, continue to check other file types
-                    }
-                }
-
-                return null;
-            }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
-                if (result != null) {
-                    result.run();
-                } else if (exception == null) {
-                    LOG.warning("Unsupported archive file: " + file, exception);
-                    throw new AssertionError(); // TODO: dialog
-                } else {
-                    LOG.warning("Failed to open archive file: " + file, exception);
-                    throw new AssertionError(exception); // TODO: dialog
-                }
-            })).start();
+            handleZipFile(file);
         } else if ("jar".equals(ext)) {
-            Task.<Runnable>supplyAsync(() -> {
-                try (var zipTree = new ZipFileTree(CompressingUtils.openZipFile(file))) {
-                    Manifest manifest = null;
-                    {
-                        ZipArchiveEntry entry = zipTree.getFile().getEntry("META-INF/MANIFEST.MF");
-                        if (entry != null) {
-                            try (var input = zipTree.getInputStream(entry)) {
-                                manifest = new Manifest(input);
-                            }
-                        }
-                    }
-
-                    if (manifest != null) {
-                        String mainClass = manifest.getMainAttributes().getValue("Main-Class");
-                    }
-                }
-
-                return null;
-            }).whenComplete(Schedulers.javafx(), ((result, exception) -> {
-                if (result != null) {
-                    result.run();
-                } else if (exception == null) {
-                    LOG.warning("Unsupported archive file: " + file, exception);
-                    throw new AssertionError(); // TODO: dialog
-                } else {
-                    LOG.warning("Failed to open archive file: " + file, exception);
-                    throw new AssertionError(exception); // TODO: dialog
-                }
-            })).start();
+            handleJarFile(file);
         } else if (ModpackHelper.isFileModpackByExtension(ext)) {
             Controllers.getDecorator().startWizard(
                     new ModpackInstallWizardProvider(Profiles.getSelectedProfile(), file.toFile()),
