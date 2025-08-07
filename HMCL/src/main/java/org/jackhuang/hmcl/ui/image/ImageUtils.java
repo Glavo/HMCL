@@ -33,7 +33,7 @@ import org.jackhuang.hmcl.ui.image.internal.AnimationImageImpl;
 import org.jackhuang.hmcl.ui.image.jxl.JXLDecoder;
 import org.jackhuang.hmcl.ui.image.jxl.JXLImage;
 import org.jackhuang.hmcl.ui.image.jxl.JXLOptions;
-import org.jackhuang.hmcl.ui.image.jxl.io.PNGWriter;
+import org.jackhuang.hmcl.ui.image.jxl.io.ImageWriter;
 import org.jackhuang.hmcl.util.SwingFXUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -41,8 +41,6 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -143,17 +141,52 @@ public final class ImageUtils {
     public static final ImageLoader JXL = (input, requestedWidth, requestedHeight, preserveRatio, smooth) -> {
         var options = new JXLOptions();
 
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int width;
+        int height;
+        int[] pixels;
         try (var jxlDecoder = new JXLDecoder(input, options)) {
             JXLImage image = jxlDecoder.decode();
             if (image == null)
                 throw new IOException("jxl image decode failed");
 
-            PNGWriter pngWriter = new PNGWriter(image, -1, options.outputCompression, image.isHDR(), options.peakDetect);
-            pngWriter.write(buffer);
+            var writer = new ImageWriter(image, -1, options.outputCompression, image.isHDR(), options.peakDetect);
+            pixels = writer.toArgbPixels();
+            width = image.getWidth();
+            height = image.getHeight();
         }
 
-        return DEFAULT.load(new ByteArrayInputStream(buffer.toByteArray()), requestedWidth, requestedHeight, preserveRatio, smooth);
+        boolean doScale;
+        if (requestedWidth > 0 && requestedHeight > 0
+                && (requestedWidth != width || requestedHeight != height)) {
+            doScale = true;
+
+            if (preserveRatio) {
+                double scaleX = (double) requestedWidth / width;
+                double scaleY = (double) requestedHeight / height;
+                double scale = Math.min(scaleX, scaleY);
+
+                requestedWidth = (int) (width * scale);
+                requestedHeight = (int) (height * scale);
+            }
+        } else {
+            doScale = false;
+        }
+
+        int targetWidth;
+        int targetHeight;
+        if (doScale) {
+            targetWidth = requestedWidth;
+            targetHeight = requestedHeight;
+            pixels = scale(pixels, width, height, targetWidth, targetHeight);
+        } else {
+            targetWidth = width;
+            targetHeight = height;
+        }
+
+        WritableImage image = new WritableImage(targetWidth, targetHeight);
+        image.getPixelWriter().setPixels(0, 0, targetWidth, targetHeight,
+                PixelFormat.getIntArgbInstance(), pixels, 0, targetWidth);
+        return image;
     };
 
     public static final Map<String, ImageLoader> EXT_TO_LOADER = Map.of(
