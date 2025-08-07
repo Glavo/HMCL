@@ -161,7 +161,7 @@ public final class FXUtils {
     public static final String DEFAULT_MONOSPACE_FONT = OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS ? "Consolas" : "Monospace";
 
     public static final List<String> IMAGE_EXTENSIONS = Lang.immutableListOf(
-            "png", "jpg", "jpeg", "bmp", "gif", "webp", "apng"
+            "png", "jpg", "jpeg", "bmp", "gif", "webp", "apng", "jxl"
     );
 
     private static final Map<String, Image> builtinImageCache = new ConcurrentHashMap<>();

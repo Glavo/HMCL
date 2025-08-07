@@ -30,6 +30,10 @@ import org.jackhuang.hmcl.ui.image.apng.chunks.PngFrameControl;
 import org.jackhuang.hmcl.ui.image.apng.error.PngException;
 import org.jackhuang.hmcl.ui.image.apng.error.PngIntegrityException;
 import org.jackhuang.hmcl.ui.image.internal.AnimationImageImpl;
+import org.jackhuang.hmcl.ui.image.jxl.JXLDecoder;
+import org.jackhuang.hmcl.ui.image.jxl.JXLImage;
+import org.jackhuang.hmcl.ui.image.jxl.JXLOptions;
+import org.jackhuang.hmcl.ui.image.jxl.io.PNGWriter;
 import org.jackhuang.hmcl.util.SwingFXUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,6 +41,8 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -134,14 +140,32 @@ public final class ImageUtils {
         }
     };
 
+    public static final ImageLoader JXL = (input, requestedWidth, requestedHeight, preserveRatio, smooth) -> {
+        var options = new JXLOptions();
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (var jxlDecoder = new JXLDecoder(input, options)) {
+            JXLImage image = jxlDecoder.decode();
+            if (image == null)
+                throw new IOException("jxl image decode failed");
+
+            PNGWriter pngWriter = new PNGWriter(image, -1, options.outputCompression, image.isHDR(), options.peakDetect);
+            pngWriter.write(buffer);
+        }
+
+        return DEFAULT.load(new ByteArrayInputStream(buffer.toByteArray()), requestedWidth, requestedHeight, preserveRatio, smooth);
+    };
+
     public static final Map<String, ImageLoader> EXT_TO_LOADER = Map.of(
             "webp", WEBP,
-            "apng", APNG
+            "apng", APNG,
+            "jxl", JXL
     );
 
     public static final Map<String, ImageLoader> CONTENT_TYPE_TO_LOADER = Map.of(
             "image/webp", WEBP,
-            "image/apng", APNG
+            "image/apng", APNG,
+            "image/jxl", JXL
     );
 
     public static final Set<String> DEFAULT_EXTS = Set.of(

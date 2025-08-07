@@ -12,7 +12,6 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
 import org.jackhuang.hmcl.ui.image.jxl.JXLImage;
-import org.jackhuang.hmcl.ui.image.jxl.JXLOptions;
 import org.jackhuang.hmcl.ui.image.jxl.JXLatte;
 import org.jackhuang.hmcl.ui.image.jxl.color.CIEPrimaries;
 import org.jackhuang.hmcl.ui.image.jxl.color.CIEXY;
@@ -37,18 +36,6 @@ public class PNGWriter {
     private boolean hdr;
     private int tf;
     private int maxValue;
-
-    public PNGWriter(JXLImage image) {
-        this(image, -1, false, JXLOptions.PEAK_DETECT_AUTO);
-    }
-
-    public PNGWriter(JXLImage image, boolean hdr) {
-        this(image, -1, hdr, JXLOptions.PEAK_DETECT_AUTO);
-    }
-
-    public PNGWriter(JXLImage image, int bitDepth, boolean hdr, int peakDetect) {
-        this(image, bitDepth, Deflater.DEFAULT_COMPRESSION, hdr, peakDetect);
-    }
 
     public PNGWriter(JXLImage image, int bitDepth, int deflateLevel, boolean hdr, int peakDetect) {
         if (bitDepth <= 0)
@@ -106,7 +93,7 @@ public class PNGWriter {
                 buffer[c].clamp(maxValue);
             } else {
                 buffer[c].castToIntIfFloat(maxValue);
-            }            
+            }
         }
     }
 
@@ -127,7 +114,7 @@ public class PNGWriter {
         out.writeInt(buf.length - 4);
         out.write(buf);
         crc32.update(buf);
-        out.writeInt((int)crc32.getValue());
+        out.writeInt((int) crc32.getValue());
     }
 
     private void writeSRGB() throws IOException {
@@ -176,7 +163,7 @@ public class PNGWriter {
         out.write(buf);
         crc32.reset();
         crc32.update(buf);
-        out.writeInt((int)crc32.getValue());
+        out.writeInt((int) crc32.getValue());
     }
 
     private void writeSample(DataOutput dout, int sample) throws IOException {
@@ -206,7 +193,7 @@ public class PNGWriter {
         out.write(buff);
         crc32.reset();
         crc32.update(buff);
-        out.writeInt((int)crc32.getValue());
+        out.writeInt((int) crc32.getValue());
     }
 
     public void write(OutputStream outputStream) throws IOException {
