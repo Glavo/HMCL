@@ -98,6 +98,7 @@ tasks.withType<JavaCompile> {
 tasks.checkstyleMain {
     // Third-party code is not checked
     exclude("**/org/jackhuang/hmcl/ui/image/apng/**")
+    exclude("**/org/jackhuang/hmcl/ui/image/jxl/**")
 }
 
 tasks.compileJava {
