@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.launch;
 
 import org.jackhuang.hmcl.util.platform.ManagedProcess;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,5 +29,6 @@ import java.util.Map;
  * @author Glavo
  */
 public interface ProcessLauncher {
-    ManagedProcess launchProcess(List<String> command, Map<String, String> env, Path workDir, Charset encoding);
+    ManagedProcess launchProcess(List<String> command, Map<String, String> env, Path workDir, Charset encoding,
+                                 List<String> postExitCommand) throws IOException;
 }

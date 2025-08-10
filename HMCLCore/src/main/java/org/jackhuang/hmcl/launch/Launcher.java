@@ -37,17 +37,13 @@ public abstract class Launcher {
     protected final AuthInfo authInfo;
     protected final LaunchOptions options;
     protected final ProcessLauncher processLauncher;
-    protected final ProcessListener listener;
-    protected final boolean daemon;
 
-    public Launcher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher, ProcessListener listener, boolean daemon) {
+    public Launcher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher) {
         this.repository = repository;
         this.version = version;
         this.authInfo = authInfo;
         this.options = options;
         this.processLauncher = processLauncher;
-        this.listener = listener;
-        this.daemon = daemon;
     }
 
     /**

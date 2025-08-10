@@ -193,9 +193,9 @@ public final class LauncherHelper {
 
                     LOG.info("Here's the structure of game mod directory:\n" + FileUtils.printFileStructure(repository.getModManager(selectedVersion).getModsDirectory(), 10));
 
-                    return new HMCLGameLauncher(repository, version.get(), authInfo, launchOptions, null, launcherVisibility == LauncherVisibility.CLOSE
+                    return new HMCLGameLauncher(repository, version.get(), authInfo, launchOptions, new DefaultProcessLauncher(launcherVisibility == LauncherVisibility.CLOSE
                             ? null // Unnecessary to start listening to game process output when close launcher immediately after game launched.
-                            : new HMCLProcessListener(repository, version.get(), authInfo, launchOptions, launchingLatch, gameVersion.isPresent()), true);
+                            : new HMCLProcessListener(repository, version.get(), authInfo, launchOptions, launchingLatch, gameVersion.isPresent()), true));
                 }).thenComposeAsync(launcher -> { // launcher is prev task's result
                     if (scriptFile == null) {
                         return Task.supplyAsync(launcher::launch);

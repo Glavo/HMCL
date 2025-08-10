@@ -38,8 +38,8 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
  */
 public final class HMCLGameLauncher extends DefaultLauncher {
 
-    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher, ProcessListener listener, boolean daemon) {
-        super(repository, version, authInfo, options, processLauncher, listener, daemon);
+    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher) {
+        super(repository, version, authInfo, options, processLauncher);
     }
 
     @Override

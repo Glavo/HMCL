@@ -20,7 +20,6 @@ package org.jackhuang.hmcl.launch;
 import org.jackhuang.hmcl.auth.AuthInfo;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.*;
-import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.ServerAddress;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.UUIDTypeAdapter;
@@ -51,8 +50,8 @@ public class DefaultLauncher extends Launcher {
 
     private final LibraryAnalyzer analyzer;
 
-    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher, ProcessListener listener, boolean daemon) {
-        super(repository, version, authInfo, options, processLauncher, listener, daemon);
+    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher) {
+        super(repository, version, authInfo, options, processLauncher);
 
         this.analyzer = LibraryAnalyzer.analyze(version, repository.getGameVersion(version).orElse(null));
     }
@@ -479,32 +478,22 @@ public class DefaultLauncher extends Launcher {
 
         File runDirectory = repository.getRunDirectory(version.getId());
 
+        Map<String, String> envVars = getEnvVars();
+        String appdata = options.getGameDir().getAbsoluteFile().getParent();
+        if (appdata != null)
+            envVars.put("APPDATA", appdata);
+
         if (StringUtils.isNotBlank(options.getPreLaunchCommand())) {
-            ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPreLaunchCommand(), getEnvVars())).directory(runDirectory);
-            builder.environment().putAll(getEnvVars());
+            ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPreLaunchCommand(), envVars)).directory(runDirectory);
+            builder.environment().putAll(envVars);
             SystemUtils.callExternalProcess(builder);
         }
 
-        Process process;
-        try {
-            ProcessBuilder builder = new ProcessBuilder(rawCommandLine).directory(runDirectory);
-            if (listener == null) {
-                builder.inheritIO();
-            }
-            String appdata = options.getGameDir().getAbsoluteFile().getParent();
-            if (appdata != null) builder.environment().put("APPDATA", appdata);
+        List<String> postExitCommand = null;
+        if (!StringUtils.isBlank(options.getPostExitCommand()))
+            postExitCommand = StringUtils.tokenize(options.getPostExitCommand(), envVars);
 
-            builder.environment().putAll(getEnvVars());
-            process = builder.start();
-        } catch (IOException e) {
-            throw new ProcessCreationException(e);
-        }
-
-
-        ManagedProcess p = new ManagedProcess(process, rawCommandLine);
-        if (listener != null)
-            startMonitors(p, listener, command.encoding, daemon);
-        return p;
+        return processLauncher.launchProcess(rawCommandLine, envVars, runDirectory.toPath(), command.encoding, postExitCommand);
     }
 
     private Map<String, String> getEnvVars() {
@@ -720,33 +709,6 @@ public class DefaultLauncher extends Launcher {
 
         if (usePowerShell && !CommandBuilder.hasExecutionPolicy())
             throw new ExecutionPolicyLimitException();
-    }
-
-    private void startMonitors(ManagedProcess managedProcess, ProcessListener processListener, Charset encoding, boolean isDaemon) {
-        processListener.setProcess(managedProcess);
-        Thread stdout = Lang.thread(new StreamPump(managedProcess.getProcess().getInputStream(), it -> {
-            processListener.onLog(it, false);
-            managedProcess.addLine(it);
-        }, encoding), "stdout-pump", isDaemon);
-        managedProcess.addRelatedThread(stdout);
-        Thread stderr = Lang.thread(new StreamPump(managedProcess.getProcess().getErrorStream(), it -> {
-            processListener.onLog(it, true);
-            managedProcess.addLine(it);
-        }, encoding), "stderr-pump", isDaemon);
-        managedProcess.addRelatedThread(stderr);
-        managedProcess.addRelatedThread(Lang.thread(new ExitWaiter(managedProcess, Arrays.asList(stdout, stderr), (exitCode, exitType) -> {
-            processListener.onExit(exitCode, exitType);
-
-            if (StringUtils.isNotBlank(options.getPostExitCommand())) {
-                try {
-                    ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPostExitCommand(), getEnvVars())).directory(options.getGameDir());
-                    builder.environment().putAll(getEnvVars());
-                    SystemUtils.callExternalProcess(builder);
-                } catch (Throwable e) {
-                    LOG.warning("An Exception happened while running exit command.", e);
-                }
-            }
-        }), "exit-waiter", isDaemon));
     }
 
     private static final class Command {
