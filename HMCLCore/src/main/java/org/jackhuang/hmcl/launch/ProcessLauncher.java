@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.launch;
 
+import org.jackhuang.hmcl.util.platform.ManagedProcess;
+
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.List;
@@ -26,5 +28,5 @@ import java.util.Map;
  * @author Glavo
  */
 public interface ProcessLauncher {
-    void launchProcess(List<String> command, Map<String, String> env, Path workDir, Charset encoding);
+    ManagedProcess launchProcess(List<String> command, Map<String, String> env, Path workDir, Charset encoding);
 }

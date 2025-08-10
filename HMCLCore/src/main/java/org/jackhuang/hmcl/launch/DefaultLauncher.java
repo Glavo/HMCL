@@ -500,6 +500,7 @@ public class DefaultLauncher extends Launcher {
             throw new ProcessCreationException(e);
         }
 
+
         ManagedProcess p = new ManagedProcess(process, rawCommandLine);
         if (listener != null)
             startMonitors(p, listener, command.encoding, daemon);

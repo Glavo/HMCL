@@ -54,7 +54,7 @@ public final class ManagedProcess {
      */
     public ManagedProcess(Process process, List<String> commands) {
         this.process = process;
-        this.commands = Collections.unmodifiableList(new ArrayList<>(commands));
+        this.commands = List.copyOf(commands);
         this.classpath = null;
     }
 
@@ -67,7 +67,7 @@ public final class ManagedProcess {
      */
     public ManagedProcess(Process process, List<String> commands, String classpath) {
         this.process = process;
-        this.commands = Collections.unmodifiableList(new ArrayList<>(commands));
+        this.commands = List.copyOf(commands);
         this.classpath = classpath;
     }
 
@@ -113,7 +113,7 @@ public final class ManagedProcess {
      */
     public synchronized List<String> getLines(Predicate<String> lineFilter) {
         if (lineFilter == null)
-            return Collections.unmodifiableList(Arrays.asList(lines.toArray(new String[0])));
+            return List.of(lines.toArray(new String[0]));
 
         ArrayList<String> res = new ArrayList<>();
         for (String line : this.lines) {
