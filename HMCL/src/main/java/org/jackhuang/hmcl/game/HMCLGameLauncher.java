@@ -20,6 +20,7 @@ package org.jackhuang.hmcl.game;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.auth.AuthInfo;
 import org.jackhuang.hmcl.launch.DefaultLauncher;
+import org.jackhuang.hmcl.launch.ProcessLauncher;
 import org.jackhuang.hmcl.launch.ProcessListener;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.io.FileUtils;
@@ -37,16 +38,8 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
  */
 public final class HMCLGameLauncher extends DefaultLauncher {
 
-    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options) {
-        this(repository, version, authInfo, options, null);
-    }
-
-    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessListener listener) {
-        this(repository, version, authInfo, options, listener, true);
-    }
-
-    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessListener listener, boolean daemon) {
-        super(repository, version, authInfo, options, listener, daemon);
+    public HMCLGameLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher, ProcessListener listener, boolean daemon) {
+        super(repository, version, authInfo, options, processLauncher, listener, daemon);
     }
 
     @Override

@@ -51,16 +51,8 @@ public class DefaultLauncher extends Launcher {
 
     private final LibraryAnalyzer analyzer;
 
-    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options) {
-        this(repository, version, authInfo, options, null);
-    }
-
-    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessListener listener) {
-        this(repository, version, authInfo, options, listener, true);
-    }
-
-    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessListener listener, boolean daemon) {
-        super(repository, version, authInfo, options, listener, daemon);
+    public DefaultLauncher(GameRepository repository, Version version, AuthInfo authInfo, LaunchOptions options, ProcessLauncher processLauncher, ProcessListener listener, boolean daemon) {
+        super(repository, version, authInfo, options, processLauncher, listener, daemon);
 
         this.analyzer = LibraryAnalyzer.analyze(version, repository.getGameVersion(version).orElse(null));
     }
