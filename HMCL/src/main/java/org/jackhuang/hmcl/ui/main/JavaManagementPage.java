@@ -33,6 +33,7 @@ import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.java.JavaInfo;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
+import org.jackhuang.hmcl.java.JavaVendor;
 import org.jackhuang.hmcl.setting.ConfigHolder;
 import org.jackhuang.hmcl.setting.DownloadProviders;
 import org.jackhuang.hmcl.setting.Theme;
@@ -238,7 +239,7 @@ public final class JavaManagementPage extends ListPageBase<JavaManagementPage.Ja
         JavaRuntimeItemSkin(JavaItem control) {
             super(control);
             JavaRuntime java = control.getJava();
-            String vendor = JavaInfo.normalizeVendor(java.getVendor());
+            JavaVendor vendor = JavaVendor.of(java.getVendor());
 
             BorderPane root = new BorderPane();
 
@@ -252,7 +253,7 @@ public final class JavaManagementPage extends ListPageBase<JavaManagementPage.Ja
             item.setSubtitle(java.getBinary().toString());
             item.getTags().add(i18n("java.info.architecture") + ": " + java.getArchitecture().getDisplayName());
             if (vendor != null)
-                item.getTags().add(i18n("java.info.vendor") + ": " + vendor);
+                item.getTags().add(i18n("java.info.vendor") + ": " + vendor.getName());
             BorderPane.setAlignment(item, Pos.CENTER);
             center.getChildren().setAll(item);
             root.setCenter(center);

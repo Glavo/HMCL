@@ -30,10 +30,7 @@ import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.download.java.JavaRemoteVersion;
 import org.jackhuang.hmcl.download.java.disco.DiscoJavaDistribution;
 import org.jackhuang.hmcl.download.java.disco.DiscoJavaRemoteVersion;
-import org.jackhuang.hmcl.java.HMCLJavaRepository;
-import org.jackhuang.hmcl.java.JavaInfo;
-import org.jackhuang.hmcl.java.JavaManager;
-import org.jackhuang.hmcl.java.JavaRuntime;
+import org.jackhuang.hmcl.java.*;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -138,9 +135,9 @@ public final class JavaInstallPage extends WizardSinglePage {
                     componentList.getContent().add(namePane);
                 }
 
-                String vendor = JavaInfo.normalizeVendor(control.info.getVendor());
+                JavaVendor vendor = JavaVendor.of(control.info.getVendor());
                 if (vendor != null)
-                    addInfo(i18n("java.info.vendor"), vendor);
+                    addInfo(i18n("java.info.vendor"), vendor.getName());
 
                 if (control.remoteVersion instanceof DiscoJavaRemoteVersion) {
                     String distributionName = ((DiscoJavaRemoteVersion) control.remoteVersion).getDistribution();
