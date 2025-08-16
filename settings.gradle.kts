@@ -3,7 +3,8 @@ include(
     "HMCL",
     "HMCLCore",
     "HMCLBoot",
-    "HMCLTransformerDiscoveryService"
+    "HMCLTransformerDiscoveryService",
+    "JFoenix"
 )
 
 val minecraftLibraries = listOf("HMCLTransformerDiscoveryService")

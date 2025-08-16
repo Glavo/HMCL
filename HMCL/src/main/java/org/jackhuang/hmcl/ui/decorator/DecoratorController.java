@@ -30,6 +30,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
@@ -524,7 +525,7 @@ public class DecoratorController {
     // ==== Toast ====
 
     public void showToast(String content) {
-        decorator.getSnackbar().fireEvent(new JFXSnackbar.SnackbarEvent(content, null, 2000L, false, null));
+        decorator.getSnackbar().fireEvent(new JFXSnackbar.SnackbarEvent(new Label(content), Duration.seconds(2)));
     }
 
     // ==== Wizard ====

@@ -42,7 +42,7 @@ val embedResources by configurations.registering
 dependencies {
     implementation(project(":HMCLCore"))
     implementation(project(":HMCLBoot"))
-    implementation("libs:JFoenix")
+    implementation(project(":JFoenix"))
     implementation(libs.twelvemonkeys.imageio.webp)
     implementation(libs.java.info)
 
@@ -132,7 +132,6 @@ tasks.shadowJar {
     minimize {
         exclude(dependency("com.google.code.gson:.*:.*"))
         exclude(dependency("net.java.dev.jna:jna:.*"))
-        exclude(dependency("libs:JFoenix:.*"))
         exclude(project(":HMCLBoot"))
     }
 
@@ -159,6 +158,7 @@ tasks.shadowJar {
                 "javafx.base/com.sun.javafx.event",
                 "javafx.base/com.sun.javafx.runtime",
                 "javafx.graphics/javafx.css",
+                "javafx.graphics/com.sun.javafx.scene",
                 "javafx.graphics/com.sun.javafx.stage",
                 "javafx.graphics/com.sun.prism",
                 "javafx.controls/com.sun.javafx.scene.control",

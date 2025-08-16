@@ -21,6 +21,7 @@ hmcl-exported-logs-*
 /HMCLCore/build/
 /HMCLBoot/build/
 /HMCLTransformerDiscoveryService/build/
+/JFoenix/build/
 /minecraft/libraries/HMCLTransformerDiscoveryService/build/
 /buildSrc/build/
 
