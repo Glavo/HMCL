@@ -17,11 +17,9 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
-import com.google.gson.ToNumberPolicy;
-import com.google.gson.annotations.SerializedName;
+import com.google.gson.*;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.*;
@@ -47,9 +45,13 @@ import org.jackhuang.hmcl.util.javafx.PropertyUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.Proxy;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
+
+import static org.jackhuang.hmcl.util.javafx.PropertyUtils.getPropertyHandleFactories;
 
 public final class Config implements Observable {
 
@@ -68,6 +70,9 @@ public final class Config implements Observable {
             .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
             .create();
 
+    private static final Map<String, Function<Object, PropertyUtils.PropertyHandle>> FACTORIES =
+            getPropertyHandleFactories(Config.class);
+
     @Nullable
     public static Config fromJson(String json) throws JsonParseException {
         Config loaded = CONFIG_GSON.fromJson(json, Config.class);
@@ -83,7 +88,11 @@ public final class Config implements Observable {
     private transient final DirtyTracker tracker = new DirtyTracker();
 
     public Config() {
-        PropertyUtils.attachListener(this, helper, tracker);
+        for (var function : FACTORIES.values()) {
+            Observable observable = function.apply(this).observable;
+            observable.addListener(helper);
+            observable.addListener(tracker);
+        }
     }
 
     @Override
@@ -100,8 +109,7 @@ public final class Config implements Observable {
         return CONFIG_GSON.toJson(this);
     }
 
-    @SerializedName("last")
-    private final StringProperty selectedProfile = new SimpleStringProperty("");
+    private final StringProperty selectedProfile = new SimpleStringProperty(this, "last", "");
 
     public StringProperty selectedProfileProperty() {
         return selectedProfile;
@@ -115,8 +123,8 @@ public final class Config implements Observable {
         this.selectedProfile.set(selectedProfile);
     }
 
-    @SerializedName("backgroundType")
-    private final ObjectProperty<EnumBackgroundImage> backgroundImageType = new SimpleObjectProperty<>(EnumBackgroundImage.DEFAULT);
+    private final ObjectProperty<EnumBackgroundImage> backgroundImageType =
+            new SimpleObjectProperty<>(this, "backgroundType", EnumBackgroundImage.DEFAULT);
 
     public ObjectProperty<EnumBackgroundImage> backgroundImageTypeProperty() {
         return backgroundImageType;
@@ -130,8 +138,7 @@ public final class Config implements Observable {
         this.backgroundImageType.set(backgroundImageType);
     }
 
-    @SerializedName("bgpath")
-    private final StringProperty backgroundImage = new SimpleStringProperty();
+    private final StringProperty backgroundImage = new SimpleStringProperty(this, "bgpath");
 
     public StringProperty backgroundImageProperty() {
         return backgroundImage;
@@ -145,8 +152,7 @@ public final class Config implements Observable {
         this.backgroundImage.set(backgroundImage);
     }
 
-    @SerializedName("bgurl")
-    private final StringProperty backgroundImageUrl = new SimpleStringProperty();
+    private final StringProperty backgroundImageUrl = new SimpleStringProperty(this, "bgurl");
 
     public StringProperty backgroundImageUrlProperty() {
         return backgroundImageUrl;
@@ -160,8 +166,7 @@ public final class Config implements Observable {
         this.backgroundImageUrl.set(backgroundImageUrl);
     }
 
-    @SerializedName("bgpaint")
-    private final ObjectProperty<Paint> backgroundPaint = new SimpleObjectProperty<>();
+    private final ObjectProperty<Paint> backgroundPaint = new SimpleObjectProperty<>(this, "bgpaint");
 
     public Paint getBackgroundPaint() {
         return backgroundPaint.get();
@@ -175,8 +180,7 @@ public final class Config implements Observable {
         this.backgroundPaint.set(backgroundPaint);
     }
 
-    @SerializedName("bgImageOpacity")
-    private final IntegerProperty backgroundImageOpacity = new SimpleIntegerProperty(100);
+    private final IntegerProperty backgroundImageOpacity = new SimpleIntegerProperty(this, "bgImageOpacity", 100);
 
     public IntegerProperty backgroundImageOpacityProperty() {
         return backgroundImageOpacity;
@@ -190,8 +194,8 @@ public final class Config implements Observable {
         this.backgroundImageOpacity.set(backgroundImageOpacity);
     }
 
-    @SerializedName("commonDirType")
-    private final ObjectProperty<EnumCommonDirectory> commonDirType = new SimpleObjectProperty<>(EnumCommonDirectory.DEFAULT);
+    private final ObjectProperty<EnumCommonDirectory> commonDirType =
+            new SimpleObjectProperty<>(this, "commonDirType", EnumCommonDirectory.DEFAULT);
 
     public ObjectProperty<EnumCommonDirectory> commonDirTypeProperty() {
         return commonDirType;
@@ -205,8 +209,8 @@ public final class Config implements Observable {
         this.commonDirType.set(commonDirType);
     }
 
-    @SerializedName("commonpath")
-    private final StringProperty commonDirectory = new SimpleStringProperty(Metadata.MINECRAFT_DIRECTORY.toString());
+    private final StringProperty commonDirectory =
+            new SimpleStringProperty(this, "commonpath", Metadata.MINECRAFT_DIRECTORY.toString());
 
     public StringProperty commonDirectoryProperty() {
         return commonDirectory;
@@ -220,8 +224,7 @@ public final class Config implements Observable {
         this.commonDirectory.set(commonDirectory);
     }
 
-    @SerializedName("hasProxy")
-    private final BooleanProperty hasProxy = new SimpleBooleanProperty();
+    private final BooleanProperty hasProxy = new SimpleBooleanProperty(this, "hasProxy");
 
     public BooleanProperty hasProxyProperty() {
         return hasProxy;
@@ -235,8 +238,7 @@ public final class Config implements Observable {
         this.hasProxy.set(hasProxy);
     }
 
-    @SerializedName("hasProxyAuth")
-    private final BooleanProperty hasProxyAuth = new SimpleBooleanProperty();
+    private final BooleanProperty hasProxyAuth = new SimpleBooleanProperty(this, "hasProxyAuth");
 
     public BooleanProperty hasProxyAuthProperty() {
         return hasProxyAuth;
@@ -250,8 +252,7 @@ public final class Config implements Observable {
         this.hasProxyAuth.set(hasProxyAuth);
     }
 
-    @SerializedName("proxyType")
-    private final ObjectProperty<Proxy.Type> proxyType = new SimpleObjectProperty<>(Proxy.Type.HTTP);
+    private final ObjectProperty<Proxy.Type> proxyType = new SimpleObjectProperty<>(this, "proxyType", Proxy.Type.HTTP);
 
     public ObjectProperty<Proxy.Type> proxyTypeProperty() {
         return proxyType;
@@ -265,8 +266,7 @@ public final class Config implements Observable {
         this.proxyType.set(proxyType);
     }
 
-    @SerializedName("proxyHost")
-    private final StringProperty proxyHost = new SimpleStringProperty();
+    private final StringProperty proxyHost = new SimpleStringProperty(this, "proxyHost");
 
     public StringProperty proxyHostProperty() {
         return proxyHost;
@@ -280,8 +280,7 @@ public final class Config implements Observable {
         this.proxyHost.set(proxyHost);
     }
 
-    @SerializedName("proxyPort")
-    private final IntegerProperty proxyPort = new SimpleIntegerProperty();
+    private final IntegerProperty proxyPort = new SimpleIntegerProperty(this, "proxyPort");
 
     public IntegerProperty proxyPortProperty() {
         return proxyPort;
@@ -295,8 +294,7 @@ public final class Config implements Observable {
         this.proxyPort.set(proxyPort);
     }
 
-    @SerializedName("proxyUserName")
-    private final StringProperty proxyUser = new SimpleStringProperty();
+    private final StringProperty proxyUser = new SimpleStringProperty(this, "proxyUserName");
 
     public StringProperty proxyUserProperty() {
         return proxyUser;
@@ -310,8 +308,7 @@ public final class Config implements Observable {
         this.proxyUser.set(proxyUser);
     }
 
-    @SerializedName("proxyPassword")
-    private final StringProperty proxyPass = new SimpleStringProperty();
+    private final StringProperty proxyPass = new SimpleStringProperty(this, "proxyPassword");
 
     public StringProperty proxyPassProperty() {
         return proxyPass;
@@ -325,8 +322,7 @@ public final class Config implements Observable {
         this.proxyPass.set(proxyPass);
     }
 
-    @SerializedName("x")
-    private final DoubleProperty x = new SimpleDoubleProperty();
+    private final DoubleProperty x = new SimpleDoubleProperty(this, "x");
 
     public DoubleProperty xProperty() {
         return x;
@@ -340,8 +336,7 @@ public final class Config implements Observable {
         this.x.set(x);
     }
 
-    @SerializedName("y")
-    private final DoubleProperty y = new SimpleDoubleProperty();
+    private final DoubleProperty y = new SimpleDoubleProperty(this, "y");
 
     public DoubleProperty yProperty() {
         return y;
@@ -355,8 +350,7 @@ public final class Config implements Observable {
         this.y.set(y);
     }
 
-    @SerializedName("width")
-    private final DoubleProperty width = new SimpleDoubleProperty();
+    private final DoubleProperty width = new SimpleDoubleProperty(this, "width");
 
     public DoubleProperty widthProperty() {
         return width;
@@ -370,8 +364,7 @@ public final class Config implements Observable {
         this.width.set(width);
     }
 
-    @SerializedName("height")
-    private final DoubleProperty height = new SimpleDoubleProperty();
+    private final DoubleProperty height = new SimpleDoubleProperty(this, "height");
 
     public DoubleProperty heightProperty() {
         return height;
@@ -385,8 +378,7 @@ public final class Config implements Observable {
         this.height.set(height);
     }
 
-    @SerializedName("theme")
-    private final ObjectProperty<Theme> theme = new SimpleObjectProperty<>();
+    private final ObjectProperty<Theme> theme = new SimpleObjectProperty<>(this, "theme");
 
     public ObjectProperty<Theme> themeProperty() {
         return theme;
@@ -400,8 +392,7 @@ public final class Config implements Observable {
         this.theme.set(theme);
     }
 
-    @SerializedName("localization")
-    private final ObjectProperty<SupportedLocale> localization = new SimpleObjectProperty<>(Locales.DEFAULT);
+    private final ObjectProperty<SupportedLocale> localization = new SimpleObjectProperty<>(this, "localization", Locales.DEFAULT);
 
     public ObjectProperty<SupportedLocale> localizationProperty() {
         return localization;
@@ -415,8 +406,7 @@ public final class Config implements Observable {
         this.localization.set(localization);
     }
 
-    @SerializedName("autoDownloadThreads")
-    private final BooleanProperty autoDownloadThreads = new SimpleBooleanProperty(true);
+    private final BooleanProperty autoDownloadThreads = new SimpleBooleanProperty(this, "autoDownloadThreads", true);
 
     public BooleanProperty autoDownloadThreadsProperty() {
         return autoDownloadThreads;
@@ -430,8 +420,7 @@ public final class Config implements Observable {
         this.autoDownloadThreads.set(autoDownloadThreads);
     }
 
-    @SerializedName("downloadThreads")
-    private final IntegerProperty downloadThreads = new SimpleIntegerProperty(64);
+    private final IntegerProperty downloadThreads = new SimpleIntegerProperty(this, "downloadThreads", 64);
 
     public IntegerProperty downloadThreadsProperty() {
         return downloadThreads;
@@ -445,8 +434,7 @@ public final class Config implements Observable {
         this.downloadThreads.set(downloadThreads);
     }
 
-    @SerializedName("downloadType")
-    private final StringProperty downloadType = new SimpleStringProperty(DownloadProviders.DEFAULT_RAW_PROVIDER_ID);
+    private final StringProperty downloadType = new SimpleStringProperty(this, "downloadType", DownloadProviders.DEFAULT_RAW_PROVIDER_ID);
 
     public StringProperty downloadTypeProperty() {
         return downloadType;
@@ -460,8 +448,7 @@ public final class Config implements Observable {
         this.downloadType.set(downloadType);
     }
 
-    @SerializedName("autoChooseDownloadType")
-    private final BooleanProperty autoChooseDownloadType = new SimpleBooleanProperty(true);
+    private final BooleanProperty autoChooseDownloadType = new SimpleBooleanProperty(this, "autoChooseDownloadType", true);
 
     public BooleanProperty autoChooseDownloadTypeProperty() {
         return autoChooseDownloadType;
@@ -475,8 +462,7 @@ public final class Config implements Observable {
         this.autoChooseDownloadType.set(autoChooseDownloadType);
     }
 
-    @SerializedName("versionListSource")
-    private final StringProperty versionListSource = new SimpleStringProperty("balanced");
+    private final StringProperty versionListSource = new SimpleStringProperty(this, "versionListSource", "balanced");
 
     public StringProperty versionListSourceProperty() {
         return versionListSource;
@@ -490,15 +476,13 @@ public final class Config implements Observable {
         this.versionListSource.set(versionListSource);
     }
 
-    @SerializedName("configurations")
-    private final SimpleMapProperty<String, Profile> configurations = new SimpleMapProperty<>(FXCollections.observableMap(new TreeMap<>()));
+    private final SimpleMapProperty<String, Profile> configurations = new SimpleMapProperty<>(this, "configurations", FXCollections.observableMap(new TreeMap<>()));
 
     public MapProperty<String, Profile> getConfigurations() {
         return configurations;
     }
 
-    @SerializedName("selectedAccount")
-    private final StringProperty selectedAccount = new SimpleStringProperty();
+    private final StringProperty selectedAccount = new SimpleStringProperty(this, "selectedAccount");
 
     public StringProperty selectedAccountProperty() {
         return selectedAccount;
@@ -512,15 +496,13 @@ public final class Config implements Observable {
         this.selectedAccount.set(selectedAccount);
     }
 
-    @SerializedName("accounts")
-    private final ObservableList<Map<Object, Object>> accountStorages = FXCollections.observableArrayList();
+    private final ListProperty<Map<Object, Object>> accountStorages = new SimpleListProperty<>(this, "accounts", FXCollections.observableArrayList());
 
     public ObservableList<Map<Object, Object>> getAccountStorages() {
         return accountStorages;
     }
 
-    @SerializedName("fontFamily")
-    private final StringProperty fontFamily = new SimpleStringProperty();
+    private final StringProperty fontFamily = new SimpleStringProperty(this, "fontFamily");
 
     public StringProperty fontFamilyProperty() {
         return fontFamily;
@@ -534,8 +516,7 @@ public final class Config implements Observable {
         this.fontFamily.set(fontFamily);
     }
 
-    @SerializedName("fontSize")
-    private final DoubleProperty fontSize = new SimpleDoubleProperty(12);
+    private final DoubleProperty fontSize = new SimpleDoubleProperty(this, "fontSize", 12);
 
     public DoubleProperty fontSizeProperty() {
         return fontSize;
@@ -549,8 +530,7 @@ public final class Config implements Observable {
         this.fontSize.set(fontSize);
     }
 
-    @SerializedName("launcherFontFamily")
-    private final StringProperty launcherFontFamily = new SimpleStringProperty();
+    private final StringProperty launcherFontFamily = new SimpleStringProperty(this, "launcherFontFamily");
 
     public StringProperty launcherFontFamilyProperty() {
         return launcherFontFamily;
@@ -564,8 +544,7 @@ public final class Config implements Observable {
         this.launcherFontFamily.set(launcherFontFamily);
     }
 
-    @SerializedName("logLines")
-    private final ObjectProperty<Integer> logLines = new SimpleObjectProperty<>();
+    private final ObjectProperty<Integer> logLines = new SimpleObjectProperty<>(this, "logLines");
 
     public ObjectProperty<Integer> logLinesProperty() {
         return logLines;
@@ -579,15 +558,14 @@ public final class Config implements Observable {
         this.logLines.set(logLines);
     }
 
-    @SerializedName("authlibInjectorServers")
-    private final ObservableList<AuthlibInjectorServer> authlibInjectorServers = FXCollections.observableArrayList(server -> new Observable[]{server});
+    private final ObservableList<AuthlibInjectorServer> authlibInjectorServers =
+            new SimpleListProperty<>(this, "authlibInjectorServers", FXCollections.observableArrayList(server -> new Observable[]{server}));
 
     public ObservableList<AuthlibInjectorServer> getAuthlibInjectorServers() {
         return authlibInjectorServers;
     }
 
-    @SerializedName("addedLittleSkin")
-    private final BooleanProperty addedLittleSkin = new SimpleBooleanProperty(false);
+    private final BooleanProperty addedLittleSkin = new SimpleBooleanProperty(this, "addedLittleSkin", false);
 
     public BooleanProperty addedLittleSkinProperty() {
         return addedLittleSkin;
@@ -601,8 +579,7 @@ public final class Config implements Observable {
         this.addedLittleSkin.set(addedLittleSkin);
     }
 
-    @SerializedName("disableAutoGameOptions")
-    private final BooleanProperty disableAutoGameOptions = new SimpleBooleanProperty(false);
+    private final BooleanProperty disableAutoGameOptions = new SimpleBooleanProperty(this, "disableAutoGameOptions", false);
 
     public BooleanProperty disableAutoGameOptionsProperty() {
         return disableAutoGameOptions;
@@ -616,8 +593,7 @@ public final class Config implements Observable {
         this.disableAutoGameOptions.set(disableAutoGameOptions);
     }
 
-    @SerializedName("_version")
-    private final IntegerProperty configVersion = new SimpleIntegerProperty(0);
+    private final IntegerProperty configVersion = new SimpleIntegerProperty(this, "_version", 0);
 
     public IntegerProperty configVersionProperty() {
         return configVersion;
@@ -638,8 +614,7 @@ public final class Config implements Observable {
      * then this property is set to the same value as {@link #CURRENT_UI_VERSION}.
      * In particular, the property is default to 0, so that whoever open the application for the first time will see the guide.
      */
-    @SerializedName("uiVersion")
-    private final IntegerProperty uiVersion = new SimpleIntegerProperty(0);
+    private final IntegerProperty uiVersion = new SimpleIntegerProperty(this, "uiVersion", 0);
 
     public IntegerProperty uiVersionProperty() {
         return uiVersion;
@@ -656,8 +631,7 @@ public final class Config implements Observable {
     /**
      * The preferred login type to use when the user wants to add an account.
      */
-    @SerializedName("preferredLoginType")
-    private final StringProperty preferredLoginType = new SimpleStringProperty();
+    private final StringProperty preferredLoginType = new SimpleStringProperty(this, "preferredLoginType");
 
     public StringProperty preferredLoginTypeProperty() {
         return preferredLoginType;
@@ -671,8 +645,7 @@ public final class Config implements Observable {
         this.preferredLoginType.set(preferredLoginType);
     }
 
-    @SerializedName("animationDisabled")
-    private final BooleanProperty animationDisabled = new SimpleBooleanProperty();
+    private final BooleanProperty animationDisabled = new SimpleBooleanProperty(this, "animationDisabled");
 
     public BooleanProperty animationDisabledProperty() {
         return animationDisabled;
@@ -686,8 +659,7 @@ public final class Config implements Observable {
         this.animationDisabled.set(animationDisabled);
     }
 
-    @SerializedName("titleTransparent")
-    private final BooleanProperty titleTransparent = new SimpleBooleanProperty(false);
+    private final BooleanProperty titleTransparent = new SimpleBooleanProperty(this, "titleTransparent", false);
 
     public BooleanProperty titleTransparentProperty() {
         return titleTransparent;
@@ -701,25 +673,37 @@ public final class Config implements Observable {
         this.titleTransparent.set(titleTransparent);
     }
 
-    @SerializedName("promptedVersion")
-    private final StringProperty promptedVersion = new SimpleStringProperty();
-
-    public String getPromptedVersion() {
-        return promptedVersion.get();
-    }
+    private final StringProperty promptedVersion = new SimpleStringProperty(this, "promptedVersion", null);
 
     public StringProperty promptedVersionProperty() {
         return promptedVersion;
+    }
+
+    public String getPromptedVersion() {
+        return promptedVersion.get();
     }
 
     public void setPromptedVersion(String promptedVersion) {
         this.promptedVersion.set(promptedVersion);
     }
 
-    @SerializedName("shownTips")
-    private final ObservableMap<String, Object> shownTips = FXCollections.observableHashMap();
+    private final MapProperty<String, Object> shownTips = new SimpleMapProperty<>(this, "shownTips", FXCollections.observableHashMap());
 
     public ObservableMap<String, Object> getShownTips() {
         return shownTips;
+    }
+
+    public static final class Adapter extends TypeAdapter<Config> {
+        @Override
+        public Config read(JsonReader in) throws IOException {
+
+
+            return null; // TODO
+        }
+
+        @Override
+        public void write(JsonWriter out, Config value) throws IOException {
+            // TODO
+        }
     }
 }
