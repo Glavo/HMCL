@@ -1,6 +1,6 @@
 /*
  * Hello Minecraft! Launcher
- * Copyright (C) 2024 huangyuhui <huanghongxun2008@126.com> and contributors
+ * Copyright (C) 2025 huangyuhui <huanghongxun2008@126.com> and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,22 +17,14 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import java.util.UUID;
+
 /// @author Glavo
-public enum JavaVersionType {
-    /// Use the launcher's default Java to start the game.
-    ///
-    /// Legacy setting, cannot be selected in the UI.
-    DEFAULT,
+public final class GlobalGameSetting extends GameSetting {
 
-    /// Automatically select the appropriate Java by the launcher
-    AUTO,
+    private final UUID id;
 
-    /// Manually specify the Java major version by the user.
-    VERSION,
-
-    /// Select a Java that has already been added to the Java manager.
-    DETECTED,
-
-    /// Manually specify the Java path.
-    CUSTOM
+    public GlobalGameSetting(UUID id) {
+        this.id = id;
+    }
 }

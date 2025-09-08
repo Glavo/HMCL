@@ -18,6 +18,7 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.GameDirectoryType;
@@ -101,6 +102,37 @@ public abstract class GameSetting {
         return permSize;
     }
 
+    // Game Settings
+
+    /// True if Minecraft started in fullscreen mode.
+    private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, "fullscreen", false);
+
+    public BooleanProperty fullscreenProperty() {
+        return fullscreen;
+    }
+
+    /// The width of Minecraft window, defaults 800.
+    ///
+    /// The field saves int value.
+    /// String type prevents unexpected value from JsonParseException.
+    /// We can only reset this field instead of recreating the whole setting file.
+    private final IntegerProperty width = new SimpleIntegerProperty(this, "width", 854);
+
+    public IntegerProperty widthProperty() {
+        return width;
+    }
+
+    /// The height of Minecraft window, defaults 480.
+    ///
+    /// The field saves int value.
+    /// String type prevents unexpected value from JsonParseException.
+    /// We can only reset this field instead of recreating the whole setting file.
+    private final IntegerProperty height = new SimpleIntegerProperty(this, "height", 480);
+
+    public IntegerProperty heightProperty() {
+        return height;
+    }
+
     // ------
 
     private final StringProperty nativesDir = new SimpleStringProperty(this, "nativesDir", "");
@@ -109,13 +141,13 @@ public abstract class GameSetting {
         return nativesDir;
     }
 
-    // Command
+    // Custom Command
 
     /// The command to launch java, i.e. optirun.
-    private final StringProperty wrapper = new SimpleStringProperty(this, "wrapper", "");
+    private final StringProperty commandWrapper = new SimpleStringProperty(this, "wrapper", "");
 
-    public StringProperty wrapperProperty() {
-        return wrapper;
+    public StringProperty commandWrapperProperty() {
+        return commandWrapper;
     }
 
     /// The command that will be executed before launching the Minecraft.
@@ -134,26 +166,13 @@ public abstract class GameSetting {
         return postExitCommand;
     }
 
-    // ---
+    // JVM Options
 
     /// The user customized arguments passed to JVM.
-    private final StringProperty javaArgs = new SimpleStringProperty(this, "javaArgs", "");
+    private final StringProperty jvmOptions = new SimpleStringProperty(this, "jvmOptions", "");
 
-    public StringProperty javaArgsProperty() {
-        return javaArgs;
-    }
-
-    /// The user customized arguments passed to Minecraft.
-    private final StringProperty minecraftArgs = new SimpleStringProperty(this, "minecraftArgs", "");
-
-    public StringProperty minecraftArgsProperty() {
-        return minecraftArgs;
-    }
-
-    private final StringProperty environmentVariables = new SimpleStringProperty(this, "environmentVariables", "");
-
-    public StringProperty environmentVariablesProperty() {
-        return environmentVariables;
+    public StringProperty jvmOptionsProperty() {
+        return jvmOptions;
     }
 
     ///  True if disallow HMCL use default JVM arguments.
@@ -168,6 +187,23 @@ public abstract class GameSetting {
 
     public BooleanProperty notCheckJVMProperty() {
         return notCheckJVM;
+    }
+
+    // ---
+
+    /// The user customized arguments passed to Minecraft.
+    private final StringProperty minecraftArgs = new SimpleStringProperty(this, "minecraftArgs", "");
+
+    public StringProperty minecraftArgsProperty() {
+        return minecraftArgs;
+    }
+
+    //
+
+    private final StringProperty environmentVariables = new SimpleStringProperty(this, "environmentVariables", "");
+
+    public StringProperty environmentVariablesProperty() {
+        return environmentVariables;
     }
 
     /// True if HMCL does not check game's completeness.
@@ -197,36 +233,6 @@ public abstract class GameSetting {
 
     public StringProperty serverIpProperty() {
         return serverIp;
-    }
-
-    /// True if Minecraft started in fullscreen mode.
-    private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, "fullscreen", false);
-
-    public BooleanProperty fullscreenProperty() {
-        return fullscreen;
-    }
-
-    /// The width of Minecraft window, defaults 800.
-    ///
-    /// The field saves int value.
-    /// String type prevents unexpected value from JsonParseException.
-    /// We can only reset this field instead of recreating the whole setting file.
-    private final IntegerProperty width = new SimpleIntegerProperty(this, "width", 854);
-
-    public IntegerProperty widthProperty() {
-        return width;
-    }
-
-
-    /// The height of Minecraft window, defaults 480.
-    ///
-    /// The field saves int value.
-    /// String type prevents unexpected value from JsonParseException.
-    /// We can only reset this field instead of recreating the whole setting file.
-    private final IntegerProperty height = new SimpleIntegerProperty(this, "height", 480);
-
-    public IntegerProperty heightProperty() {
-        return height;
     }
 
     /// 0 - .minecraft
@@ -272,17 +278,6 @@ public abstract class GameSetting {
 
     public ObjectProperty<VersionIconType> versionIconProperty() {
         return versionIcon;
-    }
-
-    // launcher settings
-
-    /// 0 - Close the launcher when the game starts.
-    /// 1 - Hide the launcher when the game starts.
-    /// 2 - Keep the launcher open.
-    private final ObjectProperty<LauncherVisibility> launcherVisibility = new SimpleObjectProperty<>(this, "launcherVisibility", LauncherVisibility.HIDE);
-
-    public LauncherVisibility getLauncherVisibility() {
-        return launcherVisibility.get();
     }
 
 }
