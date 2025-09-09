@@ -74,6 +74,7 @@ public abstract class GameSetting {
 
     // Memory
 
+    @SerializedName("autoMemory")
     private final BooleanProperty autoMemory = new SimpleBooleanProperty(this, "autoMemory", true);
 
     public BooleanProperty autoMemoryProperty() {
@@ -81,6 +82,7 @@ public abstract class GameSetting {
     }
 
     /// The maximum memory/MB that JVM can allocate for heap.
+    @SerializedName("maxMemory")
     private final IntegerProperty maxMemory = new SimpleIntegerProperty(this, "maxMemory", SUGGESTED_MEMORY);
 
     public IntegerProperty maxMemoryProperty() {
@@ -88,6 +90,7 @@ public abstract class GameSetting {
     }
 
     /// The minimum memory that JVM can allocate for heap.
+    @SerializedName("minMemory")
     private final ObjectProperty<Integer> minMemory = new SimpleObjectProperty<>(this, "minMemory", null);
 
     public ObjectProperty<Integer> minMemoryProperty() {
@@ -95,6 +98,7 @@ public abstract class GameSetting {
     }
 
     /// The permanent generation size of JVM garbage collection.
+    @SerializedName("permSize")
     private final StringProperty permSize = new SimpleStringProperty(this, "permSize", "");
 
     public StringProperty permSizeProperty() {
@@ -104,6 +108,7 @@ public abstract class GameSetting {
     // Game Settings
 
     /// True if Minecraft started in fullscreen mode.
+    @SerializedName("fullscreen")
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, "fullscreen", false);
 
     public BooleanProperty fullscreenProperty() {
@@ -115,6 +120,7 @@ public abstract class GameSetting {
     /// The field saves int value.
     /// String type prevents unexpected value from JsonParseException.
     /// We can only reset this field instead of recreating the whole setting file.
+    @SerializedName("width")
     private final IntegerProperty width = new SimpleIntegerProperty(this, "width", 854);
 
     public IntegerProperty widthProperty() {
@@ -126,6 +132,7 @@ public abstract class GameSetting {
     /// The field saves int value.
     /// String type prevents unexpected value from JsonParseException.
     /// We can only reset this field instead of recreating the whole setting file.
+    @SerializedName("height")
     private final IntegerProperty height = new SimpleIntegerProperty(this, "height", 480);
 
     public IntegerProperty heightProperty() {
@@ -134,6 +141,7 @@ public abstract class GameSetting {
 
     // ------
 
+    @SerializedName("nativesDir")
     private final StringProperty nativesDir = new SimpleStringProperty(this, "nativesDir", "");
 
     public StringProperty nativesDirProperty() {
@@ -143,7 +151,8 @@ public abstract class GameSetting {
     // Custom Command
 
     /// The command to launch java, i.e. optirun.
-    private final StringProperty commandWrapper = new SimpleStringProperty(this, "wrapper", "");
+    @SerializedName("commandWrapper")
+    private final StringProperty commandWrapper = new SimpleStringProperty(this, "commandWrapper", "");
 
     public StringProperty commandWrapperProperty() {
         return commandWrapper;
@@ -151,6 +160,7 @@ public abstract class GameSetting {
 
     /// The command that will be executed before launching the Minecraft.
     /// Operating system relevant.
+    @SerializedName("preLaunchCommand")
     private final StringProperty preLaunchCommand = new SimpleStringProperty(this, "preLaunchCommand", "");
 
     public StringProperty preLaunchCommandProperty() {
@@ -159,6 +169,7 @@ public abstract class GameSetting {
 
     /// The command that will be executed after game exits.
     /// Operating system relevant.
+    @SerializedName("postExitCommand")
     private final StringProperty postExitCommand = new SimpleStringProperty(this, "postExitCommand", "");
 
     public StringProperty postExitCommandProperty() {
@@ -168,6 +179,7 @@ public abstract class GameSetting {
     // JVM Options
 
     /// The user customized arguments passed to JVM.
+    @SerializedName("jvmOptions")
     private final StringProperty jvmOptions = new SimpleStringProperty(this, "jvmOptions", "");
 
     public StringProperty jvmOptionsProperty() {
@@ -175,6 +187,7 @@ public abstract class GameSetting {
     }
 
     ///  True if disallow HMCL use default JVM arguments.
+    @SerializedName("noJVMArgs")
     private final BooleanProperty noJVMArgs = new SimpleBooleanProperty(this, "noJVMArgs", false);
 
     public BooleanProperty noJVMArgsProperty() {
@@ -182,6 +195,7 @@ public abstract class GameSetting {
     }
 
     /// True if HMCL does not check JVM validity.
+    @SerializedName("notCheckJVM")
     private final BooleanProperty notCheckJVM = new SimpleBooleanProperty(this, "notCheckJVM", false);
 
     public BooleanProperty notCheckJVMProperty() {
@@ -191,6 +205,7 @@ public abstract class GameSetting {
     // ---
 
     /// The user customized arguments passed to Minecraft.
+    @SerializedName("minecraftArgs")
     private final StringProperty minecraftArgs = new SimpleStringProperty(this, "minecraftArgs", "");
 
     public StringProperty minecraftArgsProperty() {
@@ -199,6 +214,7 @@ public abstract class GameSetting {
 
     //
 
+    @SerializedName("environmentVariables")
     private final StringProperty environmentVariables = new SimpleStringProperty(this, "environmentVariables", "");
 
     public StringProperty environmentVariablesProperty() {
@@ -206,12 +222,14 @@ public abstract class GameSetting {
     }
 
     /// True if HMCL does not check game's completeness.
+    @SerializedName("notCheckGame")
     private final BooleanProperty notCheckGame = new SimpleBooleanProperty(this, "notCheckGame", false);
 
     public BooleanProperty notCheckGameProperty() {
         return notCheckGame;
     }
 
+    @SerializedName("notPatchNatives")
     private final BooleanProperty notPatchNatives = new SimpleBooleanProperty(this, "notPatchNatives", false);
 
     public BooleanProperty notPatchNativesProperty() {
@@ -219,6 +237,7 @@ public abstract class GameSetting {
     }
 
     /// True if show the logs after game launched.
+    @SerializedName("showLogs")
     private final BooleanProperty showLogs = new SimpleBooleanProperty(this, "showLogs", false);
 
     public BooleanProperty showLogsProperty() {
@@ -228,12 +247,14 @@ public abstract class GameSetting {
     /// The server ip that will be entered after Minecraft successfully loaded ly.
     ///
     /// Format: ip:port or without port.
+    @SerializedName("serverIp")
     private final StringProperty serverIp = new SimpleStringProperty(this, "serverIp", "");
 
     public StringProperty serverIpProperty() {
         return serverIp;
     }
 
+    @SerializedName("gameDirType")
     private final ObjectProperty<GameDirectoryType> gameDirType = new SimpleObjectProperty<>(this, "gameDirType", GameDirectoryType.ROOT_FOLDER);
 
     public ObjectProperty<GameDirectoryType> gameDirTypeProperty() {
@@ -241,36 +262,42 @@ public abstract class GameSetting {
     }
 
     /// Your custom gameDir
+    @SerializedName("gameDir")
     private final StringProperty gameDir = new SimpleStringProperty(this, "gameDir", "");
 
     public StringProperty gameDirProperty() {
         return gameDir;
     }
 
-    private final ObjectProperty<ProcessPriority> processPriority = new SimpleObjectProperty<>(this, "processPriority", ProcessPriority.NORMAL);
+    @SerializedName("processPriority")
+    private final ObjectProperty<ProcessPriority> processPriority = new SimpleObjectProperty<>(this, "processPriority");
 
     public ObjectProperty<ProcessPriority> processPriorityProperty() {
         return processPriority;
     }
 
+    @SerializedName("renderer")
     private final ObjectProperty<Renderer> renderer = new SimpleObjectProperty<>(this, "renderer", Renderer.DEFAULT);
 
     public ObjectProperty<Renderer> rendererProperty() {
         return renderer;
     }
 
+    @SerializedName("useNativeGLFW")
     private final BooleanProperty useNativeGLFW = new SimpleBooleanProperty(this, "useNativeGLFW", false);
 
     public BooleanProperty useNativeGLFWProperty() {
         return useNativeGLFW;
     }
 
+    @SerializedName("useNativeOpenAL")
     private final BooleanProperty useNativeOpenAL = new SimpleBooleanProperty(this, "useNativeOpenAL", false);
 
     public BooleanProperty useNativeOpenALProperty() {
         return useNativeOpenAL;
     }
 
+    @SerializedName("versionIcon")
     private final ObjectProperty<VersionIconType> versionIcon = new SimpleObjectProperty<>(this, "versionIcon", VersionIconType.DEFAULT);
 
     public ObjectProperty<VersionIconType> versionIconProperty() {
