@@ -1,4 +1,3 @@
-
 /*
  * Hello Minecraft! Launcher
  * Copyright (C) 2025 huangyuhui <huanghongxun2008@126.com> and contributors
