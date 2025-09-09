@@ -18,17 +18,22 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.*;
-import org.jackhuang.hmcl.game.GameDirectoryType;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.util.platform.SystemInfo;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.jackhuang.hmcl.util.DataSizeUnit.MEGABYTES;
 
 /// @author Glavo
 public abstract class GameSetting {
+
+    public static final String CURRENT_VERSION = "0";
 
     private static final int SUGGESTED_MEMORY;
 
@@ -38,6 +43,15 @@ public abstract class GameSetting {
                 ? 8192
                 : Integer.max((int) (Math.round(totalMemoryMB / 4.0 / 128.0) * 128), 256);
     }
+
+    @SerializedName("_version")
+    private final StringProperty fileVersion = new SimpleStringProperty(this, "fileVersion", CURRENT_VERSION);
+
+    public StringProperty fileVersionProperty() {
+        return fileVersion;
+    }
+
+    protected transient final Map<String, JsonElement> unknownFields = new LinkedHashMap<>();
 
     // Java
 
@@ -70,6 +84,30 @@ public abstract class GameSetting {
 
     public StringProperty defaultJavaPathProperty() {
         return defaultJavaPath;
+    }
+
+    /// The user customized arguments passed to JVM.
+    @SerializedName("jvmOptions")
+    private final StringProperty jvmOptions = new SimpleStringProperty(this, "jvmOptions", "");
+
+    public StringProperty jvmOptionsProperty() {
+        return jvmOptions;
+    }
+
+    ///  True if disallow HMCL use default JVM options.
+    @SerializedName("noJVMOptions")
+    private final BooleanProperty noJVMOptions = new SimpleBooleanProperty(this, "noJVMOptions", false);
+
+    public BooleanProperty noJVMOptionsProperty() {
+        return noJVMOptions;
+    }
+
+    /// True if HMCL does not check JVM validity.
+    @SerializedName("notCheckJVM")
+    private final BooleanProperty notCheckJVM = new SimpleBooleanProperty(this, "notCheckJVM", false);
+
+    public BooleanProperty notCheckJVMProperty() {
+        return notCheckJVM;
     }
 
     // Memory
@@ -105,7 +143,10 @@ public abstract class GameSetting {
         return permSize;
     }
 
-    // Game Settings
+    // Game Windows
+
+    @SerializedName("windowsSizeType")
+    private final ObjectProperty<GameWindowSizeType> windowsSizeType = new SimpleObjectProperty<>(this, "windowsSizeType", GameWindowSizeType.DEFAULT);
 
     /// True if Minecraft started in fullscreen mode.
     @SerializedName("fullscreen")
@@ -141,11 +182,30 @@ public abstract class GameSetting {
 
     // ------
 
+    @SerializedName("processPriority")
+    private final ObjectProperty<ProcessPriority> processPriority = new SimpleObjectProperty<>(this, "processPriority");
+
+    public ObjectProperty<ProcessPriority> processPriorityProperty() {
+        return processPriority;
+    }
+
+
     @SerializedName("nativesDir")
     private final StringProperty nativesDir = new SimpleStringProperty(this, "nativesDir", "");
 
     public StringProperty nativesDirProperty() {
         return nativesDir;
+    }
+
+
+    // Logging
+
+    /// True if show the logs after game launched.
+    @SerializedName("showLogs")
+    private final BooleanProperty showLogs = new SimpleBooleanProperty(this, "showLogs", false);
+
+    public BooleanProperty showLogsProperty() {
+        return showLogs;
     }
 
     // Custom Command
@@ -176,31 +236,6 @@ public abstract class GameSetting {
         return postExitCommand;
     }
 
-    // JVM Options
-
-    /// The user customized arguments passed to JVM.
-    @SerializedName("jvmOptions")
-    private final StringProperty jvmOptions = new SimpleStringProperty(this, "jvmOptions", "");
-
-    public StringProperty jvmOptionsProperty() {
-        return jvmOptions;
-    }
-
-    ///  True if disallow HMCL use default JVM arguments.
-    @SerializedName("noJVMArgs")
-    private final BooleanProperty noJVMArgs = new SimpleBooleanProperty(this, "noJVMArgs", false);
-
-    public BooleanProperty noJVMArgsProperty() {
-        return noJVMArgs;
-    }
-
-    /// True if HMCL does not check JVM validity.
-    @SerializedName("notCheckJVM")
-    private final BooleanProperty notCheckJVM = new SimpleBooleanProperty(this, "notCheckJVM", false);
-
-    public BooleanProperty notCheckJVMProperty() {
-        return notCheckJVM;
-    }
 
     // ---
 
@@ -212,14 +247,14 @@ public abstract class GameSetting {
         return minecraftArgs;
     }
 
-    //
-
     @SerializedName("environmentVariables")
     private final StringProperty environmentVariables = new SimpleStringProperty(this, "environmentVariables", "");
 
     public StringProperty environmentVariablesProperty() {
         return environmentVariables;
     }
+
+    // Debug Options
 
     /// True if HMCL does not check game's completeness.
     @SerializedName("notCheckGame")
@@ -236,14 +271,6 @@ public abstract class GameSetting {
         return notPatchNatives;
     }
 
-    /// True if show the logs after game launched.
-    @SerializedName("showLogs")
-    private final BooleanProperty showLogs = new SimpleBooleanProperty(this, "showLogs", false);
-
-    public BooleanProperty showLogsProperty() {
-        return showLogs;
-    }
-
     /// The server ip that will be entered after Minecraft successfully loaded ly.
     ///
     /// Format: ip:port or without port.
@@ -254,26 +281,12 @@ public abstract class GameSetting {
         return serverIp;
     }
 
-    @SerializedName("gameDirType")
-    private final ObjectProperty<GameDirectoryType> gameDirType = new SimpleObjectProperty<>(this, "gameDirType", GameDirectoryType.ROOT_FOLDER);
-
-    public ObjectProperty<GameDirectoryType> gameDirTypeProperty() {
-        return gameDirType;
-    }
-
     /// Your custom gameDir
-    @SerializedName("gameDir")
-    private final StringProperty gameDir = new SimpleStringProperty(this, "gameDir", "");
+    @SerializedName("runningDir")
+    private final StringProperty runningDir = new SimpleStringProperty(this, "gameDir", "");
 
-    public StringProperty gameDirProperty() {
-        return gameDir;
-    }
-
-    @SerializedName("processPriority")
-    private final ObjectProperty<ProcessPriority> processPriority = new SimpleObjectProperty<>(this, "processPriority");
-
-    public ObjectProperty<ProcessPriority> processPriorityProperty() {
-        return processPriority;
+    public StringProperty runningDirProperty() {
+        return runningDir;
     }
 
     @SerializedName("renderer")
@@ -295,13 +308,6 @@ public abstract class GameSetting {
 
     public BooleanProperty useNativeOpenALProperty() {
         return useNativeOpenAL;
-    }
-
-    @SerializedName("versionIcon")
-    private final ObjectProperty<VersionIconType> versionIcon = new SimpleObjectProperty<>(this, "versionIcon", VersionIconType.DEFAULT);
-
-    public ObjectProperty<VersionIconType> versionIconProperty() {
-        return versionIcon;
     }
 
 }

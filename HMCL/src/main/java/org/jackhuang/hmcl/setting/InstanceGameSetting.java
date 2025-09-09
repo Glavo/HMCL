@@ -17,15 +17,44 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableSet;
+
+import java.util.LinkedHashSet;
+import java.util.UUID;
 
 /// @author Glavo
 public final class InstanceGameSetting extends GameSetting {
 
+    private final ObjectProperty<UUID> parent = new SimpleObjectProperty<>(this, "parent");
+
+    public ObjectProperty<UUID> parentProperty() {
+        return parent;
+    }
+
+    private final ObservableSet<String> overrides = FXCollections.observableSet(new LinkedHashSet<>());
+
+    public ObservableSet<String> getOverrides() {
+        return overrides;
+    }
+
+    @SerializedName("versionIcon")
+    private final ObjectProperty<VersionIconType> versionIcon = new SimpleObjectProperty<>(this, "versionIcon", VersionIconType.DEFAULT);
+
+    public ObjectProperty<VersionIconType> versionIconProperty() {
+        return versionIcon;
+    }
+
+    @SerializedName("isolation")
     private final BooleanProperty isolation = new SimpleBooleanProperty(this, "isolation", false);
 
     public BooleanProperty isolationProperty() {
         return isolation;
     }
+
 }
