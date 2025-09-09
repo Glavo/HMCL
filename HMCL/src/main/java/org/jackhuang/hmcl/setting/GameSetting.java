@@ -18,7 +18,6 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.GameDirectoryType;
@@ -235,8 +234,6 @@ public abstract class GameSetting {
         return serverIp;
     }
 
-    /// 0 - .minecraft
-    /// 1 - .minecraft/versions/&lt;version&gt;/
     private final ObjectProperty<GameDirectoryType> gameDirType = new SimpleObjectProperty<>(this, "gameDirType", GameDirectoryType.ROOT_FOLDER);
 
     public ObjectProperty<GameDirectoryType> gameDirTypeProperty() {
