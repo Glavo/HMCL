@@ -137,7 +137,7 @@ public final class JavaInstallPage extends WizardSinglePage {
 
                 JavaVendor vendor = JavaVendor.of(control.info.getVendor());
                 if (vendor != null)
-                    addInfo(i18n("java.info.vendor"), vendor.getName());
+                    addInfo(i18n("java.info.vendor"), vendor.name());
 
                 if (control.remoteVersion instanceof DiscoJavaRemoteVersion) {
                     String distributionName = ((DiscoJavaRemoteVersion) control.remoteVersion).getDistribution();

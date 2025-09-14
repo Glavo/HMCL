@@ -253,7 +253,7 @@ public final class JavaManagementPage extends ListPageBase<JavaManagementPage.Ja
             item.setSubtitle(java.getBinary().toString());
             item.addTag(i18n("java.info.architecture") + ": " + java.getArchitecture().getDisplayName());
             if (vendor != null)
-                item.addTag(i18n("java.info.vendor") + ": " + vendor.getName());
+                item.addTag(i18n("java.info.vendor") + ": " + vendor.name());
             BorderPane.setAlignment(item, Pos.CENTER);
             center.getChildren().setAll(item);
             root.setCenter(center);

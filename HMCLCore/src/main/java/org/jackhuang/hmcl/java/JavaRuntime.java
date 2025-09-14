@@ -122,10 +122,7 @@ public final class JavaRuntime implements Comparable<JavaRuntime> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof JavaRuntime)) return false;
-        JavaRuntime that = (JavaRuntime) o;
-        return this.getBinary().equals(that.getBinary());
+        return this == o || o instanceof JavaRuntime that && this.getBinary().equals(that.getBinary());
     }
 
     public static final JavaRuntime CURRENT_JAVA;

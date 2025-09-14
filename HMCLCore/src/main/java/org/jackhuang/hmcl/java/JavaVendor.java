@@ -21,9 +21,8 @@ import org.jackhuang.hmcl.util.StringUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
-import java.util.Objects;
 
-public final class JavaVendor {
+public record JavaVendor(String name) {
 
     public static final JavaVendor ORACLE = new JavaVendor("Oracle");
     public static final JavaVendor ADOPTIUM = new JavaVendor("Adoptium");
@@ -36,7 +35,7 @@ public final class JavaVendor {
     public static final JavaVendor ZTHREAD = new JavaVendor("ZThread");
 
     public static @Nullable JavaVendor of(@Nullable String name) {
-        if (StringUtils.isBlank(name) || "N/A".equalsIgnoreCase(name))
+        if (StringUtils.isBlank(name) || "N/A".equalsIgnoreCase(name) || "Private Build".equals(name))
             return null;
 
         String lowerName = name.toLowerCase(Locale.ROOT);
@@ -58,28 +57,6 @@ public final class JavaVendor {
             return MICROSOFT;
 
         return new JavaVendor(name);
-    }
-
-    private final String name;
-
-    public JavaVendor(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof JavaVendor)) return false;
-        JavaVendor that = (JavaVendor) o;
-        return Objects.equals(name, that.name);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(name);
     }
 
     @Override

@@ -101,6 +101,13 @@ public final class JavaInfo {
         }
     }
 
+    private static JavaInfo fromCurrentEnvironment(Map<String, String> env) {
+        Builder builder = newBuilder(Platform.CURRENT_PLATFORM, System.getProperty("java.version"));
+        builder.setVendor(env.get("JAVA_VENDOR"));
+
+        return builder.build();
+    }
+
     public static <F, E extends ArchiveEntry> JavaInfo fromArchive(ArchiveFileTree<F, E> tree) throws IOException {
         if (tree.getRoot().getSubDirs().size() != 1 || !tree.getRoot().getFiles().isEmpty())
             throw new IOException();
