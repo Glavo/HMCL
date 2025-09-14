@@ -33,8 +33,9 @@ public final class JavaVendor {
     public static final JavaVendor BSD = new JavaVendor("BSD");
     public static final JavaVendor IBM = new JavaVendor("IBM");
     public static final JavaVendor MICROSOFT = new JavaVendor("Microsoft");
+    public static final JavaVendor ZTHREAD = new JavaVendor("ZThread");
 
-    public static @Nullable JavaVendor of(String name) {
+    public static @Nullable JavaVendor of(@Nullable String name) {
         if (StringUtils.isBlank(name) || "N/A".equalsIgnoreCase(name))
             return null;
 

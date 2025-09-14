@@ -40,6 +40,10 @@ import java.util.Map;
  */
 public final class JavaInfo {
 
+    public static Builder newBuilder(Platform platform, String version) {
+        return new Builder(platform, version);
+    }
+
     public static int parseVersion(String version) {
         int startIndex = version.startsWith("1.") ? 2 : 0;
         int endIndex = startIndex;
@@ -65,6 +69,8 @@ public final class JavaInfo {
         String osName = properties.get("OS_NAME");
         String osArch = properties.get("OS_ARCH");
         String vendor = properties.get("IMPLEMENTOR");
+        String jvmVariant = properties.get("JVM_VARIANT");
+        String libc = properties.get("LIBC");
 
         OperatingSystem os = "".equals(osName) && "OpenJDK BSD Porting Team".equals(vendor)
                 ? OperatingSystem.FREEBSD
@@ -82,7 +88,11 @@ public final class JavaInfo {
         if (javaVersion == null)
             throw new IOException("Missing Java version");
 
-        return new JavaInfo(Platform.getPlatform(os, arch), javaVersion, vendor);
+        return newBuilder(Platform.getPlatform(os, arch), javaVersion)
+                .setVendor(vendor)
+                .setJvmVariant(jvmVariant)
+                .setLibC(libc)
+                .build();
     }
 
     public static JavaInfo fromReleaseFile(Path releaseFile) throws IOException {
@@ -117,16 +127,31 @@ public final class JavaInfo {
     private final Platform platform;
     private final String version;
     private final @Nullable String vendor;
+    private final @Nullable String jvmVariant;
+    private final @Nullable String libc;
 
     private final transient int parsedVersion;
     private final transient VersionNumber versionNumber;
 
+    public JavaInfo(Platform platform, String version) {
+        this(platform, version, null);
+    }
+
     public JavaInfo(Platform platform, String version, @Nullable String vendor) {
+        this(platform, version, vendor, null, null);
+    }
+
+
+    public JavaInfo(Platform platform, String version, @Nullable String vendor,
+                    @Nullable String jvmVariant,
+                    @Nullable String libc) {
         this.platform = platform;
         this.version = version;
         this.parsedVersion = parseVersion(version);
         this.versionNumber = VersionNumber.asVersion(version);
         this.vendor = vendor;
+        this.jvmVariant = jvmVariant;
+        this.libc = libc;
     }
 
     public Platform getPlatform() {
@@ -149,8 +174,52 @@ public final class JavaInfo {
         return vendor;
     }
 
+    public @Nullable String getJvmVariant() {
+        return jvmVariant;
+    }
+
+    public @Nullable String getLibC() {
+        return libc;
+    }
+
+    public boolean isOpenJ9() {
+        return jvmVariant != null && jvmVariant.toLowerCase().contains("openj9");
+    }
+
     @Override
     public String toString() {
         return JsonUtils.GSON.toJson(this);
+    }
+
+    public static final class Builder {
+        private final Platform platform;
+        private final String version;
+        private @Nullable String vendor;
+        private @Nullable String jvmVariant;
+        private @Nullable String libc;
+
+        public Builder(Platform platform, String version) {
+            this.platform = platform;
+            this.version = version;
+        }
+
+        public Builder setVendor(@Nullable String vendor) {
+            this.vendor = vendor;
+            return this;
+        }
+
+        public Builder setJvmVariant(@Nullable String jvmVariant) {
+            this.jvmVariant = jvmVariant;
+            return this;
+        }
+
+        public Builder setLibC(@Nullable String libc) {
+            this.libc = libc;
+            return this;
+        }
+
+        public JavaInfo build() {
+            return new JavaInfo(platform, version, vendor);
+        }
     }
 }
