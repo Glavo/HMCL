@@ -47,6 +47,7 @@ import org.jackhuang.hmcl.ui.animation.AnimationProducer;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.wizard.Navigation;
+import org.jackhuang.hmcl.util.platform.OperatingSystem;
 
 public class DecoratorSkin extends SkinBase<Decorator> {
     private final StackPane root, parent;
@@ -54,7 +55,9 @@ public class DecoratorSkin extends SkinBase<Decorator> {
     private final Stage primaryStage;
     private final TransitionPane navBarPane;
 
+    @SuppressWarnings("FieldCanBeLocal")
     private final InvalidationListener onWindowsStatusChange;
+    private final EventHandler<MouseEvent> onTitleBarDoubleClick;
 
     private double mouseInitX, mouseInitY, stageInitX, stageInitY, stageInitWidth, stageInitHeight;
 
@@ -89,22 +92,38 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         EventHandler<MouseEvent> onMouseReleased = this::onMouseReleased;
         EventHandler<MouseEvent> onMouseDragged = this::onMouseDragged;
         EventHandler<MouseEvent> onMouseMoved = this::onMouseMoved;
-        onWindowsStatusChange = observable -> {
-            if (primaryStage.isIconified() || primaryStage.isFullScreen() || primaryStage.isMaximized()) {
-                root.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-                root.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-                root.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-            } else {
-                root.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-                root.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-                root.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-            }
-        };
-        WeakInvalidationListener weakOnWindowsStatusChange = new WeakInvalidationListener(onWindowsStatusChange);
-        primaryStage.iconifiedProperty().addListener(weakOnWindowsStatusChange);
-        primaryStage.maximizedProperty().addListener(weakOnWindowsStatusChange);
-        primaryStage.fullScreenProperty().addListener(weakOnWindowsStatusChange);
-        onWindowsStatusChange.invalidated(null);
+
+        // https://github.com/HMCL-dev/HMCL/issues/4290
+        if (OperatingSystem.CURRENT_OS != OperatingSystem.MACOS) {
+            onWindowsStatusChange = observable -> {
+                if (primaryStage.isIconified() || primaryStage.isFullScreen() || primaryStage.isMaximized()) {
+                    root.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
+                    root.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
+                    root.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
+                } else {
+                    root.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
+                    root.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
+                    root.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
+                }
+            };
+            onTitleBarDoubleClick = event -> {
+                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                    primaryStage.setMaximized(!primaryStage.isMaximized());
+                    event.consume();
+                }
+            };
+            WeakInvalidationListener weakOnWindowsStatusChange = new WeakInvalidationListener(onWindowsStatusChange);
+            primaryStage.iconifiedProperty().addListener(weakOnWindowsStatusChange);
+            primaryStage.maximizedProperty().addListener(weakOnWindowsStatusChange);
+            primaryStage.fullScreenProperty().addListener(weakOnWindowsStatusChange);
+            onWindowsStatusChange.invalidated(null);
+        } else {
+            onWindowsStatusChange = null;
+            onTitleBarDoubleClick = null;
+            root.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
+            root.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
+            root.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
+        }
 
         shadowContainer.getChildren().setAll(parent);
         root.getChildren().setAll(shadowContainer);
@@ -177,12 +196,6 @@ public class DecoratorSkin extends SkinBase<Decorator> {
 
         BorderPane titleBar = new BorderPane();
         titleContainer.getChildren().add(titleBar);
-        titleBar.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                primaryStage.setMaximized(!primaryStage.isMaximized());
-                event.consume();
-            }
-        });
 
         Rectangle buttonsContainerPlaceHolder = new Rectangle();
         {
@@ -310,6 +323,8 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 BorderPane.setAlignment(titleNode, Pos.CENTER_LEFT);
                 BorderPane.setMargin(titleNode, new Insets(0, 0, 0, 8));
             }
+            if (onTitleBarDoubleClick != null)
+                center.setOnMouseClicked(onTitleBarDoubleClick);
             navBar.setCenter(center);
 
             if (canRefresh) {

@@ -46,7 +46,6 @@ import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.ChecksumMismatchException;
 import org.jackhuang.hmcl.util.io.IOUtils;
-import org.jackhuang.hmcl.util.io.JarUtils;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.util.platform.Platform;
 
@@ -63,6 +62,7 @@ import java.util.List;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.Manifest;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
@@ -261,9 +261,15 @@ public final class SelfDependencyPatcher {
                 .map(DependencyDescriptor::localPath)
                 .toArray(Path[]::new);
 
-        String[] addOpens = JarUtils.getManifestAttribute("Add-Opens", "").split(" ");
+        String addOpens = null;
+        try (InputStream input = SelfDependencyPatcher.class.getResourceAsStream("/META-INF/MANIFEST.MF")) {
+            if (input != null)
+                addOpens = new Manifest(input).getMainAttributes().getValue("Add-Opens");
+        } catch (IOException e) {
+            LOG.warning("Failed to read MANIFEST.MF file", e);
+        }
 
-        JavaFXPatcher.patch(modules, jars, addOpens);
+        JavaFXPatcher.patch(modules, jars, addOpens != null ? addOpens.split(" ") : new String[0]);
     }
 
     /**
@@ -381,7 +387,7 @@ public final class SelfDependencyPatcher {
             }
         }
 
-        String sha1 = Hex.encodeHex(digest.digest());
+        String sha1 = HexFormat.of().formatHex(digest.digest());
         if (!dependency.sha1().equalsIgnoreCase(sha1))
             throw new ChecksumMismatchException("SHA-1", dependency.sha1(), sha1);
     }

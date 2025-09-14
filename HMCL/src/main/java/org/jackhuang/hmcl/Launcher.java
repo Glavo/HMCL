@@ -113,6 +113,10 @@ public final class Launcher extends Application {
                     return;
             }
 
+            if (ConfigHolder.isUnsupportedVersion()) {
+                showAlert(AlertType.WARNING, i18n("fatal.config_unsupported_version"));
+            }
+
             if (Metadata.HMCL_CURRENT_DIRECTORY.toString().indexOf('=') >= 0) {
                 showAlert(AlertType.WARNING, i18n("fatal.illegal_char"));
             }
@@ -239,8 +243,8 @@ public final class Launcher extends Application {
         try {
             LOG.info("*** " + Metadata.TITLE + " ***");
             LOG.info("Operating System: " + (OperatingSystem.OS_RELEASE_PRETTY_NAME == null
-                    ? OperatingSystem.SYSTEM_NAME + ' ' + OperatingSystem.SYSTEM_VERSION
-                    : OperatingSystem.OS_RELEASE_PRETTY_NAME + " (" + OperatingSystem.SYSTEM_NAME + ' ' + OperatingSystem.SYSTEM_VERSION + ')'));
+                    ? OperatingSystem.SYSTEM_NAME + ' ' + OperatingSystem.SYSTEM_VERSION.getVersion()
+                    : OperatingSystem.OS_RELEASE_PRETTY_NAME + " (" + OperatingSystem.SYSTEM_NAME + ' ' + OperatingSystem.SYSTEM_VERSION.getVersion() + ')'));
             if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
                 LOG.info("Processor Identifier: " + System.getenv("PROCESSOR_IDENTIFIER"));
             }

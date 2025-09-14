@@ -58,6 +58,7 @@ import org.jackhuang.hmcl.ui.construct.JFXDialogPane;
 import org.jackhuang.hmcl.ui.wizard.Refreshable;
 import org.jackhuang.hmcl.ui.wizard.WizardProvider;
 import org.jackhuang.hmcl.util.Lang;
+import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -164,25 +165,23 @@ public class DecoratorController {
         // press ESC to go back
         onEscPressed(navigator, this::back);
 
-        // press F11 to toggle full screen
-        navigator.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
-            if (e.getCode() == KeyCode.F11) {
-                stage.setFullScreen(!stage.isFullScreen());
-                e.consume();
-            }
-        });
-
-        try {
-            // For JavaFX 12+
-            MouseButton button = MouseButton.valueOf("BACK");
-            navigator.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-                if (e.getButton() == button) {
-                    back();
+        // https://github.com/HMCL-dev/HMCL/issues/4290
+        if (OperatingSystem.CURRENT_OS != OperatingSystem.MACOS) {
+            // press F11 to toggle full screen
+            navigator.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+                if (e.getCode() == KeyCode.F11) {
+                    stage.setFullScreen(!stage.isFullScreen());
                     e.consume();
                 }
             });
-        } catch (IllegalArgumentException ignored) {
         }
+
+        navigator.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+            if (e.getButton() == MouseButton.BACK) {
+                back();
+                e.consume();
+            }
+        });
     }
 
     public Decorator getDecorator() {
@@ -213,6 +212,8 @@ public class DecoratorController {
 
     private Background getBackground() {
         EnumBackgroundImage imageType = config().getBackgroundImageType();
+        if (imageType == null)
+            imageType = EnumBackgroundImage.DEFAULT;
 
         Image image = null;
         switch (imageType) {
