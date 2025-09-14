@@ -141,7 +141,6 @@ public final class JavaInfo {
         this(platform, version, vendor, null, null);
     }
 
-
     public JavaInfo(Platform platform, String version, @Nullable String vendor,
                     @Nullable String jvmVariant,
                     @Nullable String libc) {
