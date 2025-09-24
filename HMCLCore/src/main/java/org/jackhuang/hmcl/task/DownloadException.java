@@ -21,12 +21,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 public class DownloadException extends IOException {
 
     private final URI uri;
+    private final List<URI> redirectURIs = new ArrayList<>();
 
     public DownloadException(URI uri, @NotNull Throwable cause) {
         super("Unable to download " + uri + ", " + cause.getMessage(), requireNonNull(cause));

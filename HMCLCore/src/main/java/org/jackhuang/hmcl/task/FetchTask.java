@@ -207,7 +207,7 @@ public abstract class FetchTask<T> extends Task<T> {
                 do {
                     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentURI);
                     headers.forEach(requestBuilder::header);
-                    response = HTTP_CLIENT.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofInputStream());
+                    response = HTTP_CLIENT.send(requestBuilder.build(), BODY_HANDLER);
 
                     bmclapiHash = response.headers().firstValue("x-bmclapi-hash").orElse(null);
                     if (DigestUtils.isSha1Digest(bmclapiHash)) {
@@ -238,7 +238,6 @@ public abstract class FetchTask<T> extends Task<T> {
                             throw new IOException("Redirected to not http URI: " + target);
 
                         currentURI = target;
-                        IOUtils.closeQuietly(response.body());
                     } else {
                         break;
                     }
@@ -264,13 +263,10 @@ public abstract class FetchTask<T> extends Task<T> {
                         continue;
                     }
                 } else if (responseCode / 100 == 4) {
-                    IOUtils.closeQuietly(response.body());
                     throw new FileNotFoundException(uri.toString());
                 } else if (responseCode / 100 != 2) {
-                    IOUtils.closeQuietly(response.body());
                     throw new ResponseCodeException(uri, responseCode);
                 }
-
 
                 long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
                 var contentEncoding = ContentEncoding.fromResponse(response);
@@ -327,6 +323,14 @@ public abstract class FetchTask<T> extends Task<T> {
 
         return false;
     }
+
+    private static final HttpResponse.BodyHandler<InputStream> BODY_HANDLER = responseInfo -> {
+        if (responseInfo.statusCode() / 100 == 2) {
+            return HttpResponse.BodySubscribers.ofInputStream();
+        } else {
+            return HttpResponse.BodySubscribers.replacing(null);
+        }
+    };
 
     private static final Timer timer = new Timer("DownloadSpeedRecorder", true);
     private static final AtomicLong downloadSpeed = new AtomicLong(0L);
@@ -484,8 +488,6 @@ public abstract class FetchTask<T> extends Task<T> {
     }
 
     public static int getDownloadExecutorConcurrency() {
-        synchronized (Schedulers.class) {
-            return downloadExecutorConcurrency;
-        }
+        return downloadExecutorConcurrency;
     }
 }
