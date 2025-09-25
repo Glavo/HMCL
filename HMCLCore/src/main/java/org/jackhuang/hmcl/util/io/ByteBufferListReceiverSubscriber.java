@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.util.io;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
@@ -143,7 +144,7 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
         }
     }
 
-    public final class Receiver implements AutoCloseable {
+    public final class Receiver implements Closeable {
         private boolean finished = false;
 
         public @Nullable List<ByteBuffer> take() throws IOException, InterruptedException {

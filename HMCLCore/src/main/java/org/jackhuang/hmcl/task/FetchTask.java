@@ -151,7 +151,7 @@ public abstract class FetchTask<T> extends Task<T> {
                 beforeDownload(uri);
                 updateProgress(0);
 
-                HttpResponse<AutoCloseable /* InputStream | ByteBufferListReceiverSubscriber.Receiver */> response;
+                HttpResponse<Closeable /* InputStream | ByteBufferListReceiverSubscriber.Receiver */> response;
                 String bmclapiHash;
 
                 URI currentURI = uri;
@@ -225,8 +225,8 @@ public abstract class FetchTask<T> extends Task<T> {
                 }
 
                 long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
-                AutoCloseable body = response.body();
-                try (Context context = getContext(response, checkETag, bmclapiHash);) {
+                try (Closeable body = response.body();
+                     Context context = getContext(response, checkETag, bmclapiHash);) {
                     if (body instanceof ByteBufferListReceiverSubscriber.Receiver receiver) {
                         doDownload(context, receiver, contentLength);
                     } else if (body instanceof InputStream inputStream) {
@@ -438,15 +438,15 @@ public abstract class FetchTask<T> extends Task<T> {
     }
 
     @SuppressWarnings("unchecked")
-    private static HttpResponse.BodySubscriber<AutoCloseable> castSubscriber(HttpResponse.BodySubscriber<? extends AutoCloseable> subscriber) {
-        return (HttpResponse.BodySubscriber<AutoCloseable>) subscriber;
+    private static HttpResponse.BodySubscriber<Closeable> castSubscriber(HttpResponse.BodySubscriber<? extends Closeable> subscriber) {
+        return (HttpResponse.BodySubscriber<Closeable>) subscriber;
     }
 
     /// - For response code 2xx:
     ///   - If content-encoding is gzip, the response body type is `InputStream`
     ///   - If content-encoding is identity or empty, the response body type is `ByteBufferListReceiverSubscriber.Receiver`
     /// - For other response codes, the response body is `null`
-    private static final HttpResponse.BodyHandler<AutoCloseable> HANDLER = responseInfo -> {
+    private static final HttpResponse.BodyHandler<Closeable> HANDLER = responseInfo -> {
         if (responseInfo.statusCode() / 100 == 2) {
             try {
                 ContentEncoding encoder = ContentEncoding.fromHeaders(responseInfo.headers());
