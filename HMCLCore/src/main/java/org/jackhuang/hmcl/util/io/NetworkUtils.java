@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.net.*;
+import java.net.http.HttpHeaders;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.Map.Entry;
@@ -418,4 +419,7 @@ public final class NetworkUtils {
     }
     // ====
 
+    public HttpHeaders getResponseHeaders(URLConnection connection) {
+        return HttpHeaders.of(connection.getHeaderFields(), (a, b) -> true);
+    }
 }

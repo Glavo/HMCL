@@ -20,10 +20,7 @@ package org.jackhuang.hmcl.task;
 import org.jackhuang.hmcl.event.Event;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.java.JavaRuntime;
-import org.jackhuang.hmcl.util.CacheRepository;
-import org.jackhuang.hmcl.util.DigestUtils;
-import org.jackhuang.hmcl.util.StringUtils;
-import org.jackhuang.hmcl.util.ToStringBuilder;
+import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.io.ContentEncoding;
 import org.jackhuang.hmcl.util.io.IOUtils;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
@@ -40,6 +37,7 @@ import java.net.URLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
@@ -134,44 +132,6 @@ public abstract class FetchTask<T> extends Task<T> {
             throw new DownloadException(failedURI, exception);
     }
 
-    private void download(Context context,
-                          InputStream inputStream,
-                          long contentLength,
-                          ContentEncoding contentEncoding) throws IOException, InterruptedException {
-        try (var ignored = context;
-             var counter = new CounterInputStream(inputStream);
-             var input = contentEncoding.wrap(counter)) {
-            long lastDownloaded = 0L;
-            byte[] buffer = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
-            while (true) {
-                if (isCancelled()) break;
-
-                int len = input.read(buffer);
-                if (len == -1) break;
-
-                context.write(buffer, 0, len);
-
-                if (contentLength >= 0) {
-                    // Update progress information per second
-                    updateProgress(counter.downloaded, contentLength);
-                }
-
-                updateDownloadSpeed(counter.downloaded - lastDownloaded);
-                lastDownloaded = counter.downloaded;
-            }
-
-            if (isCancelled())
-                throw new InterruptedException();
-
-            updateDownloadSpeed(counter.downloaded - lastDownloaded);
-
-            if (contentLength >= 0 && counter.downloaded != contentLength)
-                throw new IOException("Unexpected file size: " + counter.downloaded + ", expected: " + contentLength);
-
-            context.withResult(true);
-        }
-    }
-
     private boolean downloadHttp(URI uri, boolean checkETag) throws InterruptedException {
         if (checkETag) {
             // Handle cache
@@ -194,7 +154,8 @@ public abstract class FetchTask<T> extends Task<T> {
                 beforeDownload(uri);
                 updateProgress(0);
 
-                HttpResponse<InputStream> response;
+                Context context = getContext();
+                HttpResponse<Void> response;
                 String bmclapiHash;
 
                 URI currentURI = uri;
@@ -207,7 +168,14 @@ public abstract class FetchTask<T> extends Task<T> {
                 do {
                     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentURI);
                     headers.forEach(requestBuilder::header);
-                    response = HTTP_CLIENT.send(requestBuilder.build(), BODY_HANDLER);
+                    response = HTTP_CLIENT.send(requestBuilder.build(), responseInfo -> {
+                        if (responseInfo.statusCode() / 100 == 2) {
+                            Subscriber subscriber = new Subscriber(responseInfo, context);
+                            return HttpResponse.BodySubscribers.fromSubscriber(subscriber);
+                        } else {
+                            return HttpResponse.BodySubscribers.replacing(null);
+                        }
+                    });
 
                     bmclapiHash = response.headers().firstValue("x-bmclapi-hash").orElse(null);
                     if (DigestUtils.isSha1Digest(bmclapiHash)) {
@@ -245,7 +213,6 @@ public abstract class FetchTask<T> extends Task<T> {
 
                 int responseCode = response.statusCode();
                 if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
-                    IOUtils.closeQuietly(response.body());
                     // Handle cache
                     try {
                         Path cache = repository.getCachedRemoteFile(currentURI, false);
@@ -268,13 +235,6 @@ public abstract class FetchTask<T> extends Task<T> {
                     throw new ResponseCodeException(uri, responseCode);
                 }
 
-                long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
-                var contentEncoding = ContentEncoding.fromResponse(response);
-
-                download(getContext(response, checkETag, bmclapiHash),
-                        response.body(),
-                        contentLength,
-                        contentEncoding);
                 return true;
             } catch (FileNotFoundException ex) {
                 failedURI = uri;
@@ -303,10 +263,41 @@ public abstract class FetchTask<T> extends Task<T> {
                 updateProgress(0);
 
                 URLConnection conn = NetworkUtils.createConnection(uri);
-                download(getContext(),
-                        conn.getInputStream(),
-                        conn.getContentLengthLong(),
-                        ContentEncoding.fromConnection(conn));
+                Context context = getContext();
+                InputStream inputStream = conn.getInputStream();
+                long contentLength = conn.getContentLengthLong();
+                ContentEncoding contentEncoding = ContentEncoding.fromConnection(conn);
+                try (var counter = new CounterInputStream(inputStream);
+                     var input = contentEncoding.wrap(counter)) {
+                    long lastDownloaded = 0L;
+                    byte[] buffer = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
+                    while (true) {
+                        if (isCancelled()) break;
+
+                        int len = input.read(buffer);
+                        if (len == -1) break;
+
+                        context.write(buffer, 0, len);
+
+                        if (contentLength >= 0) {
+                            // Update progress information per second
+                            updateProgress(counter.downloaded, contentLength);
+                        }
+
+                        updateDownloadSpeed(counter.downloaded - lastDownloaded);
+                        lastDownloaded = counter.downloaded;
+                    }
+
+                    if (isCancelled())
+                        throw new InterruptedException();
+
+                    updateDownloadSpeed(counter.downloaded - lastDownloaded);
+
+                    if (contentLength >= 0 && counter.downloaded != contentLength)
+                        throw new IOException("Unexpected file size: " + counter.downloaded + ", expected: " + contentLength);
+
+                    context.withResult(true);
+                }
                 return true;
             } catch (FileNotFoundException ex) {
                 failedURI = uri;
@@ -324,13 +315,53 @@ public abstract class FetchTask<T> extends Task<T> {
         return false;
     }
 
-    private static final HttpResponse.BodyHandler<InputStream> BODY_HANDLER = responseInfo -> {
-        if (responseInfo.statusCode() / 100 == 2) {
-            return HttpResponse.BodySubscribers.ofInputStream();
-        } else {
-            return HttpResponse.BodySubscribers.replacing(null);
+    private static final class Subscriber implements Flow.Subscriber<List<ByteBuffer>> {
+
+        private final HttpResponse.ResponseInfo responseInfo;
+        private final Context context;
+
+        private volatile Flow.Subscription subscription;
+        private Throwable exception;
+
+        private Subscriber(HttpResponse.ResponseInfo responseInfo, Context context) {
+            this.responseInfo = responseInfo;
+            this.context = context;
         }
-    };
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            subscription.request(1);
+            try {
+                context.init();
+            } catch (Throwable ex) {
+                subscription.cancel();
+                onError(ex);
+            }
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> item) {
+            try {
+                long remaining = ByteBufferUtils.getRemaining(item);
+                context.accept(item);
+            } catch (IOException e) {
+                exception = e;
+                subscription.cancel();
+                onError(exception);
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            exception = throwable;
+        }
+
+        @Override
+        public void onComplete() {
+
+        }
+    }
 
     private static final Timer timer = new Timer("DownloadSpeedRecorder", true);
     private static final AtomicLong downloadSpeed = new AtomicLong(0L);
@@ -397,18 +428,12 @@ public abstract class FetchTask<T> extends Task<T> {
         }
     }
 
-    protected static abstract class Context implements Closeable {
-        private boolean success;
+    protected static abstract class Context {
+        public abstract void init() throws IOException;
 
-        public abstract void write(byte[] buffer, int offset, int len) throws IOException;
+        public abstract void accept(List<ByteBuffer> buffers) throws IOException;
 
-        public final void withResult(boolean success) {
-            this.success = success;
-        }
-
-        protected boolean isSuccess() {
-            return success;
-        }
+        public abstract void onComplete(boolean success) throws IOException;
     }
 
     protected enum EnumCheckETag {

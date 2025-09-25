@@ -23,6 +23,7 @@ import org.jackhuang.hmcl.auth.yggdrasil.TextureModel;
 import org.jackhuang.hmcl.task.FetchTask;
 import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.ByteBufferUtils;
 import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -31,10 +32,10 @@ import org.jackhuang.hmcl.util.io.NetworkUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -246,21 +247,53 @@ public class Skin {
         @Override
         protected Context getContext(HttpResponse<?> response, boolean checkETag, String bmclapiHash) throws IOException {
             return new Context() {
-                final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                private byte[] bytes;
+                private int count;
 
                 @Override
-                public void write(byte[] buffer, int offset, int len) {
-                    baos.write(buffer, offset, len);
+                public void init() throws IOException {
+                    long length = -1;
+                    if (response != null)
+                        length = response.headers().firstValueAsLong("content-length").orElse(-1L);
+                    bytes = new byte[length <= 0 ? 8192 : (int) length];
                 }
 
                 @Override
-                public void close() throws IOException {
-                    if (!isSuccess()) return;
+                public void accept(List<ByteBuffer> buffers) throws IOException {
+                    if (bytes == null)
+                        return;
 
-                    setResult(new ByteArrayInputStream(baos.toByteArray()));
+                    long remaining = ByteBufferUtils.getRemaining(buffers);
+                    if (remaining <= 0)
+                        return;
+
+                    long minCap = count + remaining;
+                    if (minCap <= bytes.length) {
+                        if (minCap > Integer.MAX_VALUE - 8)
+                            throw new OutOfMemoryError("Too large min capacity: " + minCap);
+
+                        int newSize = (int) Math.max(minCap, Math.min((long) bytes.length * 2, Integer.MAX_VALUE - 8));
+                        bytes = new byte[newSize];
+                    }
+
+                    for (ByteBuffer buffer : buffers) {
+                        int n = buffer.remaining();
+                        buffer.get(bytes, count, n);
+                        count += n;
+                    }
+                }
+
+                @Override
+                public void onComplete(boolean success) throws IOException {
+                    if (!success)
+                        return;
+
+                    byte[] result = bytes.length == count ? bytes : Arrays.copyOf(bytes, count);
+
+                    setResult(new ByteArrayInputStream(result));
 
                     if (checkETag) {
-                        repository.cacheBytes(response, baos.toByteArray());
+                        repository.cacheBytes(response, result);
                     }
                 }
             };
@@ -297,7 +330,7 @@ public class Skin {
         private final String cape;
         private final String elytra;
 
-        @SerializedName(value = "textures", alternate = { "skins" })
+        @SerializedName(value = "textures", alternate = {"skins"})
         private final TextureJson textures;
 
         public SkinJson(String username, String skin, String cape, String elytra, TextureJson textures) {

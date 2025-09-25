@@ -27,10 +27,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpResponse;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.*;
 
@@ -186,8 +185,6 @@ public class FileDownloadTask extends FetchTask<Void> {
 
     @Override
     protected Context getContext(HttpResponse<?> response, boolean checkETag, String bmclapiHash) throws IOException {
-        Path temp = Files.createTempFile(null, null);
-
         String algorithm;
         String checksum;
         if (integrityCheck != null) {
@@ -203,26 +200,46 @@ public class FileDownloadTask extends FetchTask<Void> {
 
         MessageDigest digest = algorithm != null ? DigestUtils.getDigest(algorithm) : null;
 
-        OutputStream fileOutput = Files.newOutputStream(temp);
-        return new Context() {
-            @Override
-            public void write(byte[] buffer, int offset, int len) throws IOException {
-                if (digest != null) {
-                    digest.update(buffer, offset, len);
-                }
 
-                fileOutput.write(buffer, offset, len);
+        return new Context() {
+            private Path temp;
+            private FileChannel channel;
+
+            @Override
+            public void init() throws IOException {
+                temp = Files.createTempFile(null, null);
+                channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
 
             @Override
-            public void close() throws IOException {
+            public void accept(List<ByteBuffer> buffers) throws IOException {
+                if (channel == null)
+                    return;
+
+                for (ByteBuffer buffer : buffers) {
+                    if (digest != null) {
+                        long position = channel.position();
+                        digest.update(buffer);
+                        channel.position(position);
+                    }
+                }
+
+                //noinspection ResultOfMethodCallIgnored
+                channel.write(buffers.toArray(ByteBuffer[]::new));
+            }
+
+            @Override
+            public void onComplete(boolean success) throws IOException {
+                if (channel == null)
+                    return;
+
                 try {
-                    fileOutput.close();
+                    channel.close();
                 } catch (IOException e) {
                     LOG.warning("Failed to close file: " + temp, e);
                 }
 
-                if (!isSuccess()) {
+                if (!success) {
                     try {
                         Files.deleteIfExists(temp);
                     } catch (IOException e) {

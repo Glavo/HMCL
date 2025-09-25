@@ -18,13 +18,14 @@
 package org.jackhuang.hmcl.task;
 
 import com.google.gson.reflect.TypeToken;
+import org.jackhuang.hmcl.util.ByteBufferUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -62,26 +63,52 @@ public final class GetTask extends FetchTask<String> {
 
     @Override
     protected Context getContext(HttpResponse<?> response, boolean checkETag, String bmclapiHash) {
-        long length = -1;
-        if (response != null)
-            length = response.headers().firstValueAsLong("content-length").orElse(-1L);
-        final var baos = new ByteArrayOutputStream(length <= 0 ? 8192 : (int) length);
-
         return new Context() {
+            private byte[] bytes;
+            private int count;
+
             @Override
-            public void write(byte[] buffer, int offset, int len) {
-                baos.write(buffer, offset, len);
+            public void init() throws IOException {
+                long length = -1;
+                if (response != null)
+                    length = response.headers().firstValueAsLong("content-length").orElse(-1L);
+                bytes = new byte[length <= 0 ? 8192 : (int) length];
             }
 
             @Override
-            public void close() throws IOException {
-                if (!isSuccess()) return;
+            public void accept(List<ByteBuffer> buffers) throws IOException {
+                if (bytes == null)
+                    return;
+
+                long remaining = ByteBufferUtils.getRemaining(buffers);
+                if (remaining <= 0)
+                    return;
+
+                long minCap = count + remaining;
+                if (minCap <= bytes.length) {
+                    if (minCap > Integer.MAX_VALUE - 8)
+                        throw new OutOfMemoryError("Too large min capacity: " + minCap);
+
+                    int newSize = (int) Math.max(minCap, Math.min((long) bytes.length * 2, Integer.MAX_VALUE - 8));
+                    bytes = new byte[newSize];
+                }
+
+                for (ByteBuffer buffer : buffers) {
+                    int n = buffer.remaining();
+                    buffer.get(bytes, count, n);
+                    count += n;
+                }
+            }
+
+            @Override
+            public void onComplete(boolean success) throws IOException {
+                if (!success) return;
 
                 Charset charset = StandardCharsets.UTF_8;
                 if (response != null)
                     charset = NetworkUtils.getCharsetFromContentType(response.headers().firstValue("content-type").orElse(null));
 
-                String result = baos.toString(charset);
+                String result = new String(bytes, charset);
                 setResult(result);
 
                 if (checkETag) {

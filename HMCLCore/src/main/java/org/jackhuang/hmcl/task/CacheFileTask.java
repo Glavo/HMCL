@@ -22,11 +22,13 @@ import org.jackhuang.hmcl.util.io.NetworkUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -76,34 +78,39 @@ public final class CacheFileTask extends FetchTask<Path> {
         assert checkETag;
         assert response != null;
 
-        Path temp = Files.createTempFile("hmcl-download-", null);
-        OutputStream fileOutput = Files.newOutputStream(temp);
-
         return new Context() {
+            Path temp;
+            FileChannel channel;
+
             @Override
-            public void write(byte[] buffer, int offset, int len) throws IOException {
-                fileOutput.write(buffer, offset, len);
+            public void init() throws IOException {
+                temp = Files.createTempFile("hmcl-download-", null);
+                channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
 
             @Override
-            public void close() throws IOException {
+            public void accept(List<ByteBuffer> buffers) throws IOException {
+                if (channel == null)
+                    return;
+
+                //noinspection ResultOfMethodCallIgnored
+                channel.write(buffers.toArray(ByteBuffer[]::new));
+            }
+
+            @Override
+            public void onComplete(boolean success) throws IOException {
+                if (channel == null)
+                    return;
+
                 try {
-                    fileOutput.close();
+                    channel.close();
                 } catch (IOException e) {
                     LOG.warning("Failed to close file: " + temp, e);
                 }
 
-                if (!isSuccess()) {
-                    try {
-                        Files.deleteIfExists(temp);
-                    } catch (IOException e) {
-                        LOG.warning("Failed to delete file: " + temp, e);
-                    }
-                    return;
-                }
-
                 try {
-                    setResult(repository.cacheRemoteFile(response, temp));
+                    if (success)
+                        setResult(repository.cacheRemoteFile(response, temp));
                 } finally {
                     try {
                         Files.deleteIfExists(temp);
