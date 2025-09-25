@@ -93,9 +93,6 @@ public final class CacheFileTask extends FetchTask<Path> {
 
             @Override
             public void close() throws IOException {
-                if (channel == null)
-                    return;
-
                 try {
                     channel.close();
                 } catch (IOException e) {

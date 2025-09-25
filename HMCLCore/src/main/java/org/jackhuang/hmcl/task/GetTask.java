@@ -75,10 +75,7 @@ public final class GetTask extends FetchTask<String> {
             }
 
             @Override
-            public void accept(List<ByteBuffer> buffers) throws IOException {
-                if (bytes == null)
-                    return;
-
+            public void accept(List<ByteBuffer> buffers) {
                 long remaining = ByteBufferUtils.getRemaining(buffers);
                 if (remaining <= 0)
                     return;
@@ -107,7 +104,7 @@ public final class GetTask extends FetchTask<String> {
                 if (response != null)
                     charset = NetworkUtils.getCharsetFromContentType(response.headers().firstValue("content-type").orElse(null));
 
-                String result = new String(bytes, charset);
+                String result = new String(bytes, 0, count, charset);
                 setResult(result);
 
                 if (checkETag) {

@@ -151,7 +151,8 @@ public abstract class FetchTask<T> extends Task<T> {
                 beforeDownload(uri);
                 updateProgress(0);
 
-                HttpResponse<Closeable /* InputStream | ByteBufferListReceiverSubscriber.Receiver */> response;
+                // HttpResponse<InputStream | ByteBufferListReceiverSubscriber.Receiver>
+                HttpResponse<Closeable> response;
                 String bmclapiHash;
 
                 URI currentURI = uri;
