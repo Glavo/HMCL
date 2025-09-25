@@ -314,6 +314,8 @@ public abstract class FetchTask<T> extends Task<T> {
 
         if (contentLength >= 0 && count != contentLength)
             throw new IOException("Unexpected file size: " + count + ", expected: " + contentLength);
+
+        context.setSuccess();
     }
 
     private void doDownload(Context context, InputStream inputStream,
