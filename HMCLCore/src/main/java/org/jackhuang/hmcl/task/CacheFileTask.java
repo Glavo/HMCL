@@ -79,14 +79,8 @@ public final class CacheFileTask extends FetchTask<Path> {
         assert response != null;
 
         return new Context() {
-            Path temp;
-            FileChannel channel;
-
-            @Override
-            public void init() throws IOException {
-                temp = Files.createTempFile("hmcl-download-", null);
-                channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            }
+            private final Path temp = Files.createTempFile("hmcl-download-", null);
+            private final FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
             @Override
             public void accept(List<ByteBuffer> buffers) throws IOException {
@@ -98,7 +92,7 @@ public final class CacheFileTask extends FetchTask<Path> {
             }
 
             @Override
-            public void onComplete(boolean success) throws IOException {
+            public void close() throws IOException {
                 if (channel == null)
                     return;
 

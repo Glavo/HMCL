@@ -31,14 +31,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 /// @author Glavo
-public final class ByteBuffersReceiverSubscriber implements Flow.Subscriber<List<ByteBuffer>> {
+public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<List<ByteBuffer>> {
 
     private static final int DEFAULT_MAX_BUFFERS_IN_QUEUE = 4;
     private static final ByteBuffer LAST_BUFFER = ByteBuffer.allocate(0);
     private static final List<ByteBuffer> LAST_LIST = List.of(LAST_BUFFER);
 
     public static HttpResponse.BodySubscriber<Receiver> create() {
-        return HttpResponse.BodySubscribers.fromSubscriber(new ByteBuffersReceiverSubscriber(), it -> it.new Receiver());
+        return HttpResponse.BodySubscribers.fromSubscriber(new ByteBufferListReceiverSubscriber(), it -> it.new Receiver());
     }
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -49,11 +49,11 @@ public final class ByteBuffersReceiverSubscriber implements Flow.Subscriber<List
     private volatile boolean closed;
     private volatile Throwable failed;
 
-    private ByteBuffersReceiverSubscriber() {
+    private ByteBufferListReceiverSubscriber() {
         this(new ArrayBlockingQueue<>(DEFAULT_MAX_BUFFERS_IN_QUEUE));
     }
 
-    private ByteBuffersReceiverSubscriber(BlockingQueue<List<ByteBuffer>> buffers) {
+    private ByteBufferListReceiverSubscriber(BlockingQueue<List<ByteBuffer>> buffers) {
         this.buffers = buffers;
     }
 
@@ -177,7 +177,7 @@ public final class ByteBuffersReceiverSubscriber implements Flow.Subscriber<List
 
         @Override
         public void close() {
-            ByteBuffersReceiverSubscriber.this.close();
+            ByteBufferListReceiverSubscriber.this.close();
         }
     }
 }

@@ -21,10 +21,7 @@ import org.jackhuang.hmcl.event.Event;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.util.*;
-import org.jackhuang.hmcl.util.io.ContentEncoding;
-import org.jackhuang.hmcl.util.io.IOUtils;
-import org.jackhuang.hmcl.util.io.NetworkUtils;
-import org.jackhuang.hmcl.util.io.ResponseCodeException;
+import org.jackhuang.hmcl.util.io.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -154,8 +151,7 @@ public abstract class FetchTask<T> extends Task<T> {
                 beforeDownload(uri);
                 updateProgress(0);
 
-                Context context = getContext();
-                HttpResponse<Void> response;
+                HttpResponse<AutoCloseable /* InputStream | ByteBufferListReceiverSubscriber.Receiver */> response;
                 String bmclapiHash;
 
                 URI currentURI = uri;
@@ -168,14 +164,7 @@ public abstract class FetchTask<T> extends Task<T> {
                 do {
                     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentURI);
                     headers.forEach(requestBuilder::header);
-                    response = HTTP_CLIENT.send(requestBuilder.build(), responseInfo -> {
-                        if (responseInfo.statusCode() / 100 == 2) {
-                            Subscriber subscriber = new Subscriber(responseInfo, context);
-                            return HttpResponse.BodySubscribers.fromSubscriber(subscriber);
-                        } else {
-                            return HttpResponse.BodySubscribers.replacing(null);
-                        }
-                    });
+                    response = HTTP_CLIENT.send(requestBuilder.build(), HANDLER);
 
                     bmclapiHash = response.headers().firstValue("x-bmclapi-hash").orElse(null);
                     if (DigestUtils.isSha1Digest(bmclapiHash)) {
@@ -235,6 +224,18 @@ public abstract class FetchTask<T> extends Task<T> {
                     throw new ResponseCodeException(uri, responseCode);
                 }
 
+                long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
+                AutoCloseable body = response.body();
+                try (Context context = getContext(response, checkETag, bmclapiHash);) {
+                    if (body instanceof ByteBufferListReceiverSubscriber.Receiver receiver) {
+                        doDownload(context, receiver, contentLength);
+                    } else if (body instanceof InputStream inputStream) {
+                        ContentEncoding encoding = ContentEncoding.fromHeaders(response.headers());
+                        doDownload(context, inputStream, encoding, contentLength);
+                    }
+                }
+
+
                 return true;
             } catch (FileNotFoundException ex) {
                 failedURI = uri;
@@ -263,40 +264,11 @@ public abstract class FetchTask<T> extends Task<T> {
                 updateProgress(0);
 
                 URLConnection conn = NetworkUtils.createConnection(uri);
-                Context context = getContext();
-                InputStream inputStream = conn.getInputStream();
-                long contentLength = conn.getContentLengthLong();
-                ContentEncoding contentEncoding = ContentEncoding.fromConnection(conn);
-                try (var counter = new CounterInputStream(inputStream);
-                     var input = contentEncoding.wrap(counter)) {
-                    long lastDownloaded = 0L;
-                    byte[] buffer = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
-                    while (true) {
-                        if (isCancelled()) break;
-
-                        int len = input.read(buffer);
-                        if (len == -1) break;
-
-                        context.write(buffer, 0, len);
-
-                        if (contentLength >= 0) {
-                            // Update progress information per second
-                            updateProgress(counter.downloaded, contentLength);
-                        }
-
-                        updateDownloadSpeed(counter.downloaded - lastDownloaded);
-                        lastDownloaded = counter.downloaded;
-                    }
-
-                    if (isCancelled())
-                        throw new InterruptedException();
-
-                    updateDownloadSpeed(counter.downloaded - lastDownloaded);
-
-                    if (contentLength >= 0 && counter.downloaded != contentLength)
-                        throw new IOException("Unexpected file size: " + counter.downloaded + ", expected: " + contentLength);
-
-                    context.withResult(true);
+                try (Context context = getContext()) {
+                    doDownload(context,
+                            conn.getInputStream(),
+                            ContentEncoding.fromConnection(conn),
+                            conn.getContentLengthLong());
                 }
                 return true;
             } catch (FileNotFoundException ex) {
@@ -315,51 +287,68 @@ public abstract class FetchTask<T> extends Task<T> {
         return false;
     }
 
-    private static final class Subscriber implements Flow.Subscriber<List<ByteBuffer>> {
+    private void doDownload(Context context, ByteBufferListReceiverSubscriber.Receiver receiver,
+                            long contentLength) throws IOException, InterruptedException {
+        long count = 0L;
+        while (true) {
+            if (isCancelled()) break;
 
-        private final HttpResponse.ResponseInfo responseInfo;
-        private final Context context;
+            List<ByteBuffer> buffers = receiver.take();
+            if (buffers == null)
+                break;
 
-        private volatile Flow.Subscription subscription;
-        private Throwable exception;
+            long currentDownloaded = ByteBufferUtils.getRemaining(buffers);
+            count = currentDownloaded;
+            context.accept(buffers);
 
-        private Subscriber(HttpResponse.ResponseInfo responseInfo, Context context) {
-            this.responseInfo = responseInfo;
-            this.context = context;
-        }
-
-        @Override
-        public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
-            subscription.request(1);
-            try {
-                context.init();
-            } catch (Throwable ex) {
-                subscription.cancel();
-                onError(ex);
+            if (contentLength >= 0) {
+                // Update progress information per second
+                updateProgress(count, contentLength);
             }
+
+            updateDownloadSpeed(currentDownloaded);
         }
 
-        @Override
-        public void onNext(List<ByteBuffer> item) {
-            try {
-                long remaining = ByteBufferUtils.getRemaining(item);
-                context.accept(item);
-            } catch (IOException e) {
-                exception = e;
-                subscription.cancel();
-                onError(exception);
+        if (isCancelled())
+            throw new InterruptedException();
+
+        if (contentLength >= 0 && count != contentLength)
+            throw new IOException("Unexpected file size: " + count + ", expected: " + contentLength);
+    }
+
+    private void doDownload(Context context, InputStream inputStream,
+                            ContentEncoding contentEncoding,
+                            long contentLength) throws IOException, InterruptedException {
+        try (var counter = new CounterInputStream(inputStream);
+             var input = contentEncoding.wrap(counter)) {
+            long lastDownloaded = 0L;
+            byte[] buffer = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
+            while (true) {
+                if (isCancelled()) break;
+
+                int len = input.read(buffer);
+                if (len == -1) break;
+
+                context.accept(buffer, 0, len);
+
+                if (contentLength >= 0) {
+                    // Update progress information per second
+                    updateProgress(counter.downloaded, contentLength);
+                }
+
+                updateDownloadSpeed(counter.downloaded - lastDownloaded);
+                lastDownloaded = counter.downloaded;
             }
-        }
 
-        @Override
-        public void onError(Throwable throwable) {
-            exception = throwable;
-        }
+            if (isCancelled())
+                throw new InterruptedException();
 
-        @Override
-        public void onComplete() {
+            updateDownloadSpeed(counter.downloaded - lastDownloaded);
 
+            if (contentLength >= 0 && counter.downloaded != contentLength)
+                throw new IOException("Unexpected file size: " + counter.downloaded + ", expected: " + contentLength);
+
+            context.setSuccess();
         }
     }
 
@@ -428,12 +417,18 @@ public abstract class FetchTask<T> extends Task<T> {
         }
     }
 
-    protected static abstract class Context {
-        public abstract void init() throws IOException;
+    protected static abstract class Context implements Closeable {
+        protected boolean success = false;
+
+        public void setSuccess() {
+            success = true;
+        }
+
+        public void accept(byte[] array, int offset, int length) throws IOException {
+            this.accept(List.of(ByteBuffer.wrap(array, offset, length)));
+        }
 
         public abstract void accept(List<ByteBuffer> buffers) throws IOException;
-
-        public abstract void onComplete(boolean success) throws IOException;
     }
 
     protected enum EnumCheckETag {
@@ -441,6 +436,31 @@ public abstract class FetchTask<T> extends Task<T> {
         NOT_CHECK_E_TAG,
         CACHED
     }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse.BodySubscriber<AutoCloseable> castSubscriber(HttpResponse.BodySubscriber<? extends AutoCloseable> subscriber) {
+        return (HttpResponse.BodySubscriber<AutoCloseable>) subscriber;
+    }
+
+    /// - For response code 2xx:
+    ///   - If content-encoding is gzip, the response body type is `InputStream`
+    ///   - If content-encoding is identity or empty, the response body type is `ByteBufferListReceiverSubscriber.Receiver`
+    /// - For other response codes, the response body is `null`
+    private static final HttpResponse.BodyHandler<AutoCloseable> HANDLER = responseInfo -> {
+        if (responseInfo.statusCode() / 100 == 2) {
+            try {
+                ContentEncoding encoder = ContentEncoding.fromHeaders(responseInfo.headers());
+                return switch (encoder) {
+                    case IDENTITY -> castSubscriber(ByteBufferListReceiverSubscriber.create());
+                    case GZIP -> castSubscriber(HttpResponse.BodySubscribers.ofInputStream());
+                };
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            return HttpResponse.BodySubscribers.replacing(null);
+        }
+    };
 
     public static int DEFAULT_CONCURRENCY = Math.min(Runtime.getRuntime().availableProcessors() * 4, 64);
     private static final Semaphore SEMAPHORE = new Semaphore(DEFAULT_CONCURRENCY);

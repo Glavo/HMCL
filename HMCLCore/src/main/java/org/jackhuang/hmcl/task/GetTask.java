@@ -67,8 +67,7 @@ public final class GetTask extends FetchTask<String> {
             private byte[] bytes;
             private int count;
 
-            @Override
-            public void init() throws IOException {
+            {
                 long length = -1;
                 if (response != null)
                     length = response.headers().firstValueAsLong("content-length").orElse(-1L);
@@ -101,7 +100,7 @@ public final class GetTask extends FetchTask<String> {
             }
 
             @Override
-            public void onComplete(boolean success) throws IOException {
+            public void close() throws IOException {
                 if (!success) return;
 
                 Charset charset = StandardCharsets.UTF_8;

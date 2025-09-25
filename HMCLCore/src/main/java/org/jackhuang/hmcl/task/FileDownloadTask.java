@@ -202,14 +202,8 @@ public class FileDownloadTask extends FetchTask<Void> {
 
 
         return new Context() {
-            private Path temp;
-            private FileChannel channel;
-
-            @Override
-            public void init() throws IOException {
-                temp = Files.createTempFile(null, null);
-                channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            }
+            private final Path temp = Files.createTempFile(null, null);
+            private final FileChannel channel = FileChannel.open(temp, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
             @Override
             public void accept(List<ByteBuffer> buffers) throws IOException {
@@ -229,7 +223,7 @@ public class FileDownloadTask extends FetchTask<Void> {
             }
 
             @Override
-            public void onComplete(boolean success) throws IOException {
+            public void close() throws IOException {
                 if (channel == null)
                     return;
 

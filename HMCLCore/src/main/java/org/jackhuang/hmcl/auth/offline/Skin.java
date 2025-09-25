@@ -250,8 +250,7 @@ public class Skin {
                 private byte[] bytes;
                 private int count;
 
-                @Override
-                public void init() throws IOException {
+                {
                     long length = -1;
                     if (response != null)
                         length = response.headers().firstValueAsLong("content-length").orElse(-1L);
@@ -260,9 +259,6 @@ public class Skin {
 
                 @Override
                 public void accept(List<ByteBuffer> buffers) throws IOException {
-                    if (bytes == null)
-                        return;
-
                     long remaining = ByteBufferUtils.getRemaining(buffers);
                     if (remaining <= 0)
                         return;
@@ -284,7 +280,7 @@ public class Skin {
                 }
 
                 @Override
-                public void onComplete(boolean success) throws IOException {
+                public void close() throws IOException {
                     if (!success)
                         return;
 
