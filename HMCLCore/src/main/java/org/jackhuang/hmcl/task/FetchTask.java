@@ -298,7 +298,7 @@ public abstract class FetchTask<T> extends Task<T> {
                 break;
 
             long currentDownloaded = ByteBufferUtils.getRemaining(buffers);
-            count = currentDownloaded;
+            count += currentDownloaded;
             context.accept(buffers);
 
             if (contentLength >= 0) {

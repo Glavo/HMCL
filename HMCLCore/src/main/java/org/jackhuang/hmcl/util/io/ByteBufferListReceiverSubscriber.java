@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Flow;
@@ -35,8 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<List<ByteBuffer>> {
 
     private static final int DEFAULT_MAX_BUFFERS_IN_QUEUE = 4;
-    private static final ByteBuffer LAST_BUFFER = ByteBuffer.allocate(0);
-    private static final List<ByteBuffer> LAST_LIST = List.of(LAST_BUFFER);
+    private static final List<ByteBuffer> LAST_LIST = List.of(ByteBuffer.allocate(0));
 
     public static HttpResponse.BodySubscriber<Receiver> create() {
         return HttpResponse.BodySubscribers.fromSubscriber(new ByteBufferListReceiverSubscriber(), it -> it.new Receiver());
@@ -64,9 +62,7 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
         this.subscription = subscription;
 
         try {
-            if (!subscribed.compareAndSet(false, true)) {
-                subscription.cancel();
-            } else {
+            if (subscribed.compareAndSet(false, true)) {
                 boolean closed;
 
                 lock.lock();
@@ -83,13 +79,14 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
                     return;
                 }
                 subscription.request(Math.max(1, buffers.remainingCapacity() - 1));
+            } else {
+                subscription.cancel();
             }
-        } catch (Throwable t) {
-            failed = t;
+        } catch (Throwable e) {
             try {
                 close();
             } finally {
-                onError(t);
+                onError(e);
             }
         }
     }
@@ -100,19 +97,18 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
             if (!buffers.offer(item)) {
                 throw new IllegalStateException("queue is full");
             }
-        } catch (Throwable ex) {
-            failed = ex;
+        } catch (Throwable e) {
             try {
                 close();
             } finally {
-                onError(ex);
+                onError(e);
             }
         }
     }
 
     @Override
     public void onError(Throwable throwable) {
-        failed = Objects.requireNonNull(throwable);
+        failed = throwable;
         //noinspection ResultOfMethodCallIgnored
         buffers.offer(LAST_LIST);
     }
@@ -155,11 +151,11 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
                 return null;
 
             try {
-                List<ByteBuffer> buffer = buffers.take();
+                List<ByteBuffer> list = buffers.take();
                 if (closed || failed != null)
                     throw new IOException("closed", failed);
 
-                if (buffer == LAST_LIST) {
+                if (list == LAST_LIST) {
                     finished = true;
                     return null;
                 }
@@ -168,7 +164,7 @@ public final class ByteBufferListReceiverSubscriber implements Flow.Subscriber<L
                 if (s != null)
                     s.request(1);
 
-                return buffer;
+                return list;
             } catch (InterruptedException e) {
                 close();
                 Thread.currentThread().interrupt();
