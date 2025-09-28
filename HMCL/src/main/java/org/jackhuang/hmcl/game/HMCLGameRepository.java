@@ -20,6 +20,8 @@ package org.jackhuang.hmcl.game;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.image.Image;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
@@ -29,6 +31,7 @@ import org.jackhuang.hmcl.mod.ModAdviser;
 import org.jackhuang.hmcl.mod.Modpack;
 import org.jackhuang.hmcl.mod.ModpackConfiguration;
 import org.jackhuang.hmcl.mod.ModpackProvider;
+import org.jackhuang.hmcl.setting.GameSetting;
 import org.jackhuang.hmcl.setting.Profile;
 import org.jackhuang.hmcl.util.FileSaver;
 import org.jackhuang.hmcl.setting.VersionIconType;
@@ -59,6 +62,8 @@ import static org.jackhuang.hmcl.util.Pair.pair;
 
 public final class HMCLGameRepository extends DefaultGameRepository {
     private final Profile profile;
+
+    private final Map<String, ObjectProperty<GameSetting>> instanceGameSettings = new HashMap<>();
 
     // local version settings
     private final Map<String, VersionSetting> localVersionSettings = new HashMap<>();
@@ -189,6 +194,14 @@ public final class HMCLGameRepository extends DefaultGameRepository {
             FileUtils.copyDirectory(srcGameDir, dstGameDir, path -> Modpack.acceptFile(path, blackList, null));
     }
 
+    private Path getInstanceGameSettingFile(String id) {
+        return getVersionRoot(id).resolve("hmcl-instance-settings.json");
+    }
+
+
+
+    //region version settings (old)
+
     private Path getLocalVersionSettingFile(String id) {
         return getVersionRoot(id).resolve("hmclversion.cfg");
     }
@@ -211,7 +224,7 @@ public final class HMCLGameRepository extends DefaultGameRepository {
      * @param id the version id.
      * @return new version setting, null if given version does not exist.
      */
-    public VersionSetting createLocalVersionSetting(String id) {
+    private VersionSetting createLocalVersionSetting(String id) {
         if (!hasVersion(id))
             return null;
         if (localVersionSettings.containsKey(id))
@@ -259,6 +272,8 @@ public final class HMCLGameRepository extends DefaultGameRepository {
         } else
             return vs;
     }
+
+    //endregion version settings (old)
 
     public Optional<Path> getVersionIconFile(String id) {
         Path root = getVersionRoot(id);
