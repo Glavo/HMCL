@@ -101,6 +101,13 @@ public abstract class GameSetting {
         return noJVMOptions;
     }
 
+    @SerializedName("noOptimizingJVMArgs")
+    private final BooleanProperty noOptimizingJVMArgs = new SimpleBooleanProperty(this, "noOptimizingJVMArgs", false);
+
+    public BooleanProperty noOptimizingJVMArgsProperty() {
+        return noOptimizingJVMArgs;
+    }
+
     /// True if HMCL does not check JVM validity.
     @SerializedName("notCheckJVM")
     private final BooleanProperty notCheckJVM = new SimpleBooleanProperty(this, "notCheckJVM", false);
