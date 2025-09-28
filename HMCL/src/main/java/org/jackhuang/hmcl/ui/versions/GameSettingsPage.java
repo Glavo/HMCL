@@ -15,20 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.jackhuang.hmcl.setting;
-
-import java.util.UUID;
+package org.jackhuang.hmcl.ui.versions;
 
 /// @author Glavo
-public final class GlobalGameSetting extends GameSetting {
+public final class GameSettingsPage {
+    public GameSettingsPage(boolean globalSetting) {
 
-    private final UUID id;
-
-    public GlobalGameSetting(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getId() {
-        return id;
     }
 }

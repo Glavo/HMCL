@@ -30,7 +30,7 @@ import java.util.Map;
 import static org.jackhuang.hmcl.util.DataSizeUnit.MEGABYTES;
 
 /// @author Glavo
-public abstract class GameSetting {
+public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGameSetting {
 
     public static final String CURRENT_VERSION = "0";
 
@@ -54,8 +54,11 @@ public abstract class GameSetting {
 
     // Java
 
+    /// If the value is `null`:
+    /// - For global game settings, it is equivalent to [JavaVersionType#AUTO].
+    /// - For instance game settings, it inherits the corresponding global game setting.
     @SerializedName("javaType")
-    private final ObjectProperty<JavaVersionType> javaType = new SimpleObjectProperty<>(this, "javaType", JavaVersionType.AUTO);
+    private final ObjectProperty<JavaVersionType> javaType = new SimpleObjectProperty<>(this, "javaType");
 
     public ObjectProperty<JavaVersionType> javaTypeProperty() {
         return javaType;
@@ -83,6 +86,15 @@ public abstract class GameSetting {
 
     public StringProperty defaultJavaPathProperty() {
         return defaultJavaPath;
+    }
+
+    // JVM Options
+
+    @SerializedName("inheritJVMOptions")
+    private final BooleanProperty inheritJVMOptions = new SimpleBooleanProperty(this, "inheritJVMOptions", true);
+
+    public BooleanProperty inheritJVMOptionsProperty() {
+        return inheritJVMOptions;
     }
 
     /// The user customized arguments passed to JVM.
