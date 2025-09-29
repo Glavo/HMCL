@@ -15,34 +15,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package org.jackhuang.hmcl.setting;
+package org.jackhuang.hmcl.ui.instances;
 
-import com.google.gson.annotations.SerializedName;
-import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
+import javafx.scene.control.Control;
+import javafx.scene.control.Skin;
+import org.jackhuang.hmcl.setting.GameSetting;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.UUID;
+import java.lang.reflect.Modifier;
 
 /// @author Glavo
-public final class GlobalGameSetting extends GameSetting {
+public final class GameSettingPage extends Control {
+    private final Class<? extends GameSetting> settingType;
 
-    private final UUID id;
-
-    public GlobalGameSetting(UUID id) {
-        this.id = id;
+    public GameSettingPage(@NotNull Class<? extends GameSetting> settingType) {
+        assert Modifier.isFinal(settingType.getModifiers());
+        this.settingType = settingType;
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    @SerializedName("isolationType")
-    private final RawPreservingObjectProperty<IsolationType> isolationType = new RawPreservingObjectProperty<>(this, "isolationType");
-
-    public IsolationType getIsolationType() {
-        return isolationType.get();
-    }
-
-    public enum IsolationType {
-        ALL, MODDED
+    @Override
+    protected Skin<?> createDefaultSkin() {
+        return new GameSettingPageSkin(this);
     }
 }

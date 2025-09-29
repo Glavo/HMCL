@@ -18,12 +18,18 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.JsonElement;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.util.platform.SystemInfo;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -90,12 +96,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
 
     // JVM Options
 
-    @SerializedName("inheritJVMOptions")
-    private final BooleanProperty inheritJVMOptions = new SimpleBooleanProperty(this, "inheritJVMOptions", true);
-
-    public BooleanProperty inheritJVMOptionsProperty() {
-        return inheritJVMOptions;
-    }
+    public static final Partition PARTITION_JVM_OPTIONS = new Partition("JVM_OPTIONS");
 
     /// The user customized arguments passed to JVM.
     @SerializedName("jvmOptions")
@@ -215,7 +216,6 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
         return nativesDir;
     }
 
-
     // Logging
 
     /// True if show the logs after game launched.
@@ -328,4 +328,26 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
         return useNativeOpenAL;
     }
 
+    /// Represents a partition in the settings that can be overridden.
+    @JsonAdapter(Partition.Serializer.class)
+    public record Partition(String name) {
+        static final class Serializer extends TypeAdapter<Partition> {
+            @Override
+            public Partition read(JsonReader in) throws IOException {
+                if (in.peek() == JsonToken.NULL)
+                    return null;
+
+                return new Partition(in.nextString());
+            }
+
+            @Override
+            public void write(JsonWriter out, Partition value) throws IOException {
+                if (value == null) {
+                    out.nullValue();
+                } else {
+                    out.value(value.name());
+                }
+            }
+        }
+    }
 }

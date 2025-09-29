@@ -26,20 +26,14 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
 
 import java.util.LinkedHashSet;
-import java.util.UUID;
 
 /// @author Glavo
 public final class InstanceGameSetting extends GameSetting {
 
-    private final ObjectProperty<UUID> parent = new SimpleObjectProperty<>(this, "parent");
+    @SerializedName("overrides")
+    private final ObservableSet<GameSetting.Partition> overrides = FXCollections.observableSet(new LinkedHashSet<>());
 
-    public ObjectProperty<UUID> parentProperty() {
-        return parent;
-    }
-
-    private final ObservableSet<String> overrides = FXCollections.observableSet(new LinkedHashSet<>());
-
-    public ObservableSet<String> getOverrides() {
+    public ObservableSet<GameSetting.Partition> getOverrides() {
         return overrides;
     }
 
