@@ -74,6 +74,15 @@ final class GameSettingMigrator {
             JavaVersionType.CUSTOM
     };
 
+    private static final LauncherVisibility[] LAUNCHER_VISIBILITIES = {
+            LauncherVisibility.CLOSE,
+            LauncherVisibility.HIDE,
+            LauncherVisibility.KEEP,
+            LauncherVisibility.HIDE_AND_REOPEN
+    };
+
+
+
     private static <E extends Enum<E>> E parseJsonPrimitive(JsonPrimitive primitive,
                                                             E[] enumConstants,
                                                             E defaultValue) {

@@ -23,16 +23,10 @@ package org.jackhuang.hmcl.game;
  * @author huangyuhui
  */
 public enum GameDirectoryType {
-    /**
-     * .minecraft
-     */
+    /// `.minecraft`
     ROOT_FOLDER,
-    /**
-     * .minecraft/versions/&lt;version name&gt;
-     */
+    /// `.minecraft/versions/<instance name>`
     VERSION_FOLDER,
-    /**
-     * user customized directory.
-     */
+    /// user customized directory.
     CUSTOM
 }
