@@ -37,8 +37,6 @@ public enum VersionIconType {
     APRIL_FOOLS("/assets/img/april_fools.png"),
     CLEANROOM("/assets/img/cleanroom.png");
 
-    // Please append new items at last
-
     private final String resourceUrl;
 
     VersionIconType(String resourceUrl) {

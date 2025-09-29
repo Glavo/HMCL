@@ -27,6 +27,7 @@ import com.google.gson.stream.JsonWriter;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Renderer;
+import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 import org.jackhuang.hmcl.util.platform.SystemInfo;
 
 import java.io.IOException;
@@ -38,9 +39,19 @@ import static org.jackhuang.hmcl.util.DataSizeUnit.MEGABYTES;
 /// @author Glavo
 public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGameSetting {
 
+    static final Map<String, Partition> KNOWN_PARTITIONS = new LinkedHashMap<>();
+
+    private static Partition newPartition(String partitionName) {
+        Partition partition = new Partition(partitionName);
+        if (KNOWN_PARTITIONS.put(partitionName, partition) != null) {
+            throw new AssertionError("Partition already exists: " + partitionName);
+        }
+        return partition;
+    }
+
     public static final String CURRENT_VERSION = "0";
 
-    private static final int SUGGESTED_MEMORY;
+    static final int SUGGESTED_MEMORY;
 
     static {
         double totalMemoryMB = MEGABYTES.convertFromBytes(SystemInfo.getTotalMemorySize());
@@ -64,7 +75,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
     /// - For global game settings, it is equivalent to [JavaVersionType#AUTO].
     /// - For instance game settings, it inherits the corresponding global game setting.
     @SerializedName("javaType")
-    private final ObjectProperty<JavaVersionType> javaType = new SimpleObjectProperty<>(this, "javaType");
+    private final ObjectProperty<JavaVersionType> javaType = new RawPreservingObjectProperty<>(this, "javaType");
 
     public ObjectProperty<JavaVersionType> javaTypeProperty() {
         return javaType;
@@ -96,7 +107,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
 
     // JVM Options
 
-    public static final Partition PARTITION_JVM_OPTIONS = new Partition("JVM_OPTIONS");
+    public static final Partition PARTITION_JVM_OPTIONS = newPartition("JVM_OPTIONS");
 
     /// The user customized arguments passed to JVM.
     @SerializedName("jvmOptions")
@@ -165,7 +176,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
     // Game Windows
 
     @SerializedName("windowsSizeType")
-    private final ObjectProperty<GameWindowSizeType> windowsSizeType = new SimpleObjectProperty<>(this, "windowsSizeType", GameWindowSizeType.DEFAULT);
+    private final ObjectProperty<GameWindowSizeType> windowsSizeType = new RawPreservingObjectProperty<>(this, "windowsSizeType", GameWindowSizeType.DEFAULT);
 
     /// True if Minecraft started in fullscreen mode.
     @SerializedName("fullscreen")
@@ -202,7 +213,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
     // ------
 
     @SerializedName("processPriority")
-    private final ObjectProperty<ProcessPriority> processPriority = new SimpleObjectProperty<>(this, "processPriority");
+    private final ObjectProperty<ProcessPriority> processPriority = new RawPreservingObjectProperty<>(this, "processPriority");
 
     public ObjectProperty<ProcessPriority> processPriorityProperty() {
         return processPriority;
@@ -308,7 +319,7 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
     }
 
     @SerializedName("renderer")
-    private final ObjectProperty<Renderer> renderer = new SimpleObjectProperty<>(this, "renderer", Renderer.DEFAULT);
+    private final ObjectProperty<Renderer> renderer = new RawPreservingObjectProperty<>(this, "renderer", Renderer.DEFAULT);
 
     public ObjectProperty<Renderer> rendererProperty() {
         return renderer;
@@ -337,7 +348,10 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
                 if (in.peek() == JsonToken.NULL)
                     return null;
 
-                return new Partition(in.nextString());
+                String name = in.nextString();
+
+                Partition partition = KNOWN_PARTITIONS.get(name);
+                return partition != null ? partition : new Partition(name);
             }
 
             @Override
