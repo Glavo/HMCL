@@ -18,10 +18,11 @@
 package org.jackhuang.hmcl.ui.instances;
 
 import javafx.scene.control.SkinBase;
+import org.jackhuang.hmcl.setting.GameSetting;
 
 /// @author Glavo
-public final class GameSettingPageSkin extends SkinBase<GameSettingPage> {
-    GameSettingPageSkin(GameSettingPage control) {
+public final class GameSettingPageSkin<S extends GameSetting> extends SkinBase<GameSettingPage<S>> {
+    GameSettingPageSkin(GameSettingPage<S> control) {
         super(control);
     }
 }

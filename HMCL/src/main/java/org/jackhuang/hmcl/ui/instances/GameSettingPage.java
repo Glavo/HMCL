@@ -20,21 +20,21 @@ package org.jackhuang.hmcl.ui.instances;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 import org.jackhuang.hmcl.setting.GameSetting;
+import org.jackhuang.hmcl.setting.GlobalGameSetting;
+import org.jackhuang.hmcl.setting.InstanceGameSetting;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Modifier;
-
 /// @author Glavo
-public final class GameSettingPage extends Control {
-    private final Class<? extends GameSetting> settingType;
+public final class GameSettingPage<S extends GameSetting> extends Control {
+    private final Class<S> settingType;
 
-    public GameSettingPage(@NotNull Class<? extends GameSetting> settingType) {
-        assert Modifier.isFinal(settingType.getModifiers());
+    public GameSettingPage(@NotNull Class<S> settingType) {
+        assert settingType == InstanceGameSetting.class || settingType == GlobalGameSetting.class;
         this.settingType = settingType;
     }
 
     @Override
     protected Skin<?> createDefaultSkin() {
-        return new GameSettingPageSkin(this);
+        return new GameSettingPageSkin<>(this);
     }
 }
