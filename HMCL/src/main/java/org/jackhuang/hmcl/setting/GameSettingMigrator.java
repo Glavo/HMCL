@@ -18,9 +18,11 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.*;
+import org.jackhuang.hmcl.game.GameDirectoryType;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.util.Lang;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -81,8 +83,6 @@ final class GameSettingMigrator {
             LauncherVisibility.HIDE_AND_REOPEN
     };
 
-
-
     private static <E extends Enum<E>> E parseJsonPrimitive(JsonPrimitive primitive,
                                                             E[] enumConstants,
                                                             E defaultValue) {
@@ -107,8 +107,8 @@ final class GameSettingMigrator {
         }
     }
 
-    static GameSetting fromJson(JsonObject obj, boolean global) {
-        GameSetting setting = global
+    static GameSetting fromJson(JsonObject obj, @Nullable GlobalGameSetting parent) {
+        GameSetting setting = parent == null
                 ? new GlobalGameSetting(null) // TODO
                 : new InstanceGameSetting();
 
@@ -146,11 +146,10 @@ final class GameSettingMigrator {
         setting.notCheckJVMProperty().set(Optional.ofNullable(obj.get("notCheckJVM")).map(JsonElement::getAsBoolean).orElse(false));
         setting.notPatchNativesProperty().set(Optional.ofNullable(obj.get("notPatchNatives")).map(JsonElement::getAsBoolean).orElse(false));
         setting.showLogsProperty().set(Optional.ofNullable(obj.get("showLogs")).map(JsonElement::getAsBoolean).orElse(false));
-        // TODO: setting.setLauncherVisibility(parseJsonPrimitive(obj.getAsJsonPrimitive("launcherVisibility"), LauncherVisibility.class, LauncherVisibility.HIDE));
+        setting.launcherVisibilityProperty().set(parseJsonPrimitive(obj.getAsJsonPrimitive("launcherVisibility"), LAUNCHER_VISIBILITIES, null));
         setting.processPriorityProperty().set(parseJsonPrimitive(obj.getAsJsonPrimitive("processPriority"), PROCESS_PRIORITIES, ProcessPriority.NORMAL));
         setting.useNativeGLFWProperty().set(Optional.ofNullable(obj.get("useNativeGLFW")).map(JsonElement::getAsBoolean).orElse(false));
         setting.useNativeOpenALProperty().set(Optional.ofNullable(obj.get("useNativeOpenAL")).map(JsonElement::getAsBoolean).orElse(false));
-        // TODO: setting.setGameDirType(parseJsonPrimitive(obj.getAsJsonPrimitive("gameDirType"), GameDirectoryType.class, GameDirectoryType.ROOT_FOLDER));
         setting.defaultJavaPathProperty().set(Optional.ofNullable(obj.get("defaultJavaPath")).map(JsonElement::getAsString).orElse(null));
         // TODO: setting.setNativesDirType(parseJsonPrimitive(obj.getAsJsonPrimitive("nativesDirType"), NativesDirectoryType.class, NativesDirectoryType.VERSION_FOLDER));
 
@@ -186,6 +185,27 @@ final class GameSettingMigrator {
                     boolean useSoftwareRenderer = Optional.ofNullable(obj.get("useSoftwareRenderer")).map(JsonElement::getAsBoolean).orElse(false);
                     return useSoftwareRenderer ? Renderer.LLVMPIPE : Renderer.DEFAULT;
                 }));
+
+        // ---
+
+        GameDirectoryType gameDirType = parseJsonPrimitive(obj.getAsJsonPrimitive("gameDirType"), GameDirectoryType.values(), GameDirectoryType.ROOT_FOLDER);
+
+        if (parent == null) {
+            var globalGameSetting = (GlobalGameSetting) setting;
+            globalGameSetting.isolationTypeProperty().set(switch (gameDirType) {
+                case ROOT_FOLDER -> GlobalGameSetting.IsolationType.ALL;
+                case VERSION_FOLDER, CUSTOM -> GlobalGameSetting.IsolationType.NONE;
+            });
+        } else {
+            var instanceGameSetting = (InstanceGameSetting) setting;
+            instanceGameSetting.isolationProperty().set(switch (gameDirType) {
+                case ROOT_FOLDER -> false;
+                case VERSION_FOLDER, CUSTOM -> true;
+            });
+        }
+
+
+        // TODO: migrator
 
         return setting;
     }

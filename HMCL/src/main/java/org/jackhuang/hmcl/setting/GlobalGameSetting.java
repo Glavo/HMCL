@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
+import javafx.beans.property.ObjectProperty;
 import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 
 import java.util.UUID;
@@ -38,11 +39,11 @@ public final class GlobalGameSetting extends GameSetting {
     @SerializedName("isolationType")
     private final RawPreservingObjectProperty<IsolationType> isolationType = new RawPreservingObjectProperty<>(this, "isolationType");
 
-    public IsolationType getIsolationType() {
-        return isolationType.get();
+    public ObjectProperty<IsolationType> isolationTypeProperty() {
+        return isolationType;
     }
 
     public enum IsolationType {
-        ALL, MODDED
+        ALL, MODDED, NONE
     }
 }

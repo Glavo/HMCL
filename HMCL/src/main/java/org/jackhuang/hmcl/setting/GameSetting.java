@@ -117,6 +117,14 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
         return jvmOptions;
     }
 
+    /// The permanent generation size of JVM garbage collection.
+    @SerializedName("permSize")
+    private final StringProperty permSize = new SimpleStringProperty(this, "permSize", "");
+
+    public StringProperty permSizeProperty() {
+        return permSize;
+    }
+
     ///  True if disallow HMCL use default JVM options.
     @SerializedName("noJVMOptions")
     private final BooleanProperty noJVMOptions = new SimpleBooleanProperty(this, "noJVMOptions", false);
@@ -165,14 +173,6 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
         return minMemory;
     }
 
-    /// The permanent generation size of JVM garbage collection.
-    @SerializedName("permSize")
-    private final StringProperty permSize = new SimpleStringProperty(this, "permSize", "");
-
-    public StringProperty permSizeProperty() {
-        return permSize;
-    }
-
     // Game Windows
 
     @SerializedName("windowsSizeType")
@@ -211,6 +211,13 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
     }
 
     // ------
+
+    @SerializedName("launcherVisibility")
+    private final ObjectProperty<LauncherVisibility> launcherVisibility = new RawPreservingObjectProperty<>(this, "launcherVisibility");
+
+    public ObjectProperty<LauncherVisibility> launcherVisibilityProperty() {
+        return launcherVisibility;
+    }
 
     @SerializedName("processPriority")
     private final ObjectProperty<ProcessPriority> processPriority = new RawPreservingObjectProperty<>(this, "processPriority");
