@@ -17,12 +17,516 @@
  */
 package org.jackhuang.hmcl.ui.instances;
 
+import com.jfoenix.controls.*;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SkinBase;
+import javafx.scene.control.Toggle;
+import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
+import javafx.stage.Screen;
+import org.jackhuang.hmcl.game.GameDirectoryType;
+import org.jackhuang.hmcl.game.HMCLGameRepository;
+import org.jackhuang.hmcl.game.ProcessPriority;
+import org.jackhuang.hmcl.game.Version;
+import org.jackhuang.hmcl.java.JavaManager;
+import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.GameSetting;
+import org.jackhuang.hmcl.setting.GlobalGameSetting;
+import org.jackhuang.hmcl.setting.JavaVersionType;
+import org.jackhuang.hmcl.setting.LauncherVisibility;
+import org.jackhuang.hmcl.ui.Controllers;
+import org.jackhuang.hmcl.ui.FXUtils;
+import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.ui.versions.AdvancedVersionSettingPage;
+import org.jackhuang.hmcl.util.*;
+import org.jackhuang.hmcl.util.javafx.BindingMapping;
+import org.jackhuang.hmcl.util.javafx.SafeStringConverter;
+import org.jackhuang.hmcl.util.platform.Architecture;
+import org.jackhuang.hmcl.util.platform.OperatingSystem;
+import org.jackhuang.hmcl.util.platform.SystemInfo;
+import org.jackhuang.hmcl.util.platform.hardware.PhysicalMemoryStatus;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.jackhuang.hmcl.ui.FXUtils.stringConverter;
+import static org.jackhuang.hmcl.util.DataSizeUnit.GIGABYTES;
+import static org.jackhuang.hmcl.util.DataSizeUnit.MEGABYTES;
+import static org.jackhuang.hmcl.util.Pair.pair;
+import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 /// @author Glavo
 public final class GameSettingPageSkin<S extends GameSetting> extends SkinBase<GameSettingPage<S>> {
+
+    private static final ObjectProperty<PhysicalMemoryStatus> memoryStatus = new SimpleObjectProperty<>(SystemInfo.getPhysicalMemoryStatus());
+    private static TimerTask memoryStatusUpdateTask;
+
+    private final VBox rootPane;
+    private final JFXComboBox<String> cboWindowsSize;
+    private final JFXTextField txtServerIP;
+    private final ComponentList componentList;
+    private final JFXComboBox<LauncherVisibility> cboLauncherVisibility;
+    private final JFXCheckBox chkAutoAllocate;
+    private final JFXCheckBox chkFullscreen;
+    private final ComponentSublist javaSublist;
+    private final MultiFileItem<Pair<JavaVersionType, JavaRuntime>> javaItem;
+    private final MultiFileItem.Option<Pair<JavaVersionType, JavaRuntime>> javaAutoDeterminedOption;
+    private final MultiFileItem.StringOption<Pair<JavaVersionType, JavaRuntime>> javaVersionOption;
+    private final MultiFileItem.FileOption<Pair<JavaVersionType, JavaRuntime>> javaCustomOption;
+
+    private final ComponentSublist gameDirSublist;
+    private final MultiFileItem<GameDirectoryType> gameDirItem;
+    private final MultiFileItem.FileOption<GameDirectoryType> gameDirCustomOption;
+    private final JFXComboBox<ProcessPriority> cboProcessPriority;
+    private final OptionToggleButton showLogsPane;
+    private final ImagePickerItem iconPickerItem;
+
+    private final ChangeListener<Collection<JavaRuntime>> javaListChangeListener;
+    private final InvalidationListener javaListener = any -> initJavaSubtitle();
+    private boolean updatingJavaSetting = false;
+    private boolean updatingSelectedJava = false;
+
+    private final Class<S> settingType;
+    private final ObjectProperty<S> gameSetting;
+
     GameSettingPageSkin(GameSettingPage<S> control) {
         super(control);
+
+        this.settingType = control.settingType;
+        this.gameSetting = control.gameSetting;
+
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToHeight(true);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+        getChildren().setAll(scrollPane);
+
+        rootPane = new VBox();
+        rootPane.setFillWidth(true);
+        scrollPane.setContent(rootPane);
+        FXUtils.smoothScrolling(scrollPane);
+        rootPane.getStyleClass().add("card-list");
+
+        if (settingType == GlobalGameSetting.class) {
+            // TODO
+            iconPickerItem = null;
+        } else {
+            HintPane gameDirHint = new HintPane(MessageDialogPane.MessageType.INFO);
+            gameDirHint.setText(i18n("settings.game.working_directory.hint"));
+            rootPane.getChildren().add(gameDirHint);
+
+            ComponentList iconPickerItemWrapper = new ComponentList();
+            rootPane.getChildren().add(iconPickerItemWrapper);
+
+            iconPickerItem = new ImagePickerItem();
+            iconPickerItem.imageProperty().bind(control.icon);
+            iconPickerItem.setTitle(i18n("settings.icon"));
+            iconPickerItem.setOnSelectButtonClicked(e -> control.onExploreIcon());
+            iconPickerItem.setOnDeleteButtonClicked(e -> control.onDeleteIcon());
+            iconPickerItemWrapper.getContent().setAll(iconPickerItem);
+        }
+
+        {
+            componentList = new ComponentList();
+            componentList.setDepth(1);
+
+            javaItem = new MultiFileItem<>();
+            javaSublist = new ComponentSublist();
+            javaSublist.getContent().add(javaItem);
+            javaSublist.setTitle(i18n("settings.game.java_directory"));
+            javaSublist.setHasSubtitle(true);
+            javaAutoDeterminedOption = new MultiFileItem.Option<>(i18n("settings.game.java_directory.auto"), pair(JavaVersionType.AUTO, null));
+            javaVersionOption = new MultiFileItem.StringOption<>(i18n("settings.game.java_directory.version"), pair(JavaVersionType.VERSION, null));
+            javaVersionOption.setValidators(new NumberValidator(true));
+            FXUtils.setLimitWidth(javaVersionOption.getCustomField(), 40);
+            javaCustomOption = new MultiFileItem.FileOption<Pair<JavaVersionType, JavaRuntime>>(i18n("settings.custom"), pair(JavaVersionType.CUSTOM, null))
+                    .setChooserTitle(i18n("settings.game.java_directory.choose"));
+            if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS)
+                javaCustomOption.addExtensionFilter(new FileChooser.ExtensionFilter("Java", "java.exe"));
+
+            javaListChangeListener = FXUtils.onWeakChangeAndOperate(JavaManager.getAllJavaProperty(), allJava -> {
+                List<MultiFileItem.Option<Pair<JavaVersionType, JavaRuntime>>> options = new ArrayList<>();
+                options.add(javaAutoDeterminedOption);
+                options.add(javaVersionOption);
+                if (allJava != null) {
+                    boolean isX86 = Architecture.SYSTEM_ARCH.isX86() && allJava.stream().allMatch(java -> java.getArchitecture().isX86());
+
+                    for (JavaRuntime java : allJava) {
+                        options.add(new MultiFileItem.Option<>(
+                                i18n("settings.game.java_directory.template",
+                                        java.getVersion(),
+                                        isX86 ? i18n("settings.game.java_directory.bit", java.getBits().getBit())
+                                                : java.getPlatform().getArchitecture().getDisplayName()),
+                                pair(JavaVersionType.DETECTED, java))
+                                .setSubtitle(java.getBinary().toString()));
+                    }
+                }
+
+                options.add(javaCustomOption);
+                javaItem.loadChildren(options);
+                initializeSelectedJava();
+            });
+
+            gameDirItem = new MultiFileItem<>();
+            gameDirSublist = new ComponentSublist();
+            gameDirSublist.getContent().add(gameDirItem);
+            gameDirSublist.setTitle(i18n("settings.game.working_directory"));
+            // FIXME: gameDirSublist.setHasSubtitle(versionId != null);
+            gameDirItem.disableProperty().bind(control.modpack);
+            gameDirCustomOption = new MultiFileItem.FileOption<>(i18n("settings.custom"), GameDirectoryType.CUSTOM)
+                    .setChooserTitle(i18n("settings.game.working_directory.choose"))
+                    .setDirectory(true);
+
+            gameDirItem.loadChildren(List.of(
+                    new MultiFileItem.Option<>(i18n("settings.advanced.game_dir.default"), GameDirectoryType.ROOT_FOLDER),
+                    new MultiFileItem.Option<>(i18n("settings.advanced.game_dir.independent"), GameDirectoryType.VERSION_FOLDER),
+                    gameDirCustomOption
+            ));
+
+            VBox maxMemoryPane = new VBox(8);
+            {
+                Label title = new Label(i18n("settings.memory"));
+                VBox.setMargin(title, new Insets(0, 0, 8, 0));
+
+                chkAutoAllocate = new JFXCheckBox(i18n("settings.memory.auto_allocate"));
+                VBox.setMargin(chkAutoAllocate, new Insets(0, 0, 8, 5));
+
+                HBox lowerBoundPane = new HBox(8);
+                lowerBoundPane.setStyle("-fx-view-order: -1;"); // prevent the indicator from being covered by the progress bar
+                lowerBoundPane.setAlignment(Pos.CENTER);
+                VBox.setMargin(lowerBoundPane, new Insets(0, 0, 0, 16));
+                {
+                    Label label = new Label();
+                    label.textProperty().bind(Bindings.createStringBinding(() -> {
+                        if (chkAutoAllocate.isSelected()) {
+                            return i18n("settings.memory.lower_bound");
+                        } else {
+                            return i18n("settings.memory");
+                        }
+                    }, chkAutoAllocate.selectedProperty()));
+
+                    JFXSlider slider = new JFXSlider(0, 1, 0);
+                    HBox.setMargin(slider, new Insets(0, 0, 0, 8));
+                    HBox.setHgrow(slider, Priority.ALWAYS);
+                    slider.setValueFactory(self -> Bindings.createStringBinding(() -> (int) (self.getValue() * 100) + "%", self.valueProperty()));
+                    AtomicBoolean changedByTextField = new AtomicBoolean(false);
+                    FXUtils.onChangeAndOperate(control.maxMemory, maxMemoryValue -> {
+                        changedByTextField.set(true);
+                        slider.setValue(maxMemoryValue.intValue() * 1.0 / MEGABYTES.convertFromBytes(SystemInfo.getTotalMemorySize()));
+                        changedByTextField.set(false);
+                    });
+                    slider.valueProperty().addListener((value, oldVal, newVal) -> {
+                        if (changedByTextField.get()) return;
+                        control.maxMemory.set((int) (value.getValue().doubleValue() * MEGABYTES.convertFromBytes(SystemInfo.getTotalMemorySize())));
+                    });
+
+                    JFXTextField txtMaxMemory = new JFXTextField();
+                    FXUtils.setLimitWidth(txtMaxMemory, 60);
+                    FXUtils.setValidateWhileTextChanged(txtMaxMemory, true);
+                    txtMaxMemory.textProperty().bindBidirectional(control.maxMemory, SafeStringConverter.fromInteger());
+                    txtMaxMemory.setValidators(new NumberValidator(i18n("input.number"), false));
+
+                    lowerBoundPane.getChildren().setAll(label, slider, txtMaxMemory, new Label(i18n("settings.memory.unit.mib")));
+                }
+
+                StackPane progressBarPane = new StackPane();
+                progressBarPane.setAlignment(Pos.CENTER_LEFT);
+                VBox.setMargin(progressBarPane, new Insets(8, 0, 0, 16));
+                {
+                    progressBarPane.setMinHeight(4);
+                    progressBarPane.getStyleClass().add("memory-total");
+
+                    StackPane usedMemory = new StackPane();
+                    usedMemory.getStyleClass().add("memory-used");
+                    usedMemory.maxWidthProperty().bind(Bindings.createDoubleBinding(() ->
+                                    progressBarPane.getWidth() *
+                                            (memoryStatus.get().getUsed() * 1.0 / memoryStatus.get().getTotal()), progressBarPane.widthProperty(),
+                            memoryStatus));
+                    StackPane allocateMemory = new StackPane();
+                    allocateMemory.getStyleClass().add("memory-allocate");
+                    allocateMemory.maxWidthProperty().bind(Bindings.createDoubleBinding(() ->
+                                    progressBarPane.getWidth() *
+                                            Math.min(1.0,
+                                                    (double) (HMCLGameRepository.getAllocatedMemory(control.maxMemory.get() * 1024L * 1024L, memoryStatus.get().getAvailable(), chkAutoAllocate.isSelected())
+                                                            + memoryStatus.get().getUsed()) / memoryStatus.get().getTotal()), progressBarPane.widthProperty(),
+                            control.maxMemory, memoryStatus, chkAutoAllocate.selectedProperty()));
+
+                    progressBarPane.getChildren().setAll(allocateMemory, usedMemory);
+                }
+
+                BorderPane digitalPane = new BorderPane();
+                VBox.setMargin(digitalPane, new Insets(0, 0, 0, 16));
+                {
+                    Label lblPhysicalMemory = new Label();
+                    lblPhysicalMemory.getStyleClass().add("memory-label");
+                    digitalPane.setLeft(lblPhysicalMemory);
+                    lblPhysicalMemory.textProperty().bind(Bindings.createStringBinding(() ->
+                            i18n("settings.memory.used_per_total",
+                                    GIGABYTES.convertFromBytes(memoryStatus.get().getUsed()),
+                                    GIGABYTES.convertFromBytes(memoryStatus.get().getTotal())), memoryStatus));
+
+                    Label lblAllocateMemory = new Label();
+                    lblAllocateMemory.textProperty().bind(Bindings.createStringBinding(() -> {
+                        long maxMemory = Lang.parseInt(control.maxMemory.get(), 0) * 1024L * 1024L;
+                        return i18n(memoryStatus.get().hasAvailable() && maxMemory > memoryStatus.get().getAvailable()
+                                        ? (chkAutoAllocate.isSelected() ? "settings.memory.allocate.auto.exceeded" : "settings.memory.allocate.manual.exceeded")
+                                        : (chkAutoAllocate.isSelected() ? "settings.memory.allocate.auto" : "settings.memory.allocate.manual"),
+                                GIGABYTES.convertFromBytes(maxMemory),
+                                GIGABYTES.convertFromBytes(HMCLGameRepository.getAllocatedMemory(maxMemory, memoryStatus.get().getAvailable(), chkAutoAllocate.isSelected())),
+                                GIGABYTES.convertFromBytes(memoryStatus.get().getAvailable()));
+                    }, memoryStatus, control.maxMemory, chkAutoAllocate.selectedProperty()));
+                    lblAllocateMemory.getStyleClass().add("memory-label");
+                    digitalPane.setRight(lblAllocateMemory);
+                }
+
+                maxMemoryPane.getChildren().setAll(title, chkAutoAllocate, lowerBoundPane, progressBarPane, digitalPane);
+            }
+
+            BorderPane launcherVisibilityPane = new BorderPane();
+            {
+                Label label = new Label(i18n("settings.advanced.launcher_visible"));
+                launcherVisibilityPane.setLeft(label);
+                BorderPane.setAlignment(label, Pos.CENTER_LEFT);
+
+                cboLauncherVisibility = new JFXComboBox<>();
+                launcherVisibilityPane.setRight(cboLauncherVisibility);
+                BorderPane.setAlignment(cboLauncherVisibility, Pos.CENTER_RIGHT);
+                FXUtils.setLimitWidth(cboLauncherVisibility, 300);
+            }
+
+            BorderPane dimensionPane = new BorderPane();
+            {
+                Label label = new Label(i18n("settings.game.dimension"));
+                dimensionPane.setLeft(label);
+                BorderPane.setAlignment(label, Pos.CENTER_LEFT);
+
+                BorderPane right = new BorderPane();
+                dimensionPane.setRight(right);
+                {
+                    cboWindowsSize = new JFXComboBox<>();
+                    cboWindowsSize.setPrefWidth(150);
+                    right.setLeft(cboWindowsSize);
+                    cboWindowsSize.setEditable(true);
+                    cboWindowsSize.setStyle("-fx-padding: 4 4 4 16");
+                    cboWindowsSize.setPromptText("854x480");
+                    cboWindowsSize.getItems().setAll(getSupportedResolutions());
+
+                    chkFullscreen = new JFXCheckBox();
+                    right.setRight(chkFullscreen);
+                    chkFullscreen.setText(i18n("settings.game.fullscreen"));
+                    chkFullscreen.setAlignment(Pos.CENTER);
+                    BorderPane.setAlignment(chkFullscreen, Pos.CENTER);
+                    BorderPane.setMargin(chkFullscreen, new Insets(0, 0, 0, 7));
+
+                    cboWindowsSize.disableProperty().bind(chkFullscreen.selectedProperty());
+                }
+            }
+
+            showLogsPane = new OptionToggleButton();
+            showLogsPane.setTitle(i18n("settings.show_log"));
+
+            BorderPane processPriorityPane = new BorderPane();
+            {
+                Label label = new Label(i18n("settings.advanced.process_priority"));
+                processPriorityPane.setLeft(label);
+                BorderPane.setAlignment(label, Pos.CENTER_LEFT);
+
+                cboProcessPriority = new JFXComboBox<>();
+                processPriorityPane.setRight(cboProcessPriority);
+                BorderPane.setAlignment(cboProcessPriority, Pos.CENTER_RIGHT);
+                FXUtils.setLimitWidth(cboProcessPriority, 300);
+            }
+
+            GridPane serverPane = new GridPane();
+            {
+                ColumnConstraints title = new ColumnConstraints();
+                ColumnConstraints value = new ColumnConstraints();
+                value.setFillWidth(true);
+                value.setHgrow(Priority.ALWAYS);
+                value.setHalignment(HPos.RIGHT);
+                serverPane.setHgap(16);
+                serverPane.setVgap(8);
+                serverPane.getColumnConstraints().setAll(title, value);
+
+                txtServerIP = new JFXTextField();
+                txtServerIP.setPromptText(i18n("settings.advanced.server_ip.prompt"));
+                Validator.addTo(txtServerIP).accept(str -> {
+                    if (StringUtils.isBlank(str))
+                        return true;
+                    try {
+                        ServerAddress.parse(str);
+                        return true;
+                    } catch (Exception ignored) {
+                        return false;
+                    }
+                });
+                FXUtils.setLimitWidth(txtServerIP, 300);
+                serverPane.addRow(0, new Label(i18n("settings.advanced.server_ip")), txtServerIP);
+            }
+
+            componentList.getContent().addAll(
+                    javaSublist,
+                    gameDirSublist,
+                    maxMemoryPane,
+                    launcherVisibilityPane,
+                    dimensionPane,
+                    showLogsPane,
+                    processPriorityPane,
+                    serverPane
+            );
+        }
+
+        rootPane.getChildren().add(componentList);
+
+        // TODO: control.addEventHandler(Navigator.NavigationEvent.NAVIGATED, this::onDecoratorPageNavigating);
+
+        cboLauncherVisibility.getItems().setAll(LauncherVisibility.values());
+        cboLauncherVisibility.setConverter(stringConverter(e -> i18n("settings.advanced.launcher_visibility." + e.name().toLowerCase(Locale.ROOT))));
+
+        cboProcessPriority.getItems().setAll(ProcessPriority.values());
+        cboProcessPriority.setConverter(stringConverter(e -> i18n("settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT))));
+
+        // initMemoryStatusUpdateTask();
+
+        gameSetting.addListener((observable, prevSetting, setting) -> {
+            // TODO
+        });
+    }
+
+    private static List<String> getSupportedResolutions() {
+        int maxScreenWidth = 0;
+        int maxScreenHeight = 0;
+
+        for (Screen screen : Screen.getScreens()) {
+            Rectangle2D bounds = screen.getBounds();
+            int screenWidth = (int) (bounds.getWidth() * screen.getOutputScaleX());
+            int screenHeight = (int) (bounds.getHeight() * screen.getOutputScaleY());
+
+            maxScreenWidth = Math.max(maxScreenWidth, screenWidth);
+            maxScreenHeight = Math.max(maxScreenHeight, screenHeight);
+        }
+
+        List<String> resolutions = new ArrayList<>(List.of("854x480", "1280x720", "1600x900"));
+
+        if (maxScreenWidth >= 1920 && maxScreenHeight >= 1080) resolutions.add("1920x1080");
+        if (maxScreenWidth >= 2560 && maxScreenHeight >= 1440) resolutions.add("2560x1440");
+        if (maxScreenWidth >= 3840 && maxScreenHeight >= 2160) resolutions.add("3840x2160");
+
+        return resolutions;
+    }
+
+    private void initializeSelectedJava() {
+        S setting = gameSetting.get();
+
+        if (setting == null || updatingJavaSetting)
+            return;
+
+        updatingSelectedJava = true;
+        switch (setting.javaTypeProperty().get()) {
+            case CUSTOM:
+                javaCustomOption.setSelected(true);
+                break;
+            case VERSION:
+                javaVersionOption.setSelected(true);
+                javaVersionOption.setValue(setting.javaVersionProperty().get());
+                break;
+            case AUTO:
+                javaAutoDeterminedOption.setSelected(true);
+                break;
+            default:
+                Toggle toggle = null;
+                if (JavaManager.isInitialized()) {
+                    try {
+                        JavaRuntime java = setting.getJava(null, null);
+                        if (java != null) {
+                            for (Toggle t : javaItem.getGroup().getToggles()) {
+                                if (t.getUserData() != null) {
+                                    @SuppressWarnings("unchecked")
+                                    Pair<JavaVersionType, JavaRuntime> userData = (Pair<JavaVersionType, JavaRuntime>) t.getUserData();
+                                    if (userData.getValue() != null && java.getBinary().equals(userData.getValue().getBinary())) {
+                                        toggle = t;
+                                        break;
+
+                                    }
+                                }
+                            }
+                        }
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+
+                if (toggle != null) {
+                    toggle.setSelected(true);
+                } else {
+                    Toggle selectedToggle = javaItem.getGroup().getSelectedToggle();
+                    if (selectedToggle != null) {
+                        selectedToggle.setSelected(false);
+                    }
+                }
+                break;
+        }
+        updatingSelectedJava = false;
+    }
+
+    @FXThread
+    private void initJavaSubtitle() {
+        S setting = gameSetting.get();
+        if (setting == null)
+            return;
+
+        GameSettingPage<S> control = getSkinnable();
+
+        initializeSelectedJava();
+        HMCLGameRepository repository = control.profile.getRepository();
+        String instanceId = control.instanceId;
+        JavaVersionType javaVersionType = setting.javaTypeProperty().get();
+        boolean autoSelected = javaVersionType == JavaVersionType.AUTO || javaVersionType == JavaVersionType.VERSION;
+
+        if (instanceId == null && autoSelected) {
+            javaSublist.setSubtitle(i18n("settings.game.java_directory.auto"));
+            return;
+        }
+
+        Pair<JavaVersionType, JavaRuntime> selectedData = javaItem.getSelectedData();
+        if (selectedData != null && selectedData.getValue() != null) {
+            javaSublist.setSubtitle(selectedData.getValue().getBinary().toString());
+            return;
+        }
+
+        if (JavaManager.isInitialized()) {
+            GameVersionNumber gameVersionNumber;
+            Version version;
+            if (instanceId == null) {
+                gameVersionNumber = GameVersionNumber.unknown();
+                version = null;
+            } else {
+                gameVersionNumber = GameVersionNumber.asGameVersion(repository.getGameVersion(instanceId));
+                version = repository.getResolvedVersion(instanceId);
+            }
+
+            try {
+                JavaRuntime java = setting.getJava(gameVersionNumber, version);
+                if (java != null) {
+                    javaSublist.setSubtitle(java.getBinary().toString());
+                } else {
+                    javaSublist.setSubtitle(autoSelected ? i18n("settings.game.java_directory.auto.not_found") : i18n("settings.game.java_directory.invalid"));
+                }
+                return;
+            } catch (InterruptedException ignored) {
+            }
+        }
+
+        javaSublist.setSubtitle("");
     }
 }

@@ -43,6 +43,7 @@ import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
+import org.jackhuang.hmcl.util.FXThread;
 import org.jackhuang.hmcl.util.io.FileUtils;
 
 import java.util.Optional;
@@ -363,6 +364,7 @@ public class VersionPage extends DecoratorAnimatedPage implements DecoratorPage 
     }
 
     public interface VersionLoadable {
-        void loadVersion(Profile profile, String version);
+        @FXThread
+        void loadVersion(Profile profile, String instanceId);
     }
 }

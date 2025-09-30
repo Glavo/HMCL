@@ -17,16 +17,36 @@
  */
 package org.jackhuang.hmcl.ui.instances;
 
+import javafx.beans.property.*;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
-import org.jackhuang.hmcl.setting.GameSetting;
-import org.jackhuang.hmcl.setting.GlobalGameSetting;
-import org.jackhuang.hmcl.setting.InstanceGameSetting;
+import javafx.scene.image.Image;
+import org.jackhuang.hmcl.game.HMCLGameRepository;
+import org.jackhuang.hmcl.setting.*;
+import org.jackhuang.hmcl.ui.Controllers;
+import org.jackhuang.hmcl.ui.construct.PageAware;
+import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
+import org.jackhuang.hmcl.ui.versions.VersionIconDialog;
+import org.jackhuang.hmcl.ui.versions.VersionPage;
+import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jetbrains.annotations.NotNull;
 
+import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
+
 /// @author Glavo
-public final class GameSettingPage<S extends GameSetting> extends Control {
-    private final Class<S> settingType;
+public final class GameSettingPage<S extends GameSetting> extends Control
+        implements DecoratorPage, VersionPage.VersionLoadable, PageAware {
+    final Class<S> settingType;
+
+    private final ObjectProperty<State> state = new SimpleObjectProperty<>(new State("", null, false, false, false));
+    final ObjectProperty<S> gameSetting = new SimpleObjectProperty<>();
+
+    private HMCLGameRepository repository;
+    Profile profile;
+    String instanceId;
+    final  IntegerProperty maxMemory = new SimpleIntegerProperty();
+    final ObjectProperty<Image> icon = new SimpleObjectProperty<>();
+    final BooleanProperty modpack = new SimpleBooleanProperty();
 
     public GameSettingPage(@NotNull Class<S> settingType) {
         assert settingType == InstanceGameSetting.class || settingType == GlobalGameSetting.class;
@@ -36,5 +56,51 @@ public final class GameSettingPage<S extends GameSetting> extends Control {
     @Override
     protected Skin<?> createDefaultSkin() {
         return new GameSettingPageSkin<>(this);
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<State> stateProperty() {
+        return state;
+    }
+
+    @Override
+    public void loadVersion(Profile profile, String instanceId) {
+        this.repository = profile.getRepository();
+        this.profile = profile;
+        this.instanceId = instanceId;
+
+        if (instanceId == null) {
+            assert settingType == GlobalGameSetting.class;
+
+            // profile.getGlobal() ???
+
+            state.set(State.fromTitle(Profiles.getProfileDisplayName(profile) + " - " + i18n("settings.type.global.manage")));
+        } else {
+            assert settingType == InstanceGameSetting.class;
+
+            this.gameSetting.set(settingType.cast(profile.getRepository().getInstanceGameSetting(instanceId)));
+        }
+    }
+
+    void loadIcon() {
+        if (instanceId != null && settingType == InstanceGameSetting.class) {
+            icon.set(profile.getRepository().getVersionIconImage(instanceId));
+        }
+    }
+
+    void onExploreIcon() {
+        if (instanceId != null && settingType == InstanceGameSetting.class) {
+            Controllers.dialog(new VersionIconDialog(profile, instanceId, this::loadIcon));
+        }
+    }
+
+    void onDeleteIcon() {
+        if (instanceId != null && settingType == InstanceGameSetting.class) {
+            profile.getRepository().deleteIconFile(instanceId);
+            VersionSetting localVersionSetting = profile.getRepository().getLocalVersionSettingOrCreate(instanceId);
+            if (localVersionSetting != null)
+                localVersionSetting.setVersionIcon(VersionIconType.DEFAULT);
+            loadIcon();
+        }
     }
 }

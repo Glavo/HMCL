@@ -17,6 +17,7 @@
  */
 package org.jackhuang.hmcl.game;
 
+import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.platform.Platform;
@@ -88,7 +89,7 @@ public interface GameRepository extends VersionProvider {
     void refreshVersions();
 
     default Task<Void> refreshVersionsAsync() {
-        return Task.runAsync(this::refreshVersions);
+        return Task.runAsync(Schedulers.io(), this::refreshVersions);
     }
 
     /**

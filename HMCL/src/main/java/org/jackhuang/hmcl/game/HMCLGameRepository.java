@@ -20,7 +20,6 @@ package org.jackhuang.hmcl.game;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
-import javafx.beans.property.ObjectProperty;
 import javafx.scene.image.Image;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
@@ -61,7 +60,7 @@ public final class HMCLGameRepository extends DefaultGameRepository {
     private final Profile profile;
 
     @FXThread
-    private final Map<String, ObjectProperty<GameSetting>> instanceGameSettings = new HashMap<>();
+    private final Map<String, InstanceGameSetting> instanceGameSettings = new HashMap<>();
 
     // local version settings
     private final Map<String, VersionSetting> localVersionSettings = new HashMap<>();
@@ -116,6 +115,14 @@ public final class HMCLGameRepository extends DefaultGameRepository {
     protected void refreshVersionsImpl() {
         localVersionSettings.clear();
         super.refreshVersionsImpl();
+
+        for (String id : versions.keySet()) {
+            this.loadInstanceGameSetting(id);
+            if (isModpack(id)) {
+                // TODO: specializeVersionSetting(version);
+            }
+        }
+
         versions.keySet().forEach(this::loadLocalVersionSetting);
         versions.keySet().forEach(version -> {
             if (isModpack(version)) {
@@ -193,19 +200,48 @@ public final class HMCLGameRepository extends DefaultGameRepository {
     }
 
     private Path getInstanceGameSettingFile(String id) {
-        return getVersionRoot(id).resolve("hmcl-instance-settings.json");
+        return getVersionRoot(id).resolve("hmcl-instance-setting.json");
     }
 
     private void loadInstanceGameSetting(String id) {
         Path file = getInstanceGameSettingFile(id);
-        if (Files.exists(file))
+        if (Files.exists(file)) {
             try {
                 InstanceGameSetting versionSetting = JsonUtils.fromJsonFile(file, InstanceGameSetting.class);
-                // TODO: initLocalVersionSetting(id, versionSetting);
+                initInstanceGameSetting(id, versionSetting);
             } catch (Exception ex) {
+                LOG.warning("Failed to load InstanceGameSetting from " + file, ex);
                 // If [JsonParseException], [IOException] or [NullPointerException] happens, the json file is malformed and needed to be recreated.
-                // initLocalVersionSetting(id, new VersionSetting());
+                initInstanceGameSetting(id, new InstanceGameSetting());
             }
+        }
+    }
+
+    private void initInstanceGameSetting(String id, InstanceGameSetting gameSetting) {
+        instanceGameSettings.put(id, gameSetting);
+        // TODO: gameSetting.addListener(a -> saveInstanceGameSetting(id));
+    }
+
+    public @Nullable InstanceGameSetting getInstanceGameSetting(String id) {
+        return instanceGameSettings.get(id);
+    }
+
+    /// Create new instance game setting if instance id has no vinstance game setting.
+    ///
+    /// @param id the instance id
+    /// @return new instance game setting, `null` if given instance does not exist.
+    private @Nullable InstanceGameSetting getInstanceGameSettingOrCreate(String id) {
+        InstanceGameSetting instanceGameSetting = instanceGameSettings.get(id);
+        if (instanceGameSetting != null) {
+            return instanceGameSetting;
+        }
+
+        if (hasVersion(id)) {
+            instanceGameSetting = new InstanceGameSetting();
+            initInstanceGameSetting(id, instanceGameSetting);
+            return instanceGameSetting;
+        } else
+            return null;
     }
 
     //region version settings (old)
@@ -363,6 +399,19 @@ public final class HMCLGameRepository extends DefaultGameRepository {
         }
     }
 
+    public void saveInstanceGameSetting(String id) {
+        InstanceGameSetting instanceGameSetting = instanceGameSettings.get(id);
+        if (instanceGameSetting == null)
+            return;
+        Path file = getInstanceGameSettingFile(id).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(file.getParent());
+        } catch (IOException e) {
+            LOG.warning("Failed to create directory: " + file.getParent(), e);
+        }
+        FileSaver.save(file, GSON.toJson(instanceGameSetting));
+    }
+
     public void saveVersionSetting(String id) {
         if (!localVersionSettings.containsKey(id))
             return;
@@ -516,7 +565,6 @@ public final class HMCLGameRepository extends DefaultGameRepository {
             .create();
 
     private static final String PROFILE = "{\"selectedProfile\": \"(Default)\",\"profiles\": {\"(Default)\": {\"name\": \"(Default)\"}},\"clientToken\": \"88888888-8888-8888-8888-888888888888\"}";
-
 
     // These version ids are forbidden because they may conflict with modpack configuration filenames
     private static final Set<String> FORBIDDEN_VERSION_IDS = new HashSet<>(Arrays.asList(

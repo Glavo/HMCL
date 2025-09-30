@@ -27,14 +27,23 @@ import com.google.gson.stream.JsonWriter;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Renderer;
+import org.jackhuang.hmcl.game.Version;
+import org.jackhuang.hmcl.java.JavaManager;
+import org.jackhuang.hmcl.java.JavaRuntime;
+import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 import org.jackhuang.hmcl.util.platform.SystemInfo;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.jackhuang.hmcl.util.DataSizeUnit.MEGABYTES;
+import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// @author Glavo
 public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGameSetting {
@@ -103,6 +112,71 @@ public sealed abstract class GameSetting permits GlobalGameSetting, InstanceGame
 
     public StringProperty defaultJavaPathProperty() {
         return defaultJavaPath;
+    }
+
+    public JavaRuntime getJava(GameVersionNumber gameVersion, Version version) throws InterruptedException {
+        switch (javaTypeProperty().get()) {
+            case DEFAULT:
+                return JavaRuntime.getDefault();
+            case AUTO:
+                return JavaManager.findSuitableJava(gameVersion, version);
+            case CUSTOM:
+                try {
+                    return JavaManager.getJava(Path.of(customJavaPathProperty().get()));
+                } catch (IOException | InvalidPathException e) {
+                    return null; // Custom Java not found
+                }
+            case VERSION: {
+                String javaVersion = javaVersionProperty().get();
+                if (StringUtils.isBlank(javaVersion)) {
+                    return JavaManager.findSuitableJava(gameVersion, version);
+                }
+
+                int majorVersion = -1;
+                try {
+                    majorVersion = Integer.parseInt(javaVersion);
+                } catch (NumberFormatException ignored) {
+                }
+
+                if (majorVersion < 0) {
+                    LOG.warning("Invalid Java version: " + javaVersion);
+                    return null;
+                }
+
+                final int finalMajorVersion = majorVersion;
+                Collection<JavaRuntime> allJava = JavaManager.getAllJava().stream()
+                        .filter(it -> it.getParsedVersion() == finalMajorVersion)
+                        .toList();
+                return JavaManager.findSuitableJava(allJava, gameVersion, version);
+            }
+            case DETECTED: {
+                String javaVersion = javaVersionProperty().get();
+                if (StringUtils.isBlank(javaVersion)) {
+                    return JavaManager.findSuitableJava(gameVersion, version);
+                }
+
+                try {
+                    String defaultJavaPath = defaultJavaPathProperty().get();
+                    if (StringUtils.isNotBlank(defaultJavaPath)) {
+                        JavaRuntime java = JavaManager.getJava(Path.of(defaultJavaPath).toRealPath());
+                        if (java.getVersion().equals(javaVersion)) {
+                            return java;
+                        }
+                    }
+                } catch (IOException | InvalidPathException ignored) {
+                }
+
+                for (JavaRuntime java : JavaManager.getAllJava()) {
+                    if (java.getVersion().equals(javaVersion)) {
+                        return java;
+                    }
+                }
+
+                return null;
+            }
+            default:
+                throw new AssertionError("Java Type: " + javaType.get());
+        }
     }
 
     // JVM Options
