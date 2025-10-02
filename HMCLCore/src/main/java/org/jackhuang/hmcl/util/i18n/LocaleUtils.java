@@ -17,7 +17,6 @@
  */
 package org.jackhuang.hmcl.util.i18n;
 
-import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.io.IOUtils;
 import org.jetbrains.annotations.NotNull;
@@ -58,31 +57,40 @@ public final class LocaleUtils {
 
     static {
         try {
-            for (String line : Lang.toIterable(IOUtils.readFullyAsString(LocaleUtils.class.getResourceAsStream("/assets/lang/sublanguages.csv")).lines())) {
-                if (line.startsWith("#") || line.isBlank()) {
-                    continue;
-                }
+            IOUtils.readFullyAsString(LocaleUtils.class.getResourceAsStream("/assets/lang/sublanguages.csv"))
+                    .lines().forEach(line -> {
+                        if (line.startsWith("#") || line.isBlank())
+                            return;
 
-                String[] languages = line.split(",");
-                if (languages.length < 2) {
-                    LOG.warning("Invalid line in sublanguages.csv: " + line);
-                }
+                        String[] languages = line.split(",");
+                        if (languages.length < 2) {
+                            LOG.warning("Invalid line in sublanguages.csv: " + line);
+                            return;
+                        }
 
-                String parent = languages[0];
-                for (int i = 1; i < languages.length; i++) {
-                    subLanguageToParent.put(languages[i], parent);
-                }
-            }
+                        String parent = languages[0];
+                        for (int i = 1; i < languages.length; i++) {
+                            subLanguageToParent.put(languages[i], parent);
+                        }
+                    });
+        } catch (Throwable e) {
+            LOG.warning("Failed to load sublanguages.csv", e);
+        }
 
-            // Line Format: (?<iso2>[a-z]{2}),(?<iso3>[a-z]{3})
-            for (String line : Lang.toIterable(IOUtils.readFullyAsString(LocaleUtils.class.getResourceAsStream("/assets/lang/iso_languages.csv")).lines())) {
-                String[] parts = line.split(",", 3);
-                if (parts.length != 2) {
-                    LOG.warning("Invalid line in iso_languages.csv: " + line);
-                }
+        try {
+            IOUtils.readFullyAsString(LocaleUtils.class.getResourceAsStream("/assets/lang/sublanguages.csv"))
+                    .lines().forEach(line -> {
+                        if (line.startsWith("#") || line.isBlank())
+                            return;
 
-                iso3To2.put(parts[1], parts[0]);
-            }
+                        String[] parts = line.split(",");
+                        if (parts.length != 2) {
+                            LOG.warning("Invalid line in iso_languages.csv: " + line);
+                            return;
+                        }
+
+                        iso3To2.put(parts[1], parts[0]);
+                    });
         } catch (Throwable e) {
             LOG.warning("Failed to load iso_languages.csv", e);
         }
