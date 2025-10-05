@@ -23,7 +23,12 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
 import org.jackhuang.hmcl.Metadata;
+import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
+import org.jackhuang.hmcl.util.platform.OSVersion;
+import org.jackhuang.hmcl.util.platform.OperatingSystem;
+import org.jackhuang.hmcl.util.platform.SystemUtils;
+import org.jackhuang.hmcl.util.platform.windows.WinReg;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 
 import java.io.IOException;
@@ -125,5 +130,29 @@ public final class UpdateChecker {
                 });
             }, "Update Checker", true);
         });
+    }
+
+    public static boolean shouldRecommendAcceptPreviewUpdate() {
+        return switch (OperatingSystem.CURRENT_OS) {
+            case WINDOWS -> {
+                if (OperatingSystem.SYSTEM_VERSION.isAtLeast(OSVersion.WINDOWS_10)
+                        && WinReg.INSTANCE != null) {
+                    Object isBuildFlightingEnabled = WinReg.INSTANCE.queryValue(WinReg.HKEY.HKEY_LOCAL_MACHINE,
+                            "SOFTWARE\\Microsoft\\WindowsSelfHost\\Applicability", "IsBuildFlightingEnabled");
+
+                    // Check if the user is participating in the Windows Insider Program
+                    if (isBuildFlightingEnabled instanceof Number value && value.intValue() == 1) {
+                        yield true;
+                    }
+                }
+
+                yield SystemUtils.which("code.cmd") != null
+                        || SystemUtils.which("idea.cmd") != null;
+            }
+            case MACOS -> SystemUtils.which("code") != null
+                    || SystemUtils.which("idea") != null;
+            // We should recommend all Linux/FreeBSD users to accept preview updates
+            default -> true;
+        };
     }
 }
