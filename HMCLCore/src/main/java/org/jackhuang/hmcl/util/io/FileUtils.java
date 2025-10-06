@@ -35,6 +35,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -486,35 +487,31 @@ public final class FileUtils {
         }
     }
 
-    public static Path tmpSaveFile(Path file) {
-        return file.toAbsolutePath().resolveSibling("." + file.getFileName().toString() + ".tmp");
-    }
-
     public static void saveSafely(Path file, String content) throws IOException {
-        Path tmpFile = tmpSaveFile(file);
-        try (BufferedWriter writer = Files.newBufferedWriter(tmpFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE)) {
-            writer.write(content);
-        }
-
-        try {
-            if (Files.exists(file) && Files.getAttribute(file, "dos:hidden") == Boolean.TRUE) {
-                Files.setAttribute(tmpFile, "dos:hidden", true);
-            }
-        } catch (Throwable ignored) {
-        }
-
-        Files.move(tmpFile, file, StandardCopyOption.REPLACE_EXISTING);
+        saveSafely(file, output -> output.write(content.getBytes(UTF_8)));
     }
 
     public static void saveSafely(Path file, ExceptionalConsumer<? super OutputStream, IOException> action) throws IOException {
-        Path tmpFile = tmpSaveFile(file);
+        Path tmpFile = file.resolveSibling(file.getFileName().toString()
+                + ".tmp."
+                + Integer.toUnsignedLong(ThreadLocalRandom.current().nextInt()));
 
         try (OutputStream os = Files.newOutputStream(tmpFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE)) {
             action.accept(os);
+        } catch (Throwable e) {
+            try {
+                Files.deleteIfExists(tmpFile);
+            } catch (Throwable e2) {
+                e.addSuppressed(e2);
+            }
+
+            throw e;
         }
 
         try {
-            if (Files.exists(file) && Files.getAttribute(file, "dos:hidden") == Boolean.TRUE) {
+            if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+                    && Files.exists(file)
+                    && Files.getAttribute(file, "dos:hidden") == Boolean.TRUE) {
                 Files.setAttribute(tmpFile, "dos:hidden", true);
             }
         } catch (Throwable ignored) {
