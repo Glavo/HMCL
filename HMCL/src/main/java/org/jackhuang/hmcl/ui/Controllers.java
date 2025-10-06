@@ -60,6 +60,7 @@ import org.jackhuang.hmcl.ui.terracotta.TerracottaPage;
 import org.jackhuang.hmcl.ui.versions.GameListPage;
 import org.jackhuang.hmcl.ui.versions.VersionPage;
 import org.jackhuang.hmcl.ui.versions.Versions;
+import org.jackhuang.hmcl.upgrade.UpdateChannel;
 import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.platform.Architecture;
@@ -393,6 +394,11 @@ public final class Controllers {
             noButton.setOnAction(e -> javafx.application.Platform.exit());
             agreementPane.setActions(agreementLink, yesButton, noButton);
             Controllers.dialog(agreementPane);
+        }
+
+        if (UpdateChannel.getChannel() == UpdateChannel.STABLE
+                && !config().isAcceptPreviewUpdate()) {
+
         }
     }
 

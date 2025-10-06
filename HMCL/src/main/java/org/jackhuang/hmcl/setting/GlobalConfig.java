@@ -19,11 +19,14 @@ package org.jackhuang.hmcl.setting;
 
 import com.google.gson.*;
 import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableMap;
 import javafx.collections.ObservableSet;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.javafx.ObservableHelper;
 import org.jackhuang.hmcl.util.javafx.PropertyUtils;
 import org.jetbrains.annotations.Nullable;
@@ -61,6 +64,12 @@ public final class GlobalConfig implements Observable {
     private final ObservableSet<String> userJava = FXCollections.observableSet(new LinkedHashSet<>());
 
     private final ObservableSet<String> disabledJava = FXCollections.observableSet(new LinkedHashSet<>());
+
+    private final ObservableMap<String, Object> shownTips = FXCollections.observableHashMap();
+
+    public ObservableMap<String, Object> getShownTips() {
+        return shownTips;
+    }
 
     private final Map<String, Object> unknownFields = new HashMap<>();
 
@@ -173,7 +182,8 @@ public final class GlobalConfig implements Observable {
                 "userJava",
                 "disabledJava",
                 "enableOfflineAccount",
-                "fontAntiAliasing"
+                "fontAntiAliasing",
+                "shownTips"
         ));
 
         @Override
@@ -201,14 +211,15 @@ public final class GlobalConfig implements Observable {
                 jsonObject.add(entry.getKey(), context.serialize(entry.getValue()));
             }
 
+            if (!src.getShownTips().isEmpty()) {
+                jsonObject.add("shownTips", context.serialize(src.getShownTips()));
+            }
             return jsonObject;
         }
 
         @Override
         public GlobalConfig deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            if (!(json instanceof JsonObject)) return null;
-
-            JsonObject obj = (JsonObject) json;
+            if (!(json instanceof JsonObject obj)) return null;
 
             GlobalConfig config = new GlobalConfig();
             config.setAgreementVersion(Optional.ofNullable(obj.get("agreementVersion")).map(JsonElement::getAsInt).orElse(0));
@@ -236,6 +247,12 @@ public final class GlobalConfig implements Observable {
                 if (!knownFields.contains(entry.getKey())) {
                     config.unknownFields.put(entry.getKey(), context.deserialize(entry.getValue(), Object.class));
                 }
+            }
+
+            JsonObject shownTips = obj.getAsJsonObject("shownTips");
+            if (shownTips != null) {
+                config.getShownTips().putAll(context.<Map<String, String>>deserialize(shownTips,
+                        JsonUtils.mapTypeOf(String.class, String.class).getType()));
             }
 
             return config;
