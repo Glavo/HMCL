@@ -21,14 +21,12 @@ import javafx.beans.property.*;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 import javafx.scene.image.Image;
-import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.setting.*;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.construct.PageAware;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.ui.versions.VersionIconDialog;
 import org.jackhuang.hmcl.ui.versions.VersionPage;
-import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jetbrains.annotations.NotNull;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -41,10 +39,9 @@ public final class GameSettingPage<S extends GameSetting> extends Control
     private final ObjectProperty<State> state = new SimpleObjectProperty<>(new State("", null, false, false, false));
     final ObjectProperty<S> gameSetting = new SimpleObjectProperty<>();
 
-    private HMCLGameRepository repository;
     Profile profile;
     String instanceId;
-    final  IntegerProperty maxMemory = new SimpleIntegerProperty();
+    final IntegerProperty maxMemory = new SimpleIntegerProperty();
     final ObjectProperty<Image> icon = new SimpleObjectProperty<>();
     final BooleanProperty modpack = new SimpleBooleanProperty();
 
@@ -65,7 +62,6 @@ public final class GameSettingPage<S extends GameSetting> extends Control
 
     @Override
     public void loadVersion(Profile profile, String instanceId) {
-        this.repository = profile.getRepository();
         this.profile = profile;
         this.instanceId = instanceId;
 

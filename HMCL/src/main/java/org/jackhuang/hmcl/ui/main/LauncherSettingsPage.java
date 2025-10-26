@@ -30,7 +30,6 @@ import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.ui.instances.GameSettingPage;
-import org.jackhuang.hmcl.ui.versions.VersionSettingsPage;
 
 import java.util.Locale;
 
