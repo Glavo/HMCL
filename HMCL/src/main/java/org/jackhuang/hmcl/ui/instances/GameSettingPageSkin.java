@@ -44,12 +44,9 @@ import org.jackhuang.hmcl.setting.GameSetting;
 import org.jackhuang.hmcl.setting.GlobalGameSetting;
 import org.jackhuang.hmcl.setting.JavaVersionType;
 import org.jackhuang.hmcl.setting.LauncherVisibility;
-import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.*;
-import org.jackhuang.hmcl.ui.versions.AdvancedVersionSettingPage;
 import org.jackhuang.hmcl.util.*;
-import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jackhuang.hmcl.util.javafx.SafeStringConverter;
 import org.jackhuang.hmcl.util.platform.Architecture;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
@@ -402,6 +399,8 @@ public final class GameSettingPageSkin<S extends GameSetting> extends SkinBase<G
         gameSetting.addListener((observable, prevSetting, setting) -> {
             // TODO
         });
+
+
     }
 
     private static List<String> getSupportedResolutions() {
