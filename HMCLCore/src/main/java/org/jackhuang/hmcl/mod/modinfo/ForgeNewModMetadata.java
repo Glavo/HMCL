@@ -1,6 +1,7 @@
 package org.jackhuang.hmcl.mod.modinfo;
 
-import com.google.gson.JsonParseException;
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
 import com.moandjiezana.toml.Toml;
 import org.jackhuang.hmcl.mod.LocalModFile;
 import org.jackhuang.hmcl.mod.ModLoaderType;
@@ -13,16 +14,19 @@ import org.jackhuang.hmcl.util.io.CompressingUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 @Immutable
+@JsonSerializable
 public final class ForgeNewModMetadata {
     private final String modLoader;
 
@@ -62,55 +66,42 @@ public final class ForgeNewModMetadata {
         return mods;
     }
 
-    public static class Mod {
-        private final String modId;
-        private final String version;
-        private final String displayName;
-        private final String side;
-        private final String displayURL;
-        private final String authors;
-        private final String description;
+    @JsonSerializable
+    public record Mod(
+            @JsonAdapter(SafeAdapter.class) String modId,
+            @JsonAdapter(SafeAdapter.class) String version,
+            @JsonAdapter(SafeAdapter.class) String displayName,
+            @JsonAdapter(SafeAdapter.class) String side,
+            @JsonAdapter(SafeAdapter.class) String displayURL,
+            @JsonAdapter(SafeAdapter.class) String authors,
+            @JsonAdapter(SafeAdapter.class) String description) {
+    }
 
-        public Mod() {
-            this("", "", "", "", "", "", "");
+    static final class SafeAdapter implements JsonSerializer<String>, JsonDeserializer<String> {
+
+        @Override
+        public String deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            if (json == null || json.isJsonNull()) {
+                return null;
+            }
+
+            if (json instanceof JsonPrimitive primitive) {
+                return primitive.getAsString();
+            }
+
+            if (json instanceof JsonArray array) {
+                return array.asList().stream()
+                        .map(item -> item instanceof JsonPrimitive primitive
+                                ? primitive.getAsString()
+                                : item.toString())
+                        .collect(Collectors.joining(", "));
+            }
+            return json.toString();
         }
 
-        public Mod(String modId, String version, String displayName, String side, String displayURL, String authors, String description) {
-            this.modId = modId;
-            this.version = version;
-            this.displayName = displayName;
-            this.side = side;
-            this.displayURL = displayURL;
-            this.authors = authors;
-            this.description = description;
-        }
-
-        public String getModId() {
-            return modId;
-        }
-
-        public String getVersion() {
-            return version;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public String getSide() {
-            return side;
-        }
-
-        public String getDisplayURL() {
-            return displayURL;
-        }
-
-        public String getAuthors() {
-            return authors;
-        }
-
-        public String getDescription() {
-            return description;
+        @Override
+        public JsonElement serialize(String src, Type typeOfSrc, JsonSerializationContext context) {
+            return src != null ? new JsonPrimitive(src) : JsonNull.INSTANCE;
         }
     }
 
@@ -131,6 +122,7 @@ public final class ForgeNewModMetadata {
             try {
                 return fromFile0("META-INF/neoforge.mods.toml", modLoaderType, modManager, modFile, fs);
             } catch (Exception ignored) {
+                ignored.printStackTrace();
             }
         }
 
@@ -172,11 +164,11 @@ public final class ForgeNewModMetadata {
             }
         }
 
-        ModLoaderType type = analyzeLoader(toml, mod.getModId(), modLoaderType);
+        ModLoaderType type = analyzeLoader(toml, mod.modId(), modLoaderType);
 
-        return new LocalModFile(modManager, modManager.getLocalMod(mod.getModId(), type), modFile, mod.getDisplayName(), new LocalModFile.Description(mod.getDescription()),
-                mod.getAuthors(), jarVersion == null ? mod.getVersion() : mod.getVersion().replace("${file.jarVersion}", jarVersion), "",
-                mod.getDisplayURL(),
+        return new LocalModFile(modManager, modManager.getLocalMod(mod.modId(), type), modFile, mod.displayName(), new LocalModFile.Description(mod.description()),
+                mod.authors(), jarVersion == null ? mod.version() : mod.version().replace("${file.jarVersion}", jarVersion), "",
+                mod.displayURL(),
                 metadata.getLogoFile());
     }
 
