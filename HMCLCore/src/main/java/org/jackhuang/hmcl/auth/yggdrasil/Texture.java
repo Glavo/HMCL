@@ -17,33 +17,15 @@
  */
 package org.jackhuang.hmcl.auth.yggdrasil;
 
-import org.jackhuang.hmcl.util.Immutable;
+import org.jackhuang.hmcl.util.gson.JsonSerializable;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.Map;
 
-@Immutable
-public final class Texture {
-
-    private final String url;
-    private final Map<String, String> metadata;
-
-    public Texture() {
-        this(null, null);
-    }
-
-    public Texture(String url, Map<String, String> metadata) {
-        this.url = url;
-        this.metadata = metadata;
-    }
-
-    @Nullable
-    public String getUrl() {
-        return url;
-    }
-
-    @Nullable
-    public Map<String, String> getMetadata() {
-        return metadata;
-    }
+@JsonSerializable
+public record Texture(
+        @Nullable String url,
+        @Nullable @Unmodifiable Map<String, String> metadata
+) {
 }
