@@ -142,7 +142,7 @@ public class OfflineAccountSkinPane extends StackPane {
                             Controllers.showToast(i18n("message.failed"));
                         } else {
                             UUID uuid = this.account.getUUID();
-                            if (result == null || result.getSkin() == null && result.getCape() == null) {
+                            if (result == null || result.skin() == null && result.cape() == null) {
                                 canvas.updateSkin(
                                         TexturesLoader.getDefaultSkin(uuid).image(),
                                         TexturesLoader.getDefaultModel(uuid) == TextureModel.SLIM,
@@ -151,9 +151,9 @@ public class OfflineAccountSkinPane extends StackPane {
                                 return;
                             }
                             canvas.updateSkin(
-                                    result.getSkin() != null ? result.getSkin().image() : TexturesLoader.getDefaultSkin(uuid).image(),
-                                    result.getModel() == TextureModel.SLIM,
-                                    result.getCape() != null ? result.getCape().image() : null);
+                                    result.skin() != null ? result.skin().image() : TexturesLoader.getDefaultSkin(uuid).image(),
+                                    result.model() == TextureModel.SLIM,
+                                    result.cape() != null ? result.cape().image() : null);
                         }
                     }).start();
         }, skinItem.selectedDataProperty(), cslApiField.textProperty(), modelCombobox.valueProperty(), skinSelector.valueProperty(), capeSelector.valueProperty());
