@@ -33,7 +33,7 @@ import org.jackhuang.hmcl.ui.skin.SkinCanvas;
 import org.jackhuang.hmcl.ui.skin.animation.SkinAniRunning;
 import org.jackhuang.hmcl.ui.skin.animation.SkinAniWavingArms;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
-import org.jackhuang.hmcl.auth.offline.Skin;
+import org.jackhuang.hmcl.auth.offline.OfflineSkin;
 import org.jackhuang.hmcl.auth.yggdrasil.TextureModel;
 import org.jackhuang.hmcl.game.TexturesLoader;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -54,7 +54,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 public class OfflineAccountSkinPane extends StackPane {
     private final OfflineAccount account;
 
-    private final MultiFileItem<Skin.Type> skinItem = new MultiFileItem<>();
+    private final MultiFileItem<OfflineSkin.Type> skinItem = new MultiFileItem<>();
     private final JFXTextField cslApiField = new JFXTextField();
     private final JFXComboBox<TextureModel> modelCombobox = new JFXComboBox<>();
     private final FileSelector skinSelector = new FileSelector();
@@ -93,7 +93,7 @@ public class OfflineAccountSkinPane extends StackPane {
                 Path skin = e.getDragboard().getFiles().get(0).toPath();
                 Platform.runLater(() -> {
                     skinSelector.setValue(FileUtils.getAbsolutePath(skin));
-                    skinItem.setSelectedData(Skin.Type.LOCAL_FILE);
+                    skinItem.setSelectedData(OfflineSkin.Type.LOCAL_FILE);
                 });
             }
         });
@@ -112,19 +112,19 @@ public class OfflineAccountSkinPane extends StackPane {
         cslApiField.setValidators(new URLValidator());
 
         skinItem.loadChildren(Arrays.asList(
-                new MultiFileItem.Option<>(i18n("message.default"), Skin.Type.DEFAULT),
-                new MultiFileItem.Option<>(i18n("account.skin.type.steve"), Skin.Type.STEVE),
-                new MultiFileItem.Option<>(i18n("account.skin.type.alex"), Skin.Type.ALEX),
-                new MultiFileItem.Option<>(i18n("account.skin.type.local_file"), Skin.Type.LOCAL_FILE),
-                new MultiFileItem.Option<>(i18n("account.skin.type.little_skin"), Skin.Type.LITTLE_SKIN),
-                new MultiFileItem.Option<>(i18n("account.skin.type.csl_api"), Skin.Type.CUSTOM_SKIN_LOADER_API)
+                new MultiFileItem.Option<>(i18n("message.default"), OfflineSkin.Type.DEFAULT),
+                new MultiFileItem.Option<>(i18n("account.skin.type.steve"), OfflineSkin.Type.STEVE),
+                new MultiFileItem.Option<>(i18n("account.skin.type.alex"), OfflineSkin.Type.ALEX),
+                new MultiFileItem.Option<>(i18n("account.skin.type.local_file"), OfflineSkin.Type.LOCAL_FILE),
+                new MultiFileItem.Option<>(i18n("account.skin.type.little_skin"), OfflineSkin.Type.LITTLE_SKIN),
+                new MultiFileItem.Option<>(i18n("account.skin.type.csl_api"), OfflineSkin.Type.CUSTOM_SKIN_LOADER_API)
         ));
 
         modelCombobox.setConverter(stringConverter(model -> i18n("account.skin.model." + model.modelName)));
         modelCombobox.getItems().setAll(TextureModel.WIDE, TextureModel.SLIM);
 
         if (account.getSkin() == null) {
-            skinItem.setSelectedData(Skin.Type.DEFAULT);
+            skinItem.setSelectedData(OfflineSkin.Type.DEFAULT);
             modelCombobox.setValue(TextureModel.WIDE);
         } else {
             skinItem.setSelectedData(account.getSkin().getType());
@@ -221,13 +221,13 @@ public class OfflineAccountSkinPane extends StackPane {
         layout.setActions(littleSkinLink, acceptButton, cancelButton);
     }
 
-    private Skin getSkin() {
-        Skin.Type type = skinItem.getSelectedData();
-        if (type == Skin.Type.LOCAL_FILE) {
-            return new Skin(type, cslApiField.getText(), modelCombobox.getValue(), skinSelector.getValue(), capeSelector.getValue());
+    private OfflineSkin getSkin() {
+        OfflineSkin.Type type = skinItem.getSelectedData();
+        if (type == OfflineSkin.Type.LOCAL_FILE) {
+            return new OfflineSkin(type, cslApiField.getText(), modelCombobox.getValue(), skinSelector.getValue(), capeSelector.getValue());
         } else {
-            String cslApi = type == Skin.Type.CUSTOM_SKIN_LOADER_API ? cslApiField.getText() : null;
-            return new Skin(type, cslApi, null, null, null);
+            String cslApi = type == OfflineSkin.Type.CUSTOM_SKIN_LOADER_API ? cslApiField.getText() : null;
+            return new OfflineSkin(type, cslApi, null, null, null);
         }
     }
 }

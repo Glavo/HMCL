@@ -25,6 +25,7 @@ import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.StringUtils;
+import org.jackhuang.hmcl.util.gson.JsonSerializable;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
@@ -43,7 +44,7 @@ import static org.jackhuang.hmcl.util.Lang.mapOf;
 import static org.jackhuang.hmcl.util.Lang.tryCast;
 import static org.jackhuang.hmcl.util.Pair.pair;
 
-public class Skin {
+public final class OfflineSkin {
 
     public enum Type {
         DEFAULT,
@@ -61,39 +62,24 @@ public class Skin {
         CUSTOM_SKIN_LOADER_API,
         YGGDRASIL_API;
 
-        public static Type fromStorage(String type) {
-            switch (type) {
-                case "default":
-                    return DEFAULT;
-                case "alex":
-                    return ALEX;
-                case "ari":
-                    return ARI;
-                case "efe":
-                    return EFE;
-                case "kai":
-                    return KAI;
-                case "makena":
-                    return MAKENA;
-                case "noor":
-                    return NOOR;
-                case "steve":
-                    return STEVE;
-                case "sunny":
-                    return SUNNY;
-                case "zuri":
-                    return ZURI;
-                case "local_file":
-                    return LOCAL_FILE;
-                case "little_skin":
-                    return LITTLE_SKIN;
-                case "custom_skin_loader_api":
-                    return CUSTOM_SKIN_LOADER_API;
-                case "yggdrasil_api":
-                    return YGGDRASIL_API;
-                default:
-                    return null;
-            }
+        public static @Nullable Type fromStorage(String type) {
+            return switch (type) {
+                case "default" -> DEFAULT;
+                case "alex" -> ALEX;
+                case "ari" -> ARI;
+                case "efe" -> EFE;
+                case "kai" -> KAI;
+                case "makena" -> MAKENA;
+                case "noor" -> NOOR;
+                case "steve" -> STEVE;
+                case "sunny" -> SUNNY;
+                case "zuri" -> ZURI;
+                case "local_file" -> LOCAL_FILE;
+                case "little_skin" -> LITTLE_SKIN;
+                case "custom_skin_loader_api" -> CUSTOM_SKIN_LOADER_API;
+                case "yggdrasil_api" -> YGGDRASIL_API;
+                default -> null;
+            };
         }
     }
 
@@ -103,7 +89,7 @@ public class Skin {
     private final String localSkinPath;
     private final String localCapePath;
 
-    public Skin(Type type, String cslApi, TextureModel textureModel, String localSkinPath, String localCapePath) {
+    public OfflineSkin(Type type, String cslApi, TextureModel textureModel, String localSkinPath, String localCapePath) {
         this.type = type;
         this.cslApi = cslApi;
         this.textureModel = textureModel;
@@ -214,7 +200,7 @@ public class Skin {
         );
     }
 
-    public static Skin fromStorage(Map<?, ?> storage) {
+    public static OfflineSkin fromStorage(Map<?, ?> storage) {
         if (storage == null) return null;
 
         Type type = tryCast(storage.get("type"), String.class).flatMap(t -> Optional.ofNullable(Type.fromStorage(t)))
@@ -224,7 +210,7 @@ public class Skin {
         String localSkinPath = tryCast(storage.get("localSkinPath"), String.class).orElse(null);
         String localCapePath = tryCast(storage.get("localCapePath"), String.class).orElse(null);
 
-        return new Skin(type, cslApi, "slim".equals(textureModel) ? TextureModel.SLIM : TextureModel.WIDE, localSkinPath, localCapePath);
+        return new OfflineSkin(type, cslApi, "slim".equals(textureModel) ? TextureModel.SLIM : TextureModel.WIDE, localSkinPath, localCapePath);
     }
 
     private static class FetchBytesTask extends FetchTask<InputStream> {
@@ -291,22 +277,14 @@ public class Skin {
         }
     }
 
-    private static class SkinJson {
-        private final String username;
-        private final String skin;
-        private final String cape;
-        private final String elytra;
-
-        @SerializedName(value = "textures", alternate = { "skins" })
-        private final TextureJson textures;
-
-        public SkinJson(String username, String skin, String cape, String elytra, TextureJson textures) {
-            this.username = username;
-            this.skin = skin;
-            this.cape = cape;
-            this.elytra = elytra;
-            this.textures = textures;
-        }
+    @JsonSerializable
+    private record SkinJson(
+            String username,
+            String skin,
+            String cape,
+            String elytra,
+            @SerializedName(value = "textures", alternate = {"skins"})
+            TextureJson textures) {
 
         public boolean hasSkin() {
             return StringUtils.isNotBlank(username);
@@ -353,20 +331,13 @@ public class Skin {
             } else return cape;
         }
 
-        public static class TextureJson {
-            @SerializedName("default")
-            private final String defaultSkin;
-
-            private final String slim;
-            private final String cape;
-            private final String elytra;
-
-            public TextureJson(String defaultSkin, String slim, String cape, String elytra) {
-                this.defaultSkin = defaultSkin;
-                this.slim = slim;
-                this.cape = cape;
-                this.elytra = elytra;
-            }
+        @JsonSerializable
+        public record TextureJson(
+                @SerializedName("default")
+                String defaultSkin,
+                String slim,
+                String cape,
+                String elytra) {
         }
     }
 }
