@@ -65,21 +65,17 @@ public final class TexturesLoader {
     }
 
     // ==== Texture Loading ====
-    public static class LoadedTexture {
-        private final Image image;
-        private final Map<String, String> metadata;
-
+    public record LoadedTexture(Image image, Map<String, String> metadata) {
         public LoadedTexture(Image image, Map<String, String> metadata) {
             this.image = requireNonNull(image);
             this.metadata = requireNonNull(metadata);
         }
 
-        public Image getImage() {
-            return image;
-        }
-
-        public Map<String, String> getMetadata() {
-            return metadata;
+        public TextureModel getModel() {
+            String modelName = metadata.get("model");
+            return TextureModel.SLIM.modelName.equals(modelName)
+                    ? TextureModel.SLIM
+                    : TextureModel.WIDE;
         }
     }
 
@@ -158,9 +154,7 @@ public final class TexturesLoader {
     }
 
     public static TextureModel getDefaultModel(UUID uuid) {
-        return TextureModel.WIDE.modelName.equals(getDefaultSkin(uuid).getMetadata().get("model"))
-                ? TextureModel.WIDE
-                : TextureModel.SLIM;
+        return getDefaultSkin(uuid).getModel();
     }
 
     public static ObjectBinding<LoadedTexture> skinBinding(YggdrasilService service, UUID uuid) {
