@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.auth.offline;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,24 +28,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Objects;
 
-import static java.util.Objects.requireNonNull;
-
-public final class Texture {
-    private final String hash;
-    private final Image image;
-
-    public Texture(String hash, Image image) {
-        this.hash = requireNonNull(hash);
-        this.image = requireNonNull(image);
-    }
-
-    public String getHash() {
-        return hash;
-    }
-
-    public Image getImage() {
-        return image;
+public record Texture(@NotNull String hash, @NotNull Image image) {
+    public Texture {
+        Objects.requireNonNull(hash);
+        Objects.requireNonNull(image);
     }
 
     private static final Map<String, Texture> textures = new HashMap<>();

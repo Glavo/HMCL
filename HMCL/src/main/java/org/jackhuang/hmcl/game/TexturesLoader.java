@@ -201,7 +201,7 @@ public final class TexturesLoader {
                     skin.load(username).setExecutor(POOL).whenComplete(Schedulers.javafx(), (result, exception) -> {
                         if (exception != null) {
                             LOG.warning("Failed to load texture", exception);
-                        } else if (result != null && result.getSkin() != null && result.getSkin().getImage() != null) {
+                        } else if (result != null && result.getSkin() != null && result.getSkin().image() != null) {
                             Map<String, String> metadata;
                             if (result.getModel() != null) {
                                 metadata = singletonMap("model", result.getModel().modelName);
@@ -209,7 +209,7 @@ public final class TexturesLoader {
                                 metadata = emptyMap();
                             }
 
-                            binding.set(new LoadedTexture(result.getSkin().getImage(), metadata));
+                            binding.set(new LoadedTexture(result.getSkin().image(), metadata));
                         }
                     }).start();
                 }
