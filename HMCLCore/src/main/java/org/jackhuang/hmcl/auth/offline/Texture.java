@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.auth.offline;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
+import org.jackhuang.hmcl.util.ByteArray;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
