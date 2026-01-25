@@ -127,11 +127,11 @@ public class OfflineAccountSkinPane extends StackPane {
             skinItem.setSelectedData(OfflineSkin.Type.DEFAULT);
             modelCombobox.setValue(TextureModel.WIDE);
         } else {
-            skinItem.setSelectedData(account.getSkin().getType());
-            cslApiField.setText(account.getSkin().getCslApi());
-            modelCombobox.setValue(account.getSkin().getTextureModel());
-            skinSelector.setValue(account.getSkin().getLocalSkinPath());
-            capeSelector.setValue(account.getSkin().getLocalCapePath());
+            skinItem.setSelectedData(account.getSkin().type());
+            cslApiField.setText(account.getSkin().cslApi());
+            modelCombobox.setValue(account.getSkin().textureModel());
+            skinSelector.setValue(account.getSkin().localSkinPath());
+            capeSelector.setValue(account.getSkin().localCapePath());
         }
 
         skinBinding = FXUtils.observeWeak(() -> {

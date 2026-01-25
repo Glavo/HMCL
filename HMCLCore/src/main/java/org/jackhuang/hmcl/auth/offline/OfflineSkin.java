@@ -44,7 +44,20 @@ import static org.jackhuang.hmcl.util.Lang.mapOf;
 import static org.jackhuang.hmcl.util.Lang.tryCast;
 import static org.jackhuang.hmcl.util.Pair.pair;
 
-public final class OfflineSkin {
+public record OfflineSkin(
+        Type type,
+        String cslApi,
+        TextureModel textureModel,
+        String localSkinPath,
+        String localCapePath) {
+
+    public OfflineSkin(Type type, String cslApi, TextureModel textureModel, String localSkinPath, String localCapePath) {
+        this.type = type;
+        this.cslApi = cslApi;
+        this.textureModel = Objects.requireNonNullElse(textureModel, TextureModel.WIDE);
+        this.localSkinPath = localSkinPath;
+        this.localCapePath = localCapePath;
+    }
 
     public enum Type {
         DEFAULT,
@@ -83,40 +96,6 @@ public final class OfflineSkin {
         }
     }
 
-    private final Type type;
-    private final String cslApi;
-    private final TextureModel textureModel;
-    private final String localSkinPath;
-    private final String localCapePath;
-
-    public OfflineSkin(Type type, String cslApi, TextureModel textureModel, String localSkinPath, String localCapePath) {
-        this.type = type;
-        this.cslApi = cslApi;
-        this.textureModel = textureModel;
-        this.localSkinPath = localSkinPath;
-        this.localCapePath = localCapePath;
-    }
-
-    public Type getType() {
-        return type;
-    }
-
-    public String getCslApi() {
-        return cslApi;
-    }
-
-    public TextureModel getTextureModel() {
-        return textureModel == null ? TextureModel.WIDE : textureModel;
-    }
-
-    public String getLocalSkinPath() {
-        return localSkinPath;
-    }
-
-    public String getLocalCapePath() {
-        return localCapePath;
-    }
-
     public Task<LoadedSkin> load(String username) {
         switch (type) {
             case DEFAULT:
@@ -145,7 +124,7 @@ public final class OfflineSkin {
                     Optional<Path> capePath = FileUtils.tryGetPath(localCapePath);
                     if (skinPath.isPresent()) skin = Texture.loadTexture(Files.newInputStream(skinPath.get()));
                     if (capePath.isPresent()) cape = Texture.loadTexture(Files.newInputStream(capePath.get()));
-                    return new LoadedSkin(getTextureModel(), skin, cape);
+                    return new LoadedSkin(textureModel(), skin, cape);
                 });
             case LITTLE_SKIN:
             case CUSTOM_SKIN_LOADER_API:
@@ -194,7 +173,7 @@ public final class OfflineSkin {
         return mapOf(
                 pair("type", type.name().toLowerCase(Locale.ROOT)),
                 pair("cslApi", cslApi),
-                pair("textureModel", getTextureModel().modelName),
+                pair("textureModel", textureModel.modelName),
                 pair("localSkinPath", localSkinPath),
                 pair("localCapePath", localCapePath)
         );

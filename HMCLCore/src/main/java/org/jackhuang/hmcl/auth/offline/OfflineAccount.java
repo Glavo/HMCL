@@ -100,7 +100,7 @@ public class OfflineAccount extends Account {
     }
 
     protected boolean loadAuthlibInjector(OfflineSkin skin) {
-        return skin != null && skin.getType() != OfflineSkin.Type.DEFAULT;
+        return skin != null && skin.type() != OfflineSkin.Type.DEFAULT;
     }
 
     public AuthInfo logInWithoutSkin() throws AuthenticationException {
