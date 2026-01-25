@@ -35,6 +35,12 @@ public record Texture(@NotNull String hash, @NotNull Image image) {
     public Texture {
         Objects.requireNonNull(hash);
         Objects.requireNonNull(image);
+
+        if (image.isBackgroundLoading()) {
+            throw new IllegalArgumentException("Image must be fully loaded");
+        } else if (image.isError()) {
+            throw new IllegalArgumentException("Image has error", image.getException());
+        }
     }
 
     private static final Map<String, Texture> textures = new HashMap<>();
