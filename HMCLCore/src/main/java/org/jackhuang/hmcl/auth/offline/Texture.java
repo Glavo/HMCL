@@ -51,7 +51,7 @@ public record Texture(@NotNull String hash, @NotNull Image image) {
         try {
             digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new AssertionError("Unreachable", e);
         }
 
         PixelReader reader = img.getPixelReader();
@@ -82,11 +82,11 @@ public record Texture(@NotNull String hash, @NotNull Image image) {
         return HexFormat.of().formatHex(digest.digest());
     }
 
-    private static void putInt(byte[] array, int offset, int x) {
-        array[offset + 0] = (byte) (x >> 24 & 0xff);
-        array[offset + 1] = (byte) (x >> 16 & 0xff);
-        array[offset + 2] = (byte) (x >> 8 & 0xff);
-        array[offset + 3] = (byte) (x >> 0 & 0xff);
+    private static void putInt(byte[] array, int offset, int value) {
+        array[offset + 0] = (byte) (value >> 24 & 0xff);
+        array[offset + 1] = (byte) (value >> 16 & 0xff);
+        array[offset + 2] = (byte) (value >> 8 & 0xff);
+        array[offset + 3] = (byte) (value >> 0 & 0xff);
     }
 
     public static Texture loadTexture(InputStream in) throws IOException {
