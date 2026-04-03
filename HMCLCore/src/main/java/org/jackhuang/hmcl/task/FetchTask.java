@@ -40,6 +40,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.jackhuang.hmcl.util.Lang.threadPool;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -82,10 +84,25 @@ public abstract class FetchTask<T> extends Task<T> {
     protected abstract EnumCheckETag shouldCheckETag();
 
     private Context getContext() throws IOException {
+        beforeCreateContext(0L, false);
         return getContext(null, false, null);
     }
 
     protected abstract Context getContext(@Nullable HttpResponse<?> response, boolean checkETag, String bmclapiHash) throws IOException;
+
+    protected @Nullable ResumeRequest prepareResumeRequest(@Nullable HttpMetadata metadata) throws IOException {
+        return null;
+    }
+
+    protected void resetPartialDownload() throws IOException {
+    }
+
+    protected void beforeCreateContext(long downloadedBytes, boolean resuming) throws IOException {
+    }
+
+    protected @NotNull String getAcceptEncoding(boolean resuming) {
+        return "gzip";
+    }
 
     @Override
     public void execute() throws Exception {
@@ -138,7 +155,8 @@ public abstract class FetchTask<T> extends Task<T> {
     private void download(Context context,
                           InputStream inputStream,
                           long contentLength,
-                          ContentEncoding contentEncoding) throws IOException, InterruptedException {
+                          ContentEncoding contentEncoding,
+                          long initialDownloaded) throws IOException, InterruptedException {
         try (var ignored = context;
              var counter = new CounterInputStream(inputStream);
              var input = contentEncoding.wrap(counter)) {
@@ -154,7 +172,7 @@ public abstract class FetchTask<T> extends Task<T> {
 
                 if (contentLength >= 0) {
                     // Update progress information per second
-                    updateProgress(counter.downloaded, contentLength);
+                    updateProgress(counter.downloaded + initialDownloaded, contentLength);
                 }
 
                 updateDownloadSpeed(counter.downloaded - lastDownloaded);
@@ -166,8 +184,9 @@ public abstract class FetchTask<T> extends Task<T> {
 
             updateDownloadSpeed(counter.downloaded - lastDownloaded);
 
-            if (contentLength >= 0 && counter.downloaded != contentLength)
-                throw new IOException("Unexpected file size: " + counter.downloaded + ", expected: " + contentLength);
+            long downloaded = counter.downloaded + initialDownloaded;
+            if (contentLength >= 0 && downloaded != contentLength)
+                throw new IOException("Unexpected file size: " + downloaded + ", expected: " + contentLength);
 
             context.withResult(true);
         }
@@ -186,6 +205,7 @@ public abstract class FetchTask<T> extends Task<T> {
         }
 
         ArrayList<Exception> exceptions = null;
+        HttpMetadata retryMetadata = null;
 
         // If loading the cache fails, the cache should not be loaded again.
         boolean useCachedResult = true;
@@ -205,9 +225,17 @@ public abstract class FetchTask<T> extends Task<T> {
                 URI currentURI = uri;
 
                 LinkedHashMap<String, String> headers = new LinkedHashMap<>();
-                headers.put("accept-encoding", "gzip");
-                if (useCachedResult && checkETag)
+                ResumeRequest resumeRequest = retryTime > 0 ? prepareResumeRequest(retryMetadata) : null;
+                boolean resuming = resumeRequest != null && resumeRequest.downloadedBytes > 0;
+                headers.put("accept-encoding", getAcceptEncoding(resuming));
+                if (resuming) {
+                    headers.put("range", "bytes=" + resumeRequest.downloadedBytes + "-");
+                    if (resumeRequest.ifRange != null) {
+                        headers.put("if-range", resumeRequest.ifRange);
+                    }
+                } else if (useCachedResult && checkETag) {
                     headers.putAll(repository.injectConnection(uri));
+                }
 
                 do {
                     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentURI)
@@ -270,6 +298,8 @@ public abstract class FetchTask<T> extends Task<T> {
                         retryLimit++;
                         continue;
                     }
+                } else if (resuming && responseCode == HTTP_RANGE_NOT_SATISFIABLE) {
+                    // handled below
                 } else if (responseCode / 100 == 4) {
                     throw new FileNotFoundException(uri.toString());
                 } else if (responseCode / 100 != 2) {
@@ -278,11 +308,59 @@ public abstract class FetchTask<T> extends Task<T> {
 
                 long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
                 var contentEncoding = ContentEncoding.fromResponse(response);
+                HttpMetadata currentMetadata = HttpMetadata.fromResponse(response, bmclapiHash);
 
-                download(getContext(response, checkETag, bmclapiHash),
+                if (resuming) {
+                    if (responseCode == HttpURLConnection.HTTP_PARTIAL) {
+                        if (resumeRequest.expectedBmclapiHash != null
+                                && !resumeRequest.expectedBmclapiHash.equalsIgnoreCase(currentMetadata.bmclapiHash)) {
+                            resetPartialDownload();
+                            retryMetadata = null;
+                            retryLimit++;
+                            continue;
+                        }
+
+                        if (contentEncoding != ContentEncoding.IDENTITY) {
+                            throw new IOException("Resumed downloads do not support content encoding: " + contentEncoding);
+                        }
+
+                        retryMetadata = currentMetadata;
+                        download(createContext(response, checkETag, bmclapiHash, resumeRequest.downloadedBytes, true),
+                                response.body(),
+                                getContentLength(response, resumeRequest.downloadedBytes),
+                                contentEncoding,
+                                resumeRequest.downloadedBytes);
+                        return;
+                    }
+
+                    if (responseCode == HTTP_RANGE_NOT_SATISFIABLE) {
+                        OptionalLong actualLength = getRangeUnsatisfiedLength(response);
+                        if (actualLength.isPresent() && actualLength.getAsLong() == resumeRequest.downloadedBytes) {
+                            retryMetadata = currentMetadata;
+                            try (Context context = createContext(response, checkETag, bmclapiHash, resumeRequest.downloadedBytes, true)) {
+                                context.withResult(true);
+                            }
+                            return;
+                        }
+
+                        resetPartialDownload();
+                        retryMetadata = null;
+                        retryLimit++;
+                        continue;
+                    }
+
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        resetPartialDownload();
+                        resuming = false;
+                    }
+                }
+
+                retryMetadata = currentMetadata;
+                download(createContext(response, checkETag, bmclapiHash, 0L, false),
                         response.body(),
                         contentLength,
-                        contentEncoding);
+                        contentEncoding,
+                        0L);
                 return;
             } catch (InterruptedException e) {
                 throw e;
@@ -322,7 +400,8 @@ public abstract class FetchTask<T> extends Task<T> {
                 download(getContext(),
                         conn.getInputStream(),
                         conn.getContentLengthLong(),
-                        ContentEncoding.fromConnection(conn));
+                        ContentEncoding.fromConnection(conn),
+                        0L);
                 return;
             } catch (InterruptedException e) {
                 throw e;
@@ -356,6 +435,63 @@ public abstract class FetchTask<T> extends Task<T> {
             }
             return new DownloadException(uri, last);
         }
+    }
+
+    private Context createContext(@Nullable HttpResponse<?> response,
+                                  boolean checkETag,
+                                  @Nullable String bmclapiHash,
+                                  long downloadedBytes,
+                                  boolean resuming) throws IOException {
+        beforeCreateContext(downloadedBytes, resuming);
+        return getContext(response, checkETag, bmclapiHash);
+    }
+
+    private static long getContentLength(HttpResponse<?> response, long initialDownloaded) throws IOException {
+        if (initialDownloaded <= 0) {
+            return response.headers().firstValueAsLong("content-length").orElse(-1L);
+        }
+
+        String contentRange = response.headers().firstValue("content-range").orElse(null);
+        if (contentRange != null) {
+            Matcher matcher = CONTENT_RANGE.matcher(contentRange);
+            if (!matcher.matches()) {
+                throw new IOException("Unexpected Content-Range: " + contentRange);
+            }
+
+            long start = Long.parseLong(matcher.group("start"));
+            long total = parseTotalLength(matcher.group("total"));
+            if (start != initialDownloaded) {
+                throw new IOException("Unexpected Content-Range start: " + start + ", expected: " + initialDownloaded);
+            }
+            if (total >= 0) {
+                return total;
+            }
+        }
+
+        long contentLength = response.headers().firstValueAsLong("content-length").orElse(-1L);
+        return contentLength >= 0 ? initialDownloaded + contentLength : -1L;
+    }
+
+    private static OptionalLong getRangeUnsatisfiedLength(HttpResponse<?> response) {
+        String contentRange = response.headers().firstValue("content-range").orElse(null);
+        if (contentRange == null) {
+            return OptionalLong.empty();
+        }
+
+        Matcher matcher = RANGE_NOT_SATISFIABLE.matcher(contentRange);
+        if (!matcher.matches()) {
+            return OptionalLong.empty();
+        }
+
+        long total = parseTotalLength(matcher.group("total"));
+        return total >= 0 ? OptionalLong.of(total) : OptionalLong.empty();
+    }
+
+    private static long parseTotalLength(String totalLength) {
+        if ("*".equals(totalLength)) {
+            return -1L;
+        }
+        return Long.parseLong(totalLength);
     }
 
     private static final Timer timer = new Timer("DownloadSpeedRecorder", true);
@@ -437,6 +573,42 @@ public abstract class FetchTask<T> extends Task<T> {
         }
     }
 
+    protected static final class HttpMetadata {
+        final String eTag;
+        final String lastModified;
+        final String bmclapiHash;
+
+        private HttpMetadata(String eTag, String lastModified, String bmclapiHash) {
+            this.eTag = eTag;
+            this.lastModified = lastModified;
+            this.bmclapiHash = bmclapiHash;
+        }
+
+        private static HttpMetadata fromResponse(HttpResponse<?> response, String bmclapiHash) {
+            return new HttpMetadata(
+                    response.headers().firstValue("etag").orElse(null),
+                    response.headers().firstValue("last-modified").orElse(null),
+                    bmclapiHash
+            );
+        }
+    }
+
+    protected static final class ResumeRequest {
+        private final long downloadedBytes;
+        private final String ifRange;
+        private final String expectedBmclapiHash;
+
+        protected ResumeRequest(long downloadedBytes, @Nullable String ifRange, @Nullable String expectedBmclapiHash) {
+            if (downloadedBytes < 0) {
+                throw new IllegalArgumentException("downloadedBytes < 0");
+            }
+
+            this.downloadedBytes = downloadedBytes;
+            this.ifRange = ifRange;
+            this.expectedBmclapiHash = expectedBmclapiHash;
+        }
+    }
+
     protected enum EnumCheckETag {
         CHECK_E_TAG,
         NOT_CHECK_E_TAG,
@@ -444,11 +616,15 @@ public abstract class FetchTask<T> extends Task<T> {
     }
 
     private static final HttpResponse.BodyHandler<InputStream> BODY_HANDLER = responseInfo -> {
-        if (responseInfo.statusCode() / 100 == 2)
+        if (responseInfo.statusCode() / 100 == 2 || responseInfo.statusCode() == 416)
             return HttpResponse.BodySubscribers.ofInputStream();
         else
             return HttpResponse.BodySubscribers.replacing(null);
     };
+
+    private static final int HTTP_RANGE_NOT_SATISFIABLE = 416;
+    private static final Pattern CONTENT_RANGE = Pattern.compile("bytes (?<start>\\d+)-(?<end>\\d+)/(?<total>\\d+|\\*)");
+    private static final Pattern RANGE_NOT_SATISFIABLE = Pattern.compile("bytes \\*/(?<total>\\d+|\\*)");
 
     public static int DEFAULT_CONCURRENCY = Math.min(Runtime.getRuntime().availableProcessors() * 4, 64);
     private static int downloadExecutorConcurrency = DEFAULT_CONCURRENCY;

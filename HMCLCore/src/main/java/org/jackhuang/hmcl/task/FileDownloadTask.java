@@ -31,6 +31,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.*;
 
@@ -77,6 +78,7 @@ public class FileDownloadTask extends FetchTask<Void> {
     private boolean caching;
     private Path candidate;
     private final ArrayList<IntegrityCheckHandler> integrityCheckHandlers = new ArrayList<>();
+    private long contextDownloadedBytes;
 
     /**
      * @param uri  the URI of remote file.
@@ -162,6 +164,7 @@ public class FileDownloadTask extends FetchTask<Void> {
             if (cache.isPresent()) {
                 try {
                     FileUtils.copyFile(cache.get(), file);
+                    Files.deleteIfExists(getPartialFile());
                     LOG.trace("Successfully verified file " + file + " from " + uris.get(0));
                     return EnumCheckETag.CACHED;
                 } catch (IOException e) {
@@ -182,11 +185,60 @@ public class FileDownloadTask extends FetchTask<Void> {
     @Override
     protected void useCachedResult(Path cache) throws IOException {
         FileUtils.copyFile(cache, file);
+        Files.deleteIfExists(getPartialFile());
+    }
+
+    @Override
+    protected ResumeRequest prepareResumeRequest(HttpMetadata metadata) throws IOException {
+        Path partialFile = getPartialFile();
+        if (!Files.isRegularFile(partialFile)) {
+            return null;
+        }
+
+        long downloadedBytes = Files.size(partialFile);
+        if (downloadedBytes <= 0) {
+            return null;
+        }
+
+        if (integrityCheck != null) {
+            return new ResumeRequest(downloadedBytes, null, null);
+        }
+
+        if (metadata != null && DigestUtils.isSha1Digest(metadata.bmclapiHash)) {
+            return new ResumeRequest(downloadedBytes, null, metadata.bmclapiHash);
+        }
+
+        if (metadata != null && metadata.eTag != null) {
+            return new ResumeRequest(downloadedBytes, metadata.eTag, null);
+        }
+
+        if (metadata != null && metadata.lastModified != null) {
+            return new ResumeRequest(downloadedBytes, metadata.lastModified, null);
+        }
+
+        return null;
+    }
+
+    @Override
+    protected void resetPartialDownload() throws IOException {
+        Files.deleteIfExists(getPartialFile());
+        contextDownloadedBytes = 0L;
+    }
+
+    @Override
+    protected void beforeCreateContext(long downloadedBytes, boolean resuming) {
+        contextDownloadedBytes = downloadedBytes;
+    }
+
+    @Override
+    protected String getAcceptEncoding(boolean resuming) {
+        return "identity";
     }
 
     @Override
     protected Context getContext(HttpResponse<?> response, boolean checkETag, String bmclapiHash) throws IOException {
-        Path temp = Files.createTempFile(null, null);
+        Path partialFile = getPartialFile();
+        Files.createDirectories(partialFile.toAbsolutePath().getParent());
 
         String algorithm;
         String checksum;
@@ -202,8 +254,18 @@ public class FileDownloadTask extends FetchTask<Void> {
         }
 
         MessageDigest digest = algorithm != null ? DigestUtils.getDigest(algorithm) : null;
+        if (digest != null && contextDownloadedBytes > 0) {
+            try (var input = Files.newInputStream(partialFile)) {
+                DigestUtils.updateDigest(digest, input);
+            }
+        }
 
-        OutputStream fileOutput = Files.newOutputStream(temp);
+        OutputStream fileOutput = Files.newOutputStream(
+                partialFile,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE,
+                contextDownloadedBytes > 0 ? StandardOpenOption.APPEND : StandardOpenOption.TRUNCATE_EXISTING
+        );
         return new Context() {
             @Override
             public void write(byte[] buffer, int offset, int len) throws IOException {
@@ -219,36 +281,40 @@ public class FileDownloadTask extends FetchTask<Void> {
                 try {
                     fileOutput.close();
                 } catch (IOException e) {
-                    LOG.warning("Failed to close file: " + temp, e);
+                    LOG.warning("Failed to close file: " + partialFile, e);
                 }
 
                 if (!isSuccess()) {
-                    try {
-                        Files.deleteIfExists(temp);
-                    } catch (IOException e) {
-                        LOG.warning("Failed to delete file: " + temp, e);
-                    }
                     return;
                 }
 
-                for (IntegrityCheckHandler handler : integrityCheckHandlers) {
-                    handler.checkIntegrity(temp, file);
-                }
-
-                Files.createDirectories(file.toAbsolutePath().getParent());
-
                 try {
-                    Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-                } catch (Exception e) {
-                    throw new IOException("Unable to move temp file from " + temp + " to " + file, e);
-                }
-
-                // Integrity check
-                if (checksum != null) {
-                    String actualChecksum = HexFormat.of().formatHex(digest.digest());
-                    if (!checksum.equalsIgnoreCase(actualChecksum)) {
-                        throw new ChecksumMismatchException(algorithm, checksum, actualChecksum);
+                    if (checksum != null) {
+                        String actualChecksum = HexFormat.of().formatHex(digest.digest());
+                        if (!checksum.equalsIgnoreCase(actualChecksum)) {
+                            throw new ChecksumMismatchException(algorithm, checksum, actualChecksum);
+                        }
                     }
+
+                    for (IntegrityCheckHandler handler : integrityCheckHandlers) {
+                        handler.checkIntegrity(partialFile, file);
+                    }
+
+                    Files.createDirectories(file.toAbsolutePath().getParent());
+                    try {
+                        Files.move(partialFile, file, StandardCopyOption.REPLACE_EXISTING);
+                    } catch (Exception e) {
+                        throw new IOException("Unable to move temp file from " + partialFile + " to " + file, e);
+                    }
+
+                    contextDownloadedBytes = 0L;
+                } catch (IOException e) {
+                    try {
+                        Files.deleteIfExists(partialFile);
+                    } catch (IOException ex) {
+                        LOG.warning("Failed to delete file: " + partialFile, ex);
+                    }
+                    throw e;
                 }
 
                 if (caching && algorithm != null) {
@@ -259,11 +325,15 @@ public class FileDownloadTask extends FetchTask<Void> {
                     }
                 }
 
-                if (checkETag) {
+                if (checkETag && response != null) {
                     repository.cacheRemoteFile(response, file);
                 }
             }
         };
+    }
+
+    private Path getPartialFile() {
+        return file.resolveSibling(file.getFileName() + ".part");
     }
 
     public interface IntegrityCheckHandler {
