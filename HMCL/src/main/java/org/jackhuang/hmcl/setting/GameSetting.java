@@ -20,6 +20,7 @@ package org.jackhuang.hmcl.setting;
 import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.ProcessPriority;
+import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
@@ -259,21 +260,6 @@ public sealed abstract class GameSetting extends ObservableSetting {
         return processPriority;
     }
 
-    /// If `true`, HMCL does not patch native libraries.
-    private final BooleanProperty notPatchNatives = new SimpleBooleanProperty(this, "notPatchNatives", false);
-
-    public BooleanProperty notPatchNativesProperty() {
-        return notPatchNatives;
-    }
-
-    /// The path to the store native libraries.
-    @SerializedName("nativesDir")
-    private final StringProperty nativesDir = new SimpleStringProperty(this, "nativesDir", "");
-
-    public StringProperty nativesDirProperty() {
-        return nativesDir;
-    }
-
     /// The user customized arguments passed to the game.
     @SerializedName("gameArgs")
     private final StringProperty gameArgs = new SimpleStringProperty(this, "gameArgs", "");
@@ -288,6 +274,14 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
     public StringProperty runningDirProperty() {
         return runningDir;
+    }
+
+    /// The renderer used by the game.
+    @SerializedName("renderer")
+    private final ObjectProperty<Renderer> renderer = new RawPreservingObjectProperty<>(this, "renderer");
+
+    public ObjectProperty<Renderer> rendererProperty() {
+        return renderer;
     }
 
     /// The user customized environment variables passed to game.
@@ -324,6 +318,16 @@ public sealed abstract class GameSetting extends ObservableSetting {
         return postExitCommand;
     }
 
+    // Quick Play
+
+    /// The IP address of the server to join.
+    @SerializedName("serverIP")
+    private final StringProperty serverIP = new SimpleStringProperty(this, "serverIP", "");
+
+    public StringProperty serverIPProperty() {
+        return serverIP;
+    }
+
     // Logging
 
     /// If `true`, show the logs after game launched.
@@ -341,4 +345,36 @@ public sealed abstract class GameSetting extends ObservableSetting {
         return enableDebugLogOutputProperty;
     }
 
+    // Native Libraries
+
+    /// If `true`, HMCL does not patch native libraries.
+    private final BooleanProperty notPatchNatives = new SimpleBooleanProperty(this, "notPatchNatives", false);
+
+    public BooleanProperty notPatchNativesProperty() {
+        return notPatchNatives;
+    }
+
+    /// The path to the store native libraries.
+    @SerializedName("nativesDir")
+    private final StringProperty nativesDir = new SimpleStringProperty(this, "nativesDir", "");
+
+    public StringProperty nativesDirProperty() {
+        return nativesDir;
+    }
+
+    /// If `true`, HMCL will use native GLFW.
+    @SerializedName("useNativeGLFW")
+    private final BooleanProperty useNativeGLFW = new SimpleBooleanProperty(this, "nativeGLFW", false);
+
+    public BooleanProperty useNativeGLFWProperty() {
+        return useNativeGLFW;
+    }
+
+    /// If `true`, HMCL will use native OpenAL.
+    @SerializedName("useNativeOpenAL")
+    private final BooleanProperty useNativeOpenAL = new SimpleBooleanProperty(this, "nativeOpenAL", false);
+
+    public BooleanProperty useNativeOpenALProperty() {
+        return useNativeOpenAL;
+    }
 }
