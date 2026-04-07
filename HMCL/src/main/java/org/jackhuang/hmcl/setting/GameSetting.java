@@ -36,6 +36,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -47,6 +48,21 @@ public sealed abstract class GameSetting extends ObservableSetting {
     public static final class Instance extends GameSetting {
         public Instance() {
             register();
+        }
+
+        /// The parent global game setting ID.
+        @SerializedName("parent")
+        private final ObjectProperty<UUID> parent = new SimpleObjectProperty<>(this, "parent");
+
+        public ObjectProperty<UUID> parentProperty() {
+            return parent;
+        }
+
+        /// The icon of the instance.
+        private final ObjectProperty<VersionIconType> icon = new SimpleObjectProperty<>(this, "");
+
+        public ObjectProperty<VersionIconType> iconProperty() {
+            return icon;
         }
     }
 
