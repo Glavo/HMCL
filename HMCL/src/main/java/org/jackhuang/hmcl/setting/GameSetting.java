@@ -64,11 +64,27 @@ public sealed abstract class GameSetting extends ObservableSetting {
         public ObjectProperty<VersionIconType> iconProperty() {
             return icon;
         }
+
+        /// Whether to isolate the instance from other instances.
+        @SerializedName("isolation")
+        private final BooleanProperty isolation = new SimpleBooleanProperty(this, "isolation", false);
+
+        public BooleanProperty isolationProperty() {
+            return isolation;
+        }
     }
 
     public static final class Global extends GameSetting {
         public Global() {
             register();
+        }
+
+        /// Whether to enable the version isolation strategy when installing a new instance.
+        @SerializedName("defaultIsolationType")
+        private final ObjectProperty<DefaultIsolationType> defaultIsolationType = new RawPreservingObjectProperty<>(this, "defaultIsolationType", DefaultIsolationType.MODED);
+
+        public ObjectProperty<DefaultIsolationType> defaultIsolationTypeProperty() {
+            return defaultIsolationType;
         }
     }
 
@@ -108,7 +124,7 @@ public sealed abstract class GameSetting extends ObservableSetting {
         return defaultJavaPath;
     }
 
-    public @Nullable JavaRuntime getJava(GameVersionNumber gameVersion, Version version) throws InterruptedException {
+    public @Nullable JavaRuntime getJava(@Nullable GameVersionNumber gameVersion, @Nullable Version version) throws InterruptedException {
         switch (Objects.requireNonNullElse(javaType.get(), JavaVersionType.AUTO)) {
             case DEFAULT:
                 return JavaRuntime.getDefault();
