@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 /// @author Glavo
 @NotNullByDefault
 public final class SimpleInheritableProperty<T>
-        extends SimpleSettingProperty<@Nullable T>
+        extends SimpleSettingProperty<T>
         implements InheritableProperty<T> {
     public SimpleInheritableProperty(GameSetting bean, String name) {
         super(bean, name);
