@@ -28,10 +28,15 @@ import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.ObservableSetting;
 import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnknownNullability;
 
 import java.io.IOException;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -86,6 +91,40 @@ public sealed abstract class GameSetting extends ObservableSetting {
         public ObjectProperty<DefaultIsolationType> defaultIsolationTypeProperty() {
             return defaultIsolationType;
         }
+    }
+
+    public interface InheritableProperty<T> extends Property<@Nullable T> {
+        @UnknownNullability
+        T defaultValue();
+    }
+
+    private static final class SimpleInheritableProperty<T>
+            extends SimpleObjectProperty<@Nullable T>
+            implements InheritableProperty<T> {
+        private final @UnknownNullability T defaultValue;
+
+        public SimpleInheritableProperty(GameSetting bean, String name) {
+            super(bean, name);
+            this.defaultValue = null;
+        }
+
+        public SimpleInheritableProperty(GameSetting bean, String name, T defaultValue) {
+            super(bean, name, bean instanceof Global ? defaultValue : null);
+            this.defaultValue = defaultValue;
+        }
+
+        @Override
+        public @UnknownNullability T defaultValue() {
+            return defaultValue;
+        }
+    }
+
+    protected final <T> InheritableProperty<T> newInheritableProperty(String name) {
+        return new SimpleInheritableProperty<>(this, name);
+    }
+
+    protected final <T> InheritableProperty<T> newInheritableProperty(String name, T defaultValue) {
+        return new SimpleInheritableProperty<>(this, name, defaultValue);
     }
 
     /// If the value is `null`:
@@ -371,16 +410,16 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
     /// If `true`, show the logs after game launched.
     @SerializedName("showLogs")
-    private final BooleanProperty showLogsProperty = new SimpleBooleanProperty(this, "showLogs", false);
+    private final InheritableProperty<Boolean> showLogsProperty = newInheritableProperty("showLogs", false);
 
-    public BooleanProperty showLogsProperty() {
+    public InheritableProperty<Boolean> showLogsProperty() {
         return showLogsProperty;
     }
 
     /// If `true`, enable debug log output.
-    private final BooleanProperty enableDebugLogOutputProperty = new SimpleBooleanProperty(this, "enableDebugLogOutput", false);
+    private final InheritableProperty<Boolean> enableDebugLogOutputProperty = newInheritableProperty("enableDebugLogOutput", false);
 
-    public BooleanProperty enableDebugLogOutputProperty() {
+    public InheritableProperty<Boolean> enableDebugLogOutputProperty() {
         return enableDebugLogOutputProperty;
     }
 

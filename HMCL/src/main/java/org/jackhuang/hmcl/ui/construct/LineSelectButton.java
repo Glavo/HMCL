@@ -20,10 +20,7 @@ package org.jackhuang.hmcl.ui.construct;
 import com.jfoenix.controls.JFXPopup;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ListProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleListProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
@@ -35,6 +32,7 @@ import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.util.javafx.MappedObservableList;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -54,13 +52,9 @@ public class LineSelectButton<T> extends LineButton {
         this.getStyleClass().add(DEFAULT_STYLE_CLASS);
 
         InvalidationListener updateTrailingText = observable -> {
+            Function<T, String> converter = getConverter();
             T value = getValue();
-            if (value != null) {
-                Function<T, String> converter = getConverter();
-                setTrailingText(converter != null ? converter.apply(value) : value.toString());
-            } else {
-                setTrailingText(null);
-            }
+            setTrailingText(converter != null ? converter.apply(value) : Objects.toString(value, ""));
         };
         converterProperty().addListener(updateTrailingText);
         valueProperty().addListener(updateTrailingText);
@@ -93,9 +87,6 @@ public class LineSelectButton<T> extends LineButton {
                 var itemTitleLabel = new Label();
                 itemTitleLabel.getStyleClass().add("title-label");
                 itemTitleLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-                    if (item == null)
-                        return "";
-
                     Function<T, String> converter = getConverter();
                     return converter != null ? converter.apply(item) : Objects.toString(item, "");
                 }, converterProperty()));
@@ -170,7 +161,11 @@ public class LineSelectButton<T> extends LineButton {
         return converterProperty().get();
     }
 
-    public void setConverter(Function<T, String> value) {
+    public void setConverter(Function<@NotNull T, String> value) { // TODO: rename
+        converterProperty().set(it -> it != null ? value.apply(it) : "");
+    }
+
+    public void setConverter2(Function<T, String> value) { // TODO: rename
         converterProperty().set(value);
     }
 

@@ -18,7 +18,13 @@
 package org.jackhuang.hmcl.ui.game;
 
 import com.jfoenix.controls.JFXButton;
-import javafx.beans.property.*;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+import javafx.beans.WeakListener;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.Property;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.ScrollPane;
@@ -29,6 +35,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
+import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
@@ -42,6 +49,7 @@ import org.jackhuang.hmcl.ui.versions.VersionIconDialog;
 import org.jackhuang.hmcl.ui.versions.VersionPage;
 import org.jackhuang.hmcl.ui.versions.Versions;
 import org.jackhuang.hmcl.util.Pair;
+import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.platform.Architecture;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
@@ -49,7 +57,10 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
-import java.util.*;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 import static org.jackhuang.hmcl.util.Pair.pair;
@@ -60,7 +71,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 public final class GameSettingPage<S extends GameSetting> extends StackPane
         implements DecoratorPage, VersionPage.VersionLoadable, PageAware {
 
-    private final Class<S> settingType;
+    private final boolean isGlobalSetting;
 
     private final ObjectProperty<State> state = new SimpleObjectProperty<>(this, "state", new State("", null, false, false, false));
     private final WeakListenerHolder holder = new WeakListenerHolder();
@@ -91,9 +102,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     public GameSettingPage(Class<S> settingType) {
         assert settingType == GameSetting.Global.class || settingType == GameSetting.Instance.class;
 
-        this.settingType = settingType;
-
-        boolean globalSetting = settingType == GameSetting.Global.class;
+        this.isGlobalSetting = settingType == GameSetting.Global.class;
 
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToHeight(true);
@@ -108,7 +117,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         rootPane.getStyleClass().add("card-list");
         scrollPane.setContent(rootPane);
 
-        if (globalSetting) {
+        if (isGlobalSetting) {
             iconPickerItem = null;
         } else {
             ComponentList iconPickerItemWrapper = new ComponentList();
@@ -138,9 +147,9 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         {
             // Java Setting
             javaSublist = new ComponentSublist();
+            basicSettings.getContent().add(javaSublist);
             javaSublist.setTitle(i18n("settings.game.java_directory"));
             javaSublist.setHasSubtitle(true);
-            basicSettings.getContent().add(javaSublist);
             {
                 javaItem = new MultiFileItem<>();
                 javaSublist.getContent().setAll(javaItem);
@@ -181,18 +190,18 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
             // Isolation Setting
 
-            if (globalSetting) {
+            if (isGlobalSetting) {
                 var defaultIsolationTypePane = new LineSelectButton<DefaultIsolationType>();
+                basicSettings.getContent().add(defaultIsolationTypePane);
                 defaultIsolationTypePane.setTitle("默认版本隔离策略"); // TODO: i18n
                 defaultIsolationTypePane.setItems(DefaultIsolationType.values());
                 defaultIsolationTypePane.setConverter(Enum::name); // TODO: i18n
 
-                basicSettings.getContent().add(defaultIsolationTypePane);
                 bindGlobalSettingBidirectional(defaultIsolationTypePane.valueProperty(), GameSetting.Global::defaultIsolationTypeProperty);
             } else {
                 var isolationPane = new LineToggleButton();
-                isolationPane.setTitle("版本隔离"); // TODO: i18n
                 basicSettings.getContent().add(isolationPane);
+                isolationPane.setTitle("版本隔离"); // TODO: i18n
                 bindInstanceSettingBidirectional(isolationPane.selectedProperty(), GameSetting.Instance::isolationProperty);
             }
 
@@ -200,39 +209,196 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
             // Launcher Visibility Setting
             var launcherVisibilityPane = new LineSelectButton<LauncherVisibility>();
+            basicSettings.getContent().add(launcherVisibilityPane);
             launcherVisibilityPane.setTitle(i18n("settings.advanced.launcher_visible"));
             launcherVisibilityPane.setItems(LauncherVisibility.values());
             launcherVisibilityPane.setConverter(e -> i18n("settings.advanced.launcher_visibility." + e.name().toLowerCase(Locale.ROOT)));
             bindSettingBidirectional(launcherVisibilityPane.valueProperty(), GameSetting::launcherVisibilityProperty);
-            basicSettings.getContent().add(launcherVisibilityPane);
+
+            // Game Window Setting
+            var windowTypePane = new LineSelectButton<GameWindowType>();
+            basicSettings.getContent().add(windowTypePane);
+            windowTypePane.setTitle("游戏窗口类型"); // TODO: i18n
+            windowTypePane.setItems(GameWindowType.values());
+            windowTypePane.setConverter(Enum::name); // TODO: i18n
+            bindSettingBidirectional(windowTypePane.valueProperty(), GameSetting::windowTypeProperty);
+
+            // Show Logs Window Setting
+            var showLogsPane = createInheritableBooleanButton(GameSetting::showLogsProperty);
+            basicSettings.getContent().add(showLogsPane);
+            showLogsPane.setTitle(i18n("settings.show_log"));
+
+            // Enable Debug Log Output Setting
+            var enableDebugLogOutputPane = createInheritableBooleanButton(GameSetting::enableDebugLogOutputProperty);
+            basicSettings.getContent().add(enableDebugLogOutputPane);
+            enableDebugLogOutputPane.setTitle(i18n("settings.enable_debug_log_output"));
+
+
+            // Process Priority Setting
+            var processPriorityPane = new LineSelectButton<ProcessPriority>();
+            basicSettings.getContent().add(processPriorityPane);
+            processPriorityPane.setTitle(i18n("settings.advanced.process_priority"));
+            processPriorityPane.setConverter(e -> i18n("settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT)));
+            processPriorityPane.setDescriptionConverter(e -> {
+                String bundleKey = "settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT) + ".desc";
+                return I18n.hasKey(bundleKey) ? i18n(bundleKey) : null;
+            });
+            processPriorityPane.setItems(ProcessPriority.values());
+            bindSettingBidirectional(processPriorityPane.valueProperty(), GameSetting::processPriorityProperty);
 
         }
 
     }
 
-    private <T> void bindSettingBidirectional(Property<T> property, Function<S, Property<T>> function) {
+    // region Helper Methods for UI
+
+    private <T> void bindSettingBidirectional(Property<T> property, Function<S, Property<T>> propertyGetter) {
         currentSetting.addListener((observable, oldValue, newValue) -> {
             if (oldValue != null)
-                property.unbindBidirectional(function.apply(oldValue));
+                property.unbindBidirectional(propertyGetter.apply(oldValue));
 
             if (newValue != null)
-                property.bindBidirectional(function.apply(newValue));
+                property.bindBidirectional(propertyGetter.apply(newValue));
         });
     }
 
     @SuppressWarnings("unchecked")
-    private <T> void bindInstanceSettingBidirectional(Property<T> property, Function<GameSetting.Instance, Property<T>> function) {
-        assert settingType == GameSetting.Instance.class;
+    private <T> void bindInstanceSettingBidirectional(Property<T> property, Function<GameSetting.Instance, Property<T>> propertyGetter) {
+        assert !isGlobalSetting;
 
-        bindSettingBidirectional(property, (Function<S, Property<T>>) function);
+        bindSettingBidirectional(property, (Function<S, Property<T>>) propertyGetter);
     }
 
     @SuppressWarnings("unchecked")
-    private <T> void bindGlobalSettingBidirectional(Property<T> property, Function<GameSetting.Global, Property<T>> function) {
-        assert settingType == GameSetting.Global.class;
+    private <T> void bindGlobalSettingBidirectional(Property<T> property, Function<GameSetting.Global, Property<T>> propertyGetter) {
+        assert isGlobalSetting;
 
-        bindSettingBidirectional(property, (Function<S, Property<T>>) function);
+        bindSettingBidirectional(property, (Function<S, Property<T>>) propertyGetter);
     }
+
+    /// @see #createInheritableBooleanButton(Function)
+    private static final class InheritableBooleanBidirectionalBinding implements InvalidationListener, WeakListener {
+        private final boolean isGlobalSetting;
+        private final WeakReference<LineSelectButton<@Nullable Boolean>> buttonRef;
+        private final WeakReference<GameSetting.InheritableProperty<Boolean>> propertyRef;
+        private final int hashCode;
+
+        private boolean updating = false;
+
+        private InheritableBooleanBidirectionalBinding(boolean isGlobal,
+                                                       LineSelectButton<@Nullable Boolean> button,
+                                                       GameSetting.InheritableProperty<Boolean> property) {
+            this.isGlobalSetting = isGlobal;
+            this.buttonRef = new WeakReference<>(button);
+            this.propertyRef = new WeakReference<>(property);
+            this.hashCode = System.identityHashCode(button) ^ System.identityHashCode(property);
+        }
+
+        @Override
+        public void invalidated(Observable sourceProperty) {
+            if (!updating) {
+                final LineSelectButton<@Nullable Boolean> button = buttonRef.get();
+                final GameSetting.InheritableProperty<Boolean> property = propertyRef.get();
+
+                if (button == null || property == null) {
+                    if (button != null) {
+                        button.valueProperty().removeListener(this);
+                    }
+
+                    if (property != null) {
+                        property.removeListener(this);
+                    }
+                } else {
+                    updating = true;
+                    try {
+                        if (property == sourceProperty) {
+                            @Nullable Boolean newValue = property.getValue();
+                            if (newValue == null) {
+                                button.setValue(isGlobalSetting ? property.defaultValue() : null);
+                            } else {
+                                button.setValue(newValue);
+                            }
+                        } else {
+                            property.setValue(button.getValue());
+                        }
+                    } finally {
+                        updating = false;
+                    }
+                }
+            }
+        }
+
+        @Override
+        public boolean wasGarbageCollected() {
+            return buttonRef.get() == null || propertyRef.get() == null;
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (!(o instanceof GameSettingPage.InheritableBooleanBidirectionalBinding that))
+                return false;
+
+            final var button = this.buttonRef.get();
+            final var property = this.propertyRef.get();
+
+            final var thatColorPicker = that.buttonRef.get();
+            final var thatProperty = that.propertyRef.get();
+
+            if (button == null || property == null || thatColorPicker == null || thatProperty == null)
+                return false;
+
+            return button == thatColorPicker && property == thatProperty;
+        }
+    }
+
+    private LineSelectButton<@Nullable Boolean> createInheritableBooleanButton(
+            Function<S, GameSetting.InheritableProperty<Boolean>> propertyGetter) {
+        var button = new LineSelectButton<@Nullable Boolean>();
+        if (isGlobalSetting) {
+            button.setItems(true, false);
+        } else {
+            button.setItems(null, true, false);
+        }
+
+        // TODO: i18n
+        button.setConverter2(it -> {
+            if (it == null) {
+                return "继承全局设置";
+            } else
+                return it ? "启用" : "禁用";
+        });
+
+        this.currentSetting.addListener((o, oldValue, newValue) -> {
+            if (oldValue != null) {
+                var property = propertyGetter.apply(oldValue);
+                button.setValue(isGlobalSetting ? property.defaultValue() : null);
+
+                var binding = new InheritableBooleanBidirectionalBinding(isGlobalSetting, button, property);
+                button.valueProperty().removeListener(binding);
+                oldValue.removeListener(binding);
+            }
+
+            if (newValue != null) {
+                var property = propertyGetter.apply(newValue);
+                button.setValue(isGlobalSetting && property.getValue() == null ? property.defaultValue() : property.getValue());
+
+                var binding = new InheritableBooleanBidirectionalBinding(isGlobalSetting, button, property);
+                button.valueProperty().addListener(binding);
+                newValue.addListener(binding);
+            }
+        });
+
+        return button;
+    }
+
+    // endregion
 
     @Override
     public ReadOnlyObjectProperty<State> stateProperty() {
@@ -245,11 +411,12 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         this.profile = profile;
         this.instanceId = instanceId;
 
+        assert isGlobalSetting == (instanceId == null);
+
         if (instanceId != null) {
-            assert settingType == GameSetting.Instance.class;
             this.currentSetting.set((S) new GameSetting.Instance()); // TODO: for test UI
         } else {
-            this.currentSetting.set(null);
+            this.currentSetting.set((S) new GameSetting.Global()); // TODO: for test UI
         }
     }
 
