@@ -30,6 +30,7 @@ import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.EventPriority;
 import org.jackhuang.hmcl.event.RefreshedVersionsEvent;
 import org.jackhuang.hmcl.game.GameRepository;
+import org.jackhuang.hmcl.setting.GameSetting;
 import org.jackhuang.hmcl.setting.Profile;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
@@ -41,6 +42,7 @@ import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
+import org.jackhuang.hmcl.ui.game.GameSettingPage;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
 
@@ -54,7 +56,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 public class VersionPage extends DecoratorAnimatedPage implements DecoratorPage {
     private final ReadOnlyObjectWrapper<State> state = new ReadOnlyObjectWrapper<>();
     private final TabHeader tab;
-    private final TabHeader.Tab<VersionSettingsPage> versionSettingsTab = new TabHeader.Tab<>("versionSettingsTab");
+    private final TabHeader.Tab<GameSettingPage<GameSetting.Instance>> versionSettingsTab = new TabHeader.Tab<>("versionSettingsTab");
     private final TabHeader.Tab<InstallerListPage> installerListTab = new TabHeader.Tab<>("installerListTab");
     private final TabHeader.Tab<ModListPage> modListTab = new TabHeader.Tab<>("modListTab");
     private final TabHeader.Tab<WorldListPage> worldListTab = new TabHeader.Tab<>("worldList");
@@ -69,13 +71,14 @@ public class VersionPage extends DecoratorAnimatedPage implements DecoratorPage 
 
     public static class WorkingDirChangedEvent extends Event {
         public static final EventType<WorkingDirChangedEvent> EVENT_TYPE = new EventType<>(Event.ANY, "WORKING_DIR_CHANGED");
+
         public WorkingDirChangedEvent() {
             super(EVENT_TYPE);
         }
     }
 
     public VersionPage() {
-        versionSettingsTab.setNodeSupplier(loadVersionFor(() -> new VersionSettingsPage(false)));
+        versionSettingsTab.setNodeSupplier(loadVersionFor(() -> new GameSettingPage<>(GameSetting.Instance.class)));
         installerListTab.setNodeSupplier(loadVersionFor(InstallerListPage::new));
         modListTab.setNodeSupplier(loadVersionFor(ModListPage::new));
         resourcePackTab.setNodeSupplier(loadVersionFor(ResourcepackListPage::new));
@@ -101,7 +104,7 @@ public class VersionPage extends DecoratorAnimatedPage implements DecoratorPage 
                     schematicsTab.getNode().loadVersion(getProfile(), getVersion());
             }
         });
-        
+
         listenerHolder.add(EventBus.EVENT_BUS.channel(RefreshedVersionsEvent.class).registerWeak(event -> checkSelectedVersion(), EventPriority.HIGHEST));
     }
 

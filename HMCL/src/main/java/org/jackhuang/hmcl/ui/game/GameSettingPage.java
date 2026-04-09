@@ -50,6 +50,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.*;
+import java.util.function.Function;
 
 import static org.jackhuang.hmcl.util.Pair.pair;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -58,6 +59,9 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 @NotNullByDefault
 public final class GameSettingPage<S extends GameSetting> extends StackPane
         implements DecoratorPage, VersionPage.VersionLoadable, PageAware {
+
+    private final Class<S> settingType;
+
     private final ObjectProperty<State> state = new SimpleObjectProperty<>(this, "state", new State("", null, false, false, false));
     private final WeakListenerHolder holder = new WeakListenerHolder();
 
@@ -86,6 +90,8 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
     public GameSettingPage(Class<S> settingType) {
         assert settingType == GameSetting.Global.class || settingType == GameSetting.Instance.class;
+
+        this.settingType = settingType;
 
         boolean globalSetting = settingType == GameSetting.Global.class;
 
@@ -128,6 +134,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         }
 
         var basicSettings = new ComponentList();
+        rootPane.getChildren().add(basicSettings);
         {
             // Java Setting
             javaSublist = new ComponentSublist();
@@ -181,32 +188,50 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 defaultIsolationTypePane.setConverter(Enum::name); // TODO: i18n
 
                 basicSettings.getContent().add(defaultIsolationTypePane);
-
-                currentSetting.addListener((observable, oldValue, newValue) -> {
-                    if (oldValue != null)
-                        defaultIsolationTypePane.valueProperty().unbindBidirectional(((GameSetting.Global) oldValue).defaultIsolationTypeProperty());
-                    if (newValue != null)
-                        defaultIsolationTypePane.valueProperty().bindBidirectional(((GameSetting.Global) newValue).defaultIsolationTypeProperty());
-                });
-
+                bindGlobalSettingBidirectional(defaultIsolationTypePane.valueProperty(), GameSetting.Global::defaultIsolationTypeProperty);
             } else {
                 var isolationPane = new LineToggleButton();
                 isolationPane.setTitle("版本隔离"); // TODO: i18n
-
                 basicSettings.getContent().add(isolationPane);
-
-                currentSetting.addListener((observable, oldValue, newValue) -> {
-                    if (oldValue != null)
-                        isolationPane.selectedProperty().unbindBidirectional(((GameSetting.Instance) oldValue).isolationProperty());
-
-                    if (newValue != null)
-                        isolationPane.selectedProperty().bindBidirectional(((GameSetting.Instance) newValue).isolationProperty());
-                });
+                bindInstanceSettingBidirectional(isolationPane.selectedProperty(), GameSetting.Instance::isolationProperty);
             }
 
             // TODO: Memory Setting
+
+            // Launcher Visibility Setting
+            var launcherVisibilityPane = new LineSelectButton<LauncherVisibility>();
+            launcherVisibilityPane.setTitle(i18n("settings.advanced.launcher_visible"));
+            launcherVisibilityPane.setItems(LauncherVisibility.values());
+            launcherVisibilityPane.setConverter(e -> i18n("settings.advanced.launcher_visibility." + e.name().toLowerCase(Locale.ROOT)));
+            bindSettingBidirectional(launcherVisibilityPane.valueProperty(), GameSetting::launcherVisibilityProperty);
+            basicSettings.getContent().add(launcherVisibilityPane);
+
         }
 
+    }
+
+    private <T> void bindSettingBidirectional(Property<T> property, Function<S, Property<T>> function) {
+        currentSetting.addListener((observable, oldValue, newValue) -> {
+            if (oldValue != null)
+                property.unbindBidirectional(function.apply(oldValue));
+
+            if (newValue != null)
+                property.bindBidirectional(function.apply(newValue));
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> void bindInstanceSettingBidirectional(Property<T> property, Function<GameSetting.Instance, Property<T>> function) {
+        assert settingType == GameSetting.Instance.class;
+
+        bindSettingBidirectional(property, (Function<S, Property<T>>) function);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> void bindGlobalSettingBidirectional(Property<T> property, Function<GameSetting.Global, Property<T>> function) {
+        assert settingType == GameSetting.Global.class;
+
+        bindSettingBidirectional(property, (Function<S, Property<T>>) function);
     }
 
     @Override
@@ -214,10 +239,18 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         return state;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void loadVersion(Profile profile, String instanceId) {
+    public void loadVersion(Profile profile, @Nullable String instanceId) {
         this.profile = profile;
         this.instanceId = instanceId;
+
+        if (instanceId != null) {
+            assert settingType == GameSetting.Instance.class;
+            this.currentSetting.set((S) new GameSetting.Instance()); // TODO: for test UI
+        } else {
+            this.currentSetting.set(null);
+        }
     }
 
     private void loadIcon() {

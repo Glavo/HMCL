@@ -292,6 +292,13 @@ public sealed abstract class GameSetting extends ObservableSetting {
         return processPriority;
     }
 
+    @SerializedName("launcherVisibility")
+    private final ObjectProperty<LauncherVisibility> launcherVisibility = new RawPreservingObjectProperty<>(this, "launcherVisibility", LauncherVisibility.KEEP);
+
+    public ObjectProperty<LauncherVisibility> launcherVisibilityProperty() {
+        return launcherVisibility;
+    }
+
     /// The user customized arguments passed to the game.
     @SerializedName("gameArgs")
     private final StringProperty gameArgs = new SimpleStringProperty(this, "gameArgs", "");
