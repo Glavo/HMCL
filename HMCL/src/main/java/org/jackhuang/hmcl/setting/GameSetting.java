@@ -24,19 +24,16 @@ import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
+import org.jackhuang.hmcl.setting.property.InheritableProperty;
+import org.jackhuang.hmcl.setting.property.SimpleInheritableProperty;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.ObservableSetting;
 import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
 
 import java.io.IOException;
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Target;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -90,32 +87,6 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
         public ObjectProperty<DefaultIsolationType> defaultIsolationTypeProperty() {
             return defaultIsolationType;
-        }
-    }
-
-    public interface InheritableProperty<T> extends Property<@Nullable T> {
-        @UnknownNullability
-        T defaultValue();
-    }
-
-    private static final class SimpleInheritableProperty<T>
-            extends SimpleObjectProperty<@Nullable T>
-            implements InheritableProperty<T> {
-        private final @UnknownNullability T defaultValue;
-
-        public SimpleInheritableProperty(GameSetting bean, String name) {
-            super(bean, name);
-            this.defaultValue = null;
-        }
-
-        public SimpleInheritableProperty(GameSetting bean, String name, T defaultValue) {
-            super(bean, name, bean instanceof Global ? defaultValue : null);
-            this.defaultValue = defaultValue;
-        }
-
-        @Override
-        public @UnknownNullability T defaultValue() {
-            return defaultValue;
         }
     }
 

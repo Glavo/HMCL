@@ -40,6 +40,7 @@ import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.*;
+import org.jackhuang.hmcl.setting.property.InheritableProperty;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.WeakListenerHolder;
@@ -280,14 +281,14 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     private static final class InheritableBooleanBidirectionalBinding implements InvalidationListener, WeakListener {
         private final boolean isGlobalSetting;
         private final WeakReference<LineSelectButton<@Nullable Boolean>> buttonRef;
-        private final WeakReference<GameSetting.InheritableProperty<Boolean>> propertyRef;
+        private final WeakReference<InheritableProperty<Boolean>> propertyRef;
         private final int hashCode;
 
         private boolean updating = false;
 
         private InheritableBooleanBidirectionalBinding(boolean isGlobal,
                                                        LineSelectButton<@Nullable Boolean> button,
-                                                       GameSetting.InheritableProperty<Boolean> property) {
+                                                       InheritableProperty<Boolean> property) {
             this.isGlobalSetting = isGlobal;
             this.buttonRef = new WeakReference<>(button);
             this.propertyRef = new WeakReference<>(property);
@@ -298,7 +299,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         public void invalidated(Observable sourceProperty) {
             if (!updating) {
                 final LineSelectButton<@Nullable Boolean> button = buttonRef.get();
-                final GameSetting.InheritableProperty<Boolean> property = propertyRef.get();
+                final InheritableProperty<Boolean> property = propertyRef.get();
 
                 if (button == null || property == null) {
                     if (button != null) {
@@ -359,7 +360,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     }
 
     private LineSelectButton<@Nullable Boolean> createInheritableBooleanButton(
-            Function<S, GameSetting.InheritableProperty<Boolean>> propertyGetter) {
+            Function<S, InheritableProperty<Boolean>> propertyGetter) {
         var button = new LineSelectButton<@Nullable Boolean>();
         if (isGlobalSetting) {
             button.setItems(true, false);
