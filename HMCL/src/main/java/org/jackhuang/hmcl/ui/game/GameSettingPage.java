@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.ui.game;
 
 import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXTextField;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.WeakListener;
@@ -50,6 +51,8 @@ import org.jackhuang.hmcl.ui.versions.VersionIconDialog;
 import org.jackhuang.hmcl.ui.versions.VersionPage;
 import org.jackhuang.hmcl.ui.versions.Versions;
 import org.jackhuang.hmcl.util.Pair;
+import org.jackhuang.hmcl.util.ServerAddress;
+import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.platform.Architecture;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
@@ -234,7 +237,6 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             basicSettings.getContent().add(enableDebugLogOutputPane);
             enableDebugLogOutputPane.setTitle(i18n("settings.enable_debug_log_output"));
 
-
             // Process Priority Setting
             var processPriorityPane = new LineSelectButton<ProcessPriority>();
             basicSettings.getContent().add(processPriorityPane);
@@ -247,6 +249,28 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             processPriorityPane.setItems(ProcessPriority.values());
             bindSettingBidirectional(processPriorityPane.valueProperty(), GameSetting::processPriorityProperty);
 
+            // Server Pane
+            // TODO: Quick Play?
+            var serverPane = new LinePane();
+            basicSettings.getContent().add(serverPane); // TODO: Move to other pane?
+            serverPane.setTitle(i18n("settings.advanced.server_ip"));
+            {
+                var txtServerIP = new JFXTextField();
+                serverPane.setRight(txtServerIP);
+                txtServerIP.setPromptText(i18n("settings.advanced.server_ip.prompt"));
+                Validator.addTo(txtServerIP).accept(str -> {
+                    if (StringUtils.isBlank(str))
+                        return true;
+                    try {
+                        ServerAddress.parse(str);
+                        return true;
+                    } catch (Exception ignored) {
+                        return false;
+                    }
+                });
+                FXUtils.setLimitWidth(txtServerIP, 300);
+                bindSettingBidirectional(txtServerIP.textProperty(), GameSetting::serverIPProperty);
+            }
         }
 
     }
