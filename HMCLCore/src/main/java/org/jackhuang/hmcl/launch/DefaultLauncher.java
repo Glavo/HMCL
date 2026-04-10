@@ -28,6 +28,7 @@ import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.io.Unzipper;
 import org.jackhuang.hmcl.util.platform.*;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -103,7 +104,7 @@ public class DefaultLauncher extends Launcher {
 
         // Executable
         if (StringUtils.isNotBlank(options.getWrapper()))
-            res.addAllWithoutParsing(StringUtils.tokenize(options.getWrapper(), getEnvVars()));
+            res.addAllWithoutParsing(StringUtils.tokenize(options.getWrapper(), getEnvVars(nativeFolder)));
 
         res.add(options.getJava().getBinary().toString());
 
@@ -264,6 +265,12 @@ public class DefaultLauncher extends Launcher {
             res.addDefault("-Dfml.ignorePatchDiscrepancies=", "true");
         }
 
+        if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+                && options.getRenderer() != null
+                && options.getRenderer().getMesaDriverName() != null) {
+            res.addDefault("-Dorg.glavo.mesa.loader.nativeDir=", FileUtils.getAbsolutePath(nativeFolder.resolve("mesa-loader")));
+        }
+
         Set<String> classpath = repository.getClasspath(version);
 
         if (analyzer.has(LibraryAnalyzer.LibraryType.CLEANROOM)) {
@@ -296,7 +303,36 @@ public class DefaultLauncher extends Launcher {
         }
         configuration.put("${natives_directory}", nativeFolderPath);
 
-        res.addAll(Arguments.parseArguments(version.getArguments().map(Arguments::getJvm).orElseGet(this::getDefaultJVMArguments), configuration));
+        Path javaNativeFolder = FileUtils.toAbsolute(nativeFolder);
+        @Nullable List<Argument> jvmArguments = version.getArguments().map(Arguments::getJvm).orElse(null);
+
+        if (jvmArguments != null) {
+            for (Argument jvmArgument : jvmArguments) {
+                if (jvmArgument instanceof StringArgument stringArgument
+                        && stringArgument.getArgument().startsWith("-Djava.library.path=")) {
+
+                    // We conservatively handle parameters like "-Djava.library.path=${natives_directory}/java"
+                    // to avoid extracting native libraries to unexpected locations.
+
+                    String prefix = "-Djava.library.path=${natives_directory}/";
+                    if (stringArgument.getArgument().startsWith(prefix)) {
+                        try {
+                            String subDir = stringArgument.getArgument().substring(prefix.length());
+                            Path actualNativeFolder = FileUtils.toAbsolute(javaNativeFolder.resolve(subDir));
+
+                            if (actualNativeFolder.startsWith(javaNativeFolder)) {
+                                javaNativeFolder = actualNativeFolder;
+                            }
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        res.addAll(Arguments.parseArguments(Objects.requireNonNullElseGet(jvmArguments, this::getDefaultJVMArguments), configuration));
         Arguments argumentsFromAuthInfo = authInfo.getLaunchArguments(options);
         if (argumentsFromAuthInfo != null && argumentsFromAuthInfo.getJvm() != null && !argumentsFromAuthInfo.getJvm().isEmpty())
             res.addAll(Arguments.parseArguments(argumentsFromAuthInfo.getJvm(), configuration));
@@ -365,10 +401,16 @@ public class DefaultLauncher extends Launcher {
             }
         }
 
+        if (options.getGraphicsBackend() != GraphicsAPI.DEFAULT
+                && gameVersion.isPresent() && GameVersionNumber.compare(gameVersion.get(), "26.2-snapshot-2") >= 0) {
+            res.add("--graphicsBackend");
+            res.add(options.getGraphicsBackend().getMinecraftArg());
+        }
+
         res.addAllWithoutParsing(Arguments.parseStringArguments(options.getGameArguments(), configuration));
 
         res.removeIf(it -> getForbiddens().containsKey(it) && getForbiddens().get(it).get());
-        return new Command(res, tempNativeFolder, encoding);
+        return new Command(res, tempNativeFolder, javaNativeFolder, encoding);
     }
 
     public Map<String, Boolean> getFeatures() {
@@ -405,6 +447,8 @@ public class DefaultLauncher extends Launcher {
     }
 
     public void decompressNatives(Path destination) throws NotDecompressingNativesException {
+        LOG.info("Decompress native libraries to " + destination);
+
         try {
             FileUtils.cleanDirectoryQuietly(destination);
             for (Library library : version.getLibraries())
@@ -523,7 +567,7 @@ public class DefaultLauncher extends Launcher {
         }
 
         if (options.getNativesDirType() == NativesDirectoryType.VERSION_FOLDER) {
-            decompressNatives(nativeFolder);
+            decompressNatives(command.javaNativeFolder);
         }
 
         if (isUsingLog4j())
@@ -532,8 +576,8 @@ public class DefaultLauncher extends Launcher {
         Path runDirectory = repository.getRunDirectory(version.getId());
 
         if (StringUtils.isNotBlank(options.getPreLaunchCommand())) {
-            ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPreLaunchCommand(), getEnvVars())).directory(runDirectory.toFile());
-            builder.environment().putAll(getEnvVars());
+            ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPreLaunchCommand(), getEnvVars(nativeFolder))).directory(runDirectory.toFile());
+            builder.environment().putAll(getEnvVars(nativeFolder));
             SystemUtils.callExternalProcess(builder);
         }
 
@@ -546,7 +590,7 @@ public class DefaultLauncher extends Launcher {
             Path appdata = options.getGameDir().toAbsolutePath().getParent();
             if (appdata != null) builder.environment().put("APPDATA", appdata.toString());
 
-            builder.environment().putAll(getEnvVars());
+            builder.environment().putAll(getEnvVars(nativeFolder));
             process = builder.start();
         } catch (IOException e) {
             throw new ProcessCreationException(e);
@@ -554,12 +598,35 @@ public class DefaultLauncher extends Launcher {
 
         ManagedProcess p = new ManagedProcess(process, rawCommandLine);
         if (listener != null)
-            startMonitors(p, listener, command.encoding, daemon);
+            startMonitors(p, nativeFolder, listener, command.encoding, daemon);
         return p;
     }
 
-    private Map<String, String> getEnvVars() {
+    private @Nullable Path findVulkanDescriptorFile(List<Path> dirs, String driverNameBase) {
+        String archName = switch (options.getJava().getArchitecture()) {
+            case X86 -> "i686";
+            case X86_64 -> "x86_64";
+            default -> options.getJava().getArchitecture().getCheckedName();
+        };
+
+        for (Path dir : dirs) {
+            if (Files.isDirectory(dir)) {
+                Path file = dir.resolve(driverNameBase + "." + archName + ".json");
+                if (Files.isRegularFile(file))
+                    return file;
+
+                file = dir.resolve(driverNameBase + ".json");
+                if (Files.isRegularFile(file))
+                    return file;
+            }
+        }
+
+        return null;
+    }
+
+    private Map<String, String> getEnvVars(Path nativeFolder) {
         String versionName = Optional.ofNullable(options.getVersionName()).orElse(version.getId());
+
         Map<String, String> env = new LinkedHashMap<>();
         env.put("INST_NAME", versionName);
         env.put("INST_ID", versionName);
@@ -570,15 +637,26 @@ public class DefaultLauncher extends Launcher {
         Renderer renderer = options.getRenderer();
         if (renderer != Renderer.DEFAULT) {
             if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-                if (renderer != Renderer.LLVMPIPE)
-                    env.put("GALLIUM_DRIVER", renderer.name().toLowerCase(Locale.ROOT));
+                if (renderer.getMesaDriverName() != null) {
+                    if (renderer.getApi() == GraphicsAPI.OPENGL && renderer != Renderer.LLVMPIPE)
+                        env.put("GALLIUM_DRIVER", renderer.getMesaDriverName());
+
+                    if (renderer.getApi() == GraphicsAPI.VULKAN) {
+                        String icdFile = FileUtils.getAbsolutePath(nativeFolder.resolve("mesa-loader/" + renderer.getIcdFileName()));
+
+                        env.put("VK_ICD_FILENAMES", icdFile);
+                        env.put("VK_DRIVER_FILES", icdFile);
+                    }
+                }
             } else if (OperatingSystem.CURRENT_OS == OperatingSystem.LINUX) {
-                env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
                 switch (renderer) {
-                    case LLVMPIPE:
+                    case LLVMPIPE: {
+                        env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
                         env.put("LIBGL_ALWAYS_SOFTWARE", "1");
                         break;
-                    case ZINK:
+                    }
+                    case ZINK: {
+                        env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
                         env.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
                         /*
                          * The amdgpu DDX is missing support for modifiers, causing Zink to fail.
@@ -588,6 +666,19 @@ public class DefaultLauncher extends Launcher {
                          */
                         env.put("LIBGL_KOPPER_DRI2", "1");
                         break;
+                    }
+                    case LAVAPIPE: {
+                        Path lvp = findVulkanDescriptorFile(
+                                List.of(Path.of("/usr/share/vulkan/icd.d"), Path.of("/etc/vulkan/icd.d")),
+                                "lvp_icd"
+                        );
+                        if (lvp != null) {
+                            env.put("VK_ICD_FILENAMES", FileUtils.getAbsolutePath(lvp));
+                            env.put("VK_DRIVER_FILES", FileUtils.getAbsolutePath(lvp));
+                        }
+
+                        break;
+                    }
                 }
             }
         }
@@ -633,13 +724,6 @@ public class DefaultLauncher extends Launcher {
             nativeFolder = Path.of(options.getNativesDir());
         }
 
-        if (options.getNativesDirType() == NativesDirectoryType.VERSION_FOLDER) {
-            decompressNatives(nativeFolder);
-        }
-
-        if (isUsingLog4j())
-            extractLog4jConfigurationFile();
-
         String scriptExtension = FileUtils.getExtension(scriptFile);
         boolean usePowerShell = "ps1".equals(scriptExtension);
 
@@ -652,7 +736,7 @@ public class DefaultLauncher extends Launcher {
 
         final Command commandLine = generateCommandLine(nativeFolder);
         final String command = usePowerShell ? null : commandLine.commandLine.toString();
-        Map<String, String> envVars = getEnvVars();
+        Map<String, String> envVars = getEnvVars(nativeFolder);
 
         if (isWindows && !usePowerShell) {
             // https://stackoverflow.com/a/28452546
@@ -661,6 +745,12 @@ public class DefaultLauncher extends Launcher {
                 throw new CommandTooLongException();
             }
         }
+
+        if (isUsingLog4j())
+            extractLog4jConfigurationFile();
+
+        if (options.getNativesDirType() == NativesDirectoryType.VERSION_FOLDER)
+            decompressNatives(commandLine.javaNativeFolder);
 
         Files.createDirectories(scriptFile.getParent());
 
@@ -789,7 +879,7 @@ public class DefaultLauncher extends Launcher {
             throw new ExecutionPolicyLimitException();
     }
 
-    private void startMonitors(ManagedProcess managedProcess, ProcessListener processListener, Charset encoding, boolean isDaemon) {
+    private void startMonitors(ManagedProcess managedProcess, Path nativeFolder, ProcessListener processListener, Charset encoding, boolean isDaemon) {
         processListener.setProcess(managedProcess);
         Thread stdout = Lang.thread(new StreamPump(managedProcess.getProcess().getInputStream(), it -> {
             processListener.onLog(it, false);
@@ -806,8 +896,8 @@ public class DefaultLauncher extends Launcher {
 
             if (StringUtils.isNotBlank(options.getPostExitCommand())) {
                 try {
-                    ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPostExitCommand(), getEnvVars())).directory(options.getGameDir().toFile());
-                    builder.environment().putAll(getEnvVars());
+                    ProcessBuilder builder = new ProcessBuilder(StringUtils.tokenize(options.getPostExitCommand(), getEnvVars(nativeFolder))).directory(options.getGameDir().toFile());
+                    builder.environment().putAll(getEnvVars(nativeFolder));
                     SystemUtils.callExternalProcess(builder);
                 } catch (Throwable e) {
                     LOG.warning("An Exception happened while running exit command.", e);
@@ -816,15 +906,10 @@ public class DefaultLauncher extends Launcher {
         }), "exit-waiter", isDaemon));
     }
 
-    private static final class Command {
-        final CommandBuilder commandLine;
-        final Path tempNativeFolder;
-        final Charset encoding;
-
-        Command(CommandBuilder commandBuilder, Path tempNativeFolder, Charset encoding) {
-            this.commandLine = commandBuilder;
-            this.tempNativeFolder = tempNativeFolder;
-            this.encoding = encoding;
-        }
+    private record Command(
+            CommandBuilder commandLine,
+            @Nullable Path tempNativeFolder,
+            Path javaNativeFolder,
+            Charset encoding) {
     }
 }
