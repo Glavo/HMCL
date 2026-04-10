@@ -28,11 +28,10 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Toggle;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
@@ -271,6 +270,65 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 FXUtils.setLimitWidth(txtServerIP, 300);
                 bindSettingBidirectional(txtServerIP.textProperty(), GameSetting::serverIPProperty);
             }
+        }
+
+        var customCommandsSettings = new ComponentList();
+        rootPane.getChildren().addAll(
+                ComponentList.createComponentListTitle(i18n("settings.advanced.custom_commands")),
+                customCommandsSettings
+        );
+        {
+            var gameArgsPane = new LinePane();
+            customCommandsSettings.getContent().add(gameArgsPane);
+            gameArgsPane.setTitle(i18n("settings.advanced.minecraft_arguments"));
+            {
+                var gameArgsField = new JFXTextField();
+                gameArgsPane.setRight(gameArgsField);
+                gameArgsField.setPromptText(i18n("settings.advanced.minecraft_arguments.prompt"));
+                gameArgsField.setPrefWidth(300);
+
+                bindSettingBidirectional(gameArgsField.textProperty(), GameSetting::gameArgsProperty);
+            }
+
+            var preLaunchCommandPane = new LinePane();
+            customCommandsSettings.getContent().add(preLaunchCommandPane);
+            preLaunchCommandPane.setTitle(i18n("settings.advanced.precall_command"));
+            {
+                var preLaunchCommandField = new JFXTextField();
+                preLaunchCommandPane.setRight(preLaunchCommandField);
+                preLaunchCommandField.setPromptText(i18n("settings.advanced.precall_command.prompt"));
+                preLaunchCommandField.setPrefWidth(300);
+
+                bindSettingBidirectional(preLaunchCommandField.textProperty(), GameSetting::preLaunchCommandProperty);
+            }
+
+            var commandWrapperPane = new LinePane();
+            customCommandsSettings.getContent().add(commandWrapperPane);
+            commandWrapperPane.setTitle(i18n("settings.advanced.wrapper_launcher"));
+            {
+                var commandWrapperField = new JFXTextField();
+                commandWrapperPane.setRight(commandWrapperField);
+                commandWrapperField.setPromptText(i18n("settings.advanced.wrapper_launcher.prompt"));
+                commandWrapperField.setPrefWidth(300);
+
+                bindSettingBidirectional(commandWrapperField.textProperty(), GameSetting::commandWrapperProperty);
+            }
+
+            var postExitCommandPane = new LinePane();
+            customCommandsSettings.getContent().add(postExitCommandPane);
+            postExitCommandPane.setTitle(i18n("settings.advanced.post_exit_command"));
+            {
+                var postExitCommandField = new JFXTextField();
+                postExitCommandPane.setRight(postExitCommandField);
+                postExitCommandField.setPromptText(i18n("settings.advanced.post_exit_command.prompt"));
+                postExitCommandField.setPrefWidth(300);
+
+                bindSettingBidirectional(postExitCommandField.textProperty(), GameSetting::postExitCommandProperty);
+            }
+
+            var hintPane = new HintPane();
+            customCommandsSettings.getContent().add(hintPane);
+            hintPane.setText(i18n("settings.advanced.custom_commands.hint"));
         }
 
     }
