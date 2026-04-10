@@ -19,7 +19,6 @@ package org.jackhuang.hmcl.setting.property;
 
 import org.jackhuang.hmcl.setting.GameSetting;
 import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.Nullable;
 
 /// @author Glavo
 @NotNullByDefault
