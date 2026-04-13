@@ -21,6 +21,7 @@ import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 import com.google.gson.JsonElement;
 import org.jackhuang.hmcl.setting.GameSetting;
 import org.jackhuang.hmcl.util.gson.RawPreservingProperty;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /// @author Glavo
@@ -29,11 +30,11 @@ public class RawPreservingSettingProperty<T> extends SimpleSettingProperty<T>
 
     private JsonElement rawJson;
 
-    public RawPreservingSettingProperty(GameSetting bean, String name) {
+    public RawPreservingSettingProperty(@NotNull GameSetting bean, String name) {
         super(bean, name);
     }
 
-    public RawPreservingSettingProperty(GameSetting bean, String name, T defaultValue) {
+    public RawPreservingSettingProperty(@NotNull GameSetting bean, String name, T defaultValue) {
         super(bean, name, defaultValue);
     }
 

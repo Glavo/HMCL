@@ -19,15 +19,12 @@ package org.jackhuang.hmcl.setting.property;
 
 import javafx.beans.property.Property;
 import org.jackhuang.hmcl.setting.GameSetting;
-import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.UnknownNullability;
+import org.jetbrains.annotations.NotNull;
 
 /// @author Glavo
-@NotNullByDefault
 public interface SettingProperty<T> extends Property<T> {
     @Override
-    GameSetting getBean();
+    @NotNull GameSetting getBean();
 
-    @UnknownNullability
     T defaultValue();
 }

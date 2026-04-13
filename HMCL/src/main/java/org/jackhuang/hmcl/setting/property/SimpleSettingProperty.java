@@ -19,27 +19,26 @@ package org.jackhuang.hmcl.setting.property;
 
 import javafx.beans.property.SimpleObjectProperty;
 import org.jackhuang.hmcl.setting.GameSetting;
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.UnknownNullability;
 
 /// @author Glavo
-@NotNullByDefault
 public class SimpleSettingProperty<T> extends SimpleObjectProperty<T>
         implements SettingProperty<T> {
     private final @UnknownNullability T defaultValue;
 
-    public SimpleSettingProperty(GameSetting bean, String name) {
+    public SimpleSettingProperty(@NotNull GameSetting bean, String name) {
         super(bean, name);
         this.defaultValue = null;
     }
 
-    public SimpleSettingProperty(GameSetting bean, String name, T defaultValue) {
+    public SimpleSettingProperty(@NotNull GameSetting bean, String name, T defaultValue) {
         super(bean, name, bean instanceof GameSetting.Global ? defaultValue : null);
         this.defaultValue = defaultValue;
     }
 
     @Override
-    public GameSetting getBean() {
+    public @NotNull GameSetting getBean() {
         return (GameSetting) super.getBean();
     }
 

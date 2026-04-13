@@ -18,15 +18,16 @@
 package org.jackhuang.hmcl.setting.property;
 
 import org.jackhuang.hmcl.setting.GameSetting;
+import org.jetbrains.annotations.NotNull;
 
 /// @author Glavo
 public class RawPreservingInheritableProperty<T> extends RawPreservingSettingProperty<T>
         implements InheritableProperty<T> {
-    public RawPreservingInheritableProperty(GameSetting bean, String name) {
+    public RawPreservingInheritableProperty(@NotNull GameSetting bean, String name) {
         super(bean, name);
     }
 
-    public RawPreservingInheritableProperty(GameSetting bean, String name, T defaultValue) {
+    public RawPreservingInheritableProperty(@NotNull GameSetting bean, String name, T defaultValue) {
         super(bean, name, defaultValue);
     }
 }

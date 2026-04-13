@@ -17,12 +17,7 @@
  */
 package org.jackhuang.hmcl.setting.property;
 
-import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.UnknownNullability;
-
 /// @author Glavo
-@NotNullByDefault
 public interface InheritableProperty<T> extends SettingProperty<T> {
-    @UnknownNullability
     T defaultValue();
 }

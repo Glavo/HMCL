@@ -25,6 +25,8 @@ import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.property.InheritableProperty;
+import org.jackhuang.hmcl.setting.property.RawPreservingSettingProperty;
+import org.jackhuang.hmcl.setting.property.SettingProperty;
 import org.jackhuang.hmcl.setting.property.SimpleInheritableProperty;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.ObservableSetting;
@@ -102,9 +104,9 @@ public sealed abstract class GameSetting extends ObservableSetting {
     /// - For global game setting, it is equivalent to [JavaVersionType#AUTO].
     /// - For instance game setting, it inherits the value from global game setting.
     @SerializedName("javaType")
-    private final ObjectProperty<@Nullable JavaVersionType> javaType = new RawPreservingObjectProperty<>(this, "javaType");
+    private final SettingProperty<JavaVersionType> javaType = new RawPreservingSettingProperty<>(this, "javaType");
 
-    public ObjectProperty<@Nullable JavaVersionType> javaTypeProperty() {
+    public SettingProperty<JavaVersionType> javaTypeProperty() {
         return javaType;
     }
 

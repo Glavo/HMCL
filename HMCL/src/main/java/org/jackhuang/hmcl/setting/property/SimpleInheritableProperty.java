@@ -18,18 +18,17 @@
 package org.jackhuang.hmcl.setting.property;
 
 import org.jackhuang.hmcl.setting.GameSetting;
-import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.NotNull;
 
 /// @author Glavo
-@NotNullByDefault
 public final class SimpleInheritableProperty<T>
         extends SimpleSettingProperty<T>
         implements InheritableProperty<T> {
-    public SimpleInheritableProperty(GameSetting bean, String name) {
+    public SimpleInheritableProperty(@NotNull GameSetting bean, String name) {
         super(bean, name);
     }
 
-    public SimpleInheritableProperty(GameSetting bean, String name, T defaultValue) {
+    public SimpleInheritableProperty(@NotNull GameSetting bean, String name, T defaultValue) {
         super(bean, name, defaultValue);
     }
 }
