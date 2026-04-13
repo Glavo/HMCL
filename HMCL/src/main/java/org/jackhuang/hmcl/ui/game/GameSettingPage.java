@@ -27,6 +27,7 @@ import javafx.beans.property.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Toggle;
@@ -263,61 +264,36 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
         }
 
-        var customCommand = new ComponentList();
-        rootPane.getChildren().addAll(
-                createTitle(i18n("settings.advanced.custom_commands"), i18n("settings.advanced.custom_commands.hint"), null),
-                customCommand
-        );
-        {
-            var gameArgsPane = new LinePane();
-            customCommand.getContent().add(gameArgsPane);
-            gameArgsPane.setTitle(i18n("settings.advanced.minecraft_arguments"));
-            {
-                var gameArgsField = new JFXTextField();
-                gameArgsPane.setRight(gameArgsField);
-                gameArgsField.setPromptText(i18n("settings.advanced.minecraft_arguments.prompt"));
-                gameArgsField.setPrefWidth(300);
+        var customCommandSettings = new ComponentSublist(() -> {
+            GridPane pane = new GridPane();
+            pane.setHgap(16);
+            pane.setVgap(8);
+            pane.getColumnConstraints().setAll(new ColumnConstraints(), FXUtils.getColumnHgrowing());
 
-                bindSettingBidirectional(gameArgsField.textProperty(), GameSetting::gameArgsProperty);
-            }
+            var txtGameArgs = new JFXTextField();
+            txtGameArgs.setPromptText(i18n("settings.advanced.minecraft_arguments.prompt"));
+            txtGameArgs.getStyleClass().add("fit-width");
+            pane.addRow(0, new Label(i18n("settings.advanced.minecraft_arguments")), txtGameArgs);
 
-            var preLaunchCommandPane = new LinePane();
-            customCommand.getContent().add(preLaunchCommandPane);
-            preLaunchCommandPane.setTitle(i18n("settings.advanced.precall_command"));
-            {
-                var preLaunchCommandField = new JFXTextField();
-                preLaunchCommandPane.setRight(preLaunchCommandField);
-                preLaunchCommandField.setPromptText(i18n("settings.advanced.precall_command.prompt"));
-                preLaunchCommandField.setPrefWidth(300);
+            var txtPreLaunchCommand = new JFXTextField();
+            txtPreLaunchCommand.setPromptText(i18n("settings.advanced.precall_command.prompt"));
+            txtPreLaunchCommand.getStyleClass().add("fit-width");
+            pane.addRow(1, new Label(i18n("settings.advanced.precall_command")), txtPreLaunchCommand);
 
-                bindSettingBidirectional(preLaunchCommandField.textProperty(), GameSetting::preLaunchCommandProperty);
-            }
+            var txtWrapper = new JFXTextField();
+            txtWrapper.setPromptText(i18n("settings.advanced.wrapper_launcher.prompt"));
+            txtWrapper.getStyleClass().add("fit-width");
+            pane.addRow(2, new Label(i18n("settings.advanced.wrapper_launcher")), txtWrapper);
 
-            var commandWrapperPane = new LinePane();
-            customCommand.getContent().add(commandWrapperPane);
-            commandWrapperPane.setTitle(i18n("settings.advanced.wrapper_launcher"));
-            {
-                var commandWrapperField = new JFXTextField();
-                commandWrapperPane.setRight(commandWrapperField);
-                commandWrapperField.setPromptText(i18n("settings.advanced.wrapper_launcher.prompt"));
-                commandWrapperField.setPrefWidth(300);
+            var txtPostExitCommand = new JFXTextField();
+            txtPostExitCommand.setPromptText(i18n("settings.advanced.post_exit_command.prompt"));
+            txtPostExitCommand.getStyleClass().add("fit-width");
+            pane.addRow(3, new Label(i18n("settings.advanced.post_exit_command")), txtPostExitCommand);
 
-                bindSettingBidirectional(commandWrapperField.textProperty(), GameSetting::commandWrapperProperty);
-            }
-
-            var postExitCommandPane = new LinePane();
-            customCommand.getContent().add(postExitCommandPane);
-            postExitCommandPane.setTitle(i18n("settings.advanced.post_exit_command"));
-            {
-                var postExitCommandField = new JFXTextField();
-                postExitCommandPane.setRight(postExitCommandField);
-                postExitCommandField.setPromptText(i18n("settings.advanced.post_exit_command.prompt"));
-                postExitCommandField.setPrefWidth(300);
-
-                bindSettingBidirectional(postExitCommandField.textProperty(), GameSetting::postExitCommandProperty);
-            }
-        }
-
+            return List.of(pane);
+        });
+        basicSettings.getContent().add(customCommandSettings);
+        customCommandSettings.setTitle(i18n("settings.advanced.custom_commands"));
 
     }
 
