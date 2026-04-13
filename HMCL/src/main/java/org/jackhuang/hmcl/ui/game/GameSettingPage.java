@@ -519,7 +519,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             return;
 
         updatingSelectedJava = true;
-        switch (setting.javaTypeProperty().get()) { // TODO: null?
+        switch (setting.javaTypeProperty().getValue()) { // TODO: null?
             case CUSTOM:
                 javaCustomOption.setSelected(true);
                 break;
@@ -573,7 +573,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         initializeSelectedJava();
 
         HMCLGameRepository repository = this.profile.getRepository();
-        JavaVersionType javaVersionType = setting.javaTypeProperty().get();
+        JavaVersionType javaVersionType = setting.javaTypeProperty().getValue();
         boolean autoSelected = javaVersionType == JavaVersionType.AUTO || javaVersionType == JavaVersionType.VERSION;
 
         if (instanceId == null && autoSelected) {
