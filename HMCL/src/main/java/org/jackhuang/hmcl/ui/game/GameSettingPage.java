@@ -17,21 +17,20 @@
  */
 package org.jackhuang.hmcl.ui.game;
 
-import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXTextField;
+import com.jfoenix.controls.JFXToggleButton;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.WeakListener;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.Property;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Toggle;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
@@ -42,9 +41,7 @@ import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.*;
 import org.jackhuang.hmcl.setting.property.InheritableProperty;
-import org.jackhuang.hmcl.ui.Controllers;
-import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.WeakListenerHolder;
+import org.jackhuang.hmcl.ui.*;
 import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.ui.versions.VersionIconDialog;
@@ -268,7 +265,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
         var customCommand = new ComponentList();
         rootPane.getChildren().addAll(
-                ComponentList.createComponentListTitle(i18n("settings.advanced.custom_commands")),
+                createTitle(i18n("settings.advanced.custom_commands"), i18n("settings.advanced.custom_commands.hint"), null),
                 customCommand
         );
         {
@@ -325,6 +322,33 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     }
 
     // region Helper Methods for UI
+
+    private Pane createTitle(String title,
+                             @Nullable String tooltip,
+                             @Nullable BooleanProperty inheritGlobalSettings) {
+
+        var box = new HBox(8);
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.setPadding(new Insets(8, 0, 0, 0));
+
+        box.getChildren().add(new Label(title));
+
+        if (tooltip != null) {
+            var icon = new StackPane(SVG.INFO.createIcon(16));
+            FXUtils.installFastTooltip(icon, tooltip);
+            box.getChildren().add(icon);
+        }
+
+        if (!isGlobalSetting) { // TODO: use inheritGlobalSettings
+            var padding = new StackPane();
+            HBox.setHgrow(padding, Priority.ALWAYS);
+
+            var inherit = new JFXCheckBox();
+            box.getChildren().addAll(padding, new Label("继承全局设置"), inherit);
+        }
+
+        return box;
+    }
 
     private <T> void bindSettingBidirectional(Property<T> property, Function<S, Property<T>> propertyGetter) {
         currentSetting.addListener((observable, oldValue, newValue) -> {
@@ -647,4 +671,5 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
         return resolutions;
     }
+
 }
