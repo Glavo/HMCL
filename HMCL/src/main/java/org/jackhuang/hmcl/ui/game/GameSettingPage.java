@@ -295,9 +295,56 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         basicSettings.getContent().add(customCommandSettings);
         customCommandSettings.setHasSubtitle(true);
         customCommandSettings.setTitle(i18n("settings.advanced.custom_commands"));
-        customCommandSettings.setSubtitle("喵喵喵".repeat(10));
+        customCommandSettings.setSubtitle("自定义启动游戏时的命令"); // TODO: i18n
         customCommandSettings.setTip(i18n("settings.advanced.custom_commands.hint"));
         customCommandSettings.setHeaderRight(createHeaderRight());
+
+        var jvmSettings = new ComponentSublist(() -> {
+            GridPane pane = new GridPane();
+            ColumnConstraints title = new ColumnConstraints();
+            ColumnConstraints value = new ColumnConstraints();
+            value.setFillWidth(true);
+            value.setHgrow(Priority.ALWAYS);
+            pane.setHgap(16);
+            pane.setVgap(8);
+            pane.getColumnConstraints().setAll(title, value);
+
+            int row = 0;
+
+            var txtJVMArgs = new JFXTextField();
+            txtJVMArgs.getStyleClass().add("fit-width");
+            pane.addRow(row++, createLabelWithTip(i18n("settings.advanced.jvm_args"), i18n("settings.advanced.jvm_args.prompt")), txtJVMArgs);
+
+            var txtMetaspace = new JFXTextField();
+            txtMetaspace.setPromptText(i18n("settings.advanced.java_permanent_generation_space.prompt"));
+            txtMetaspace.getStyleClass().add("fit-width");
+            FXUtils.setValidateWhileTextChanged(txtMetaspace, true);
+            txtMetaspace.setValidators(new NumberValidator(i18n("input.number"), true));
+            pane.addRow(row++, new Label(i18n("settings.advanced.java_permanent_generation_space")), txtMetaspace);
+
+            var noJVMArgsPane = new LineToggleButton();
+            noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
+            GridPane.setColumnSpan(noJVMArgsPane, 2);
+            pane.addRow(row++, noJVMArgsPane);
+
+            var noOptimizingJVMArgsPane = new LineToggleButton();
+            noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
+            noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
+            GridPane.setColumnSpan(noOptimizingJVMArgsPane, 2);
+            pane.addRow(row++, noOptimizingJVMArgsPane);
+
+            var txtEnvironmentVariables = new JFXTextField();
+            txtEnvironmentVariables.getStyleClass().add("fit-width");
+            pane.addRow(row++, new Label(i18n("settings.advanced.environment_variables")), txtEnvironmentVariables);
+
+            return List.of(pane);
+        });
+        basicSettings.getContent().add(jvmSettings);
+        jvmSettings.setHasSubtitle(true);
+        jvmSettings.setTitle(i18n("settings.advanced.jvm"));
+        jvmSettings.setSubtitle("自定义 JVM 参数等信息"); // TODO
+        jvmSettings.setHeaderRight(createHeaderRight());
+
     }
 
     // region Helper Methods for UI
@@ -313,6 +360,15 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         var inherit = new JFXCheckBox();
         box.getChildren().addAll(inherit, new Label("覆盖全局设置"));
 
+        return box;
+    }
+
+    private Node createLabelWithTip(String title, String tip) {
+        var tipIcon = new StackPane(SVG.INFO.createIcon(16));
+        FXUtils.installFastTooltip(tipIcon, tip);
+
+        var box = new HBox(8, new Label(title), tipIcon);
+        box.setAlignment(Pos.CENTER_LEFT);
         return box;
     }
 
