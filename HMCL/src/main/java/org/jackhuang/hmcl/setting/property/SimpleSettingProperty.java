@@ -28,21 +28,43 @@ import org.jetbrains.annotations.UnknownNullability;
 public class SimpleSettingProperty<T> extends SimpleObjectProperty<T>
         implements SettingProperty<T> {
     private @Nullable JsonElement rawJson;
+
+    private final @Nullable SettingGroup group;
     private final @UnknownNullability T defaultValue;
 
     public SimpleSettingProperty(@NotNull GameSetting bean, String name) {
-        super(bean, name);
-        this.defaultValue = null;
+        this(bean, null, name);
     }
 
     public SimpleSettingProperty(@NotNull GameSetting bean, String name, T defaultValue) {
+        this(bean, null, name, defaultValue);
+    }
+
+    public SimpleSettingProperty(@NotNull GameSetting bean,
+                                 @Nullable SettingGroup group,
+                                 String name) {
+        super(bean, name);
+        this.group = group;
+        this.defaultValue = null;
+    }
+
+    public SimpleSettingProperty(@NotNull GameSetting bean,
+                                 @Nullable SettingGroup group,
+                                 String name,
+                                 T defaultValue) {
         super(bean, name, bean instanceof GameSetting.Global ? defaultValue : null);
+        this.group = group;
         this.defaultValue = defaultValue;
     }
 
     @Override
     public @NotNull GameSetting getBean() {
         return (GameSetting) super.getBean();
+    }
+
+    @Override
+    public @Nullable SettingGroup getGroup() {
+        return group;
     }
 
     @Override
@@ -59,4 +81,5 @@ public class SimpleSettingProperty<T> extends SimpleObjectProperty<T>
     public void setRawJson(@Nullable JsonElement rawJson) {
         this.rawJson = rawJson;
     }
+
 }
