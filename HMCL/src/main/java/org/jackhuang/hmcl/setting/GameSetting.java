@@ -27,7 +27,6 @@ import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.property.*;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.ObservableSetting;
-import org.jackhuang.hmcl.util.gson.RawPreservingObjectProperty;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -103,11 +102,6 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
     protected final <T> SettingProperty<T> newSettingProperty(SettingGroup group, String name, T defaultValue) {
         return new SimpleSettingProperty<>(this, group, name, defaultValue);
-    }
-
-
-    protected final <T> InheritableProperty<T> newInheritableProperty(String name) {
-        return new SimpleInheritableProperty<>(this, name);
     }
 
     protected final <T> InheritableProperty<T> newInheritableProperty(String name, T defaultValue) {
