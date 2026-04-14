@@ -113,4 +113,18 @@ public class ComponentSublist extends ComponentList {
     public void setComponentPadding(boolean componentPadding) {
         this.componentPadding = componentPadding;
     }
+
+    private final StringProperty tip = new SimpleStringProperty(this, "tip");
+
+    public StringProperty tipProperty() {
+        return tip;
+    }
+
+    public String getTip() {
+        return tip.get();
+    }
+
+    public void setTip(String tip) {
+        this.tip.set(tip);
+    }
 }

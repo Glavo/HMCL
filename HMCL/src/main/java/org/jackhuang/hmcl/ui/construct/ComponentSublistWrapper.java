@@ -27,13 +27,16 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.theme.Themes;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.SVGContainer;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
+import org.jackhuang.hmcl.util.StringUtils;
 
 /// @author Glavo
 final class ComponentSublistWrapper extends VBox implements NoPaddingComponent {
@@ -52,24 +55,41 @@ final class ComponentSublistWrapper extends VBox implements NoPaddingComponent {
         expandIcon.setMouseTransparent(true);
 
         VBox labelVBox = new VBox();
-        labelVBox.setMouseTransparent(true);
         labelVBox.setAlignment(Pos.CENTER_LEFT);
 
         Node leftNode = sublist.getHeaderLeft();
         if (leftNode == null) {
-            Label label = new Label();
-            label.textProperty().bind(sublist.titleProperty());
-            label.getStyleClass().add("title-label");
-            labelVBox.getChildren().add(label);
+            labelVBox.setPickOnBounds(true);
+
+            var firstLine = new HBox(8);
+            firstLine.setPickOnBounds(true);
+            labelVBox.getChildren().add(firstLine);
+
+            var titleLabel = new Label();
+            titleLabel.setMouseTransparent(true);
+            titleLabel.textProperty().bind(sublist.titleProperty());
+            titleLabel.getStyleClass().add("title-label");
+
+            FXUtils.onChangeAndOperate(sublist.tipProperty(), tip -> {
+                if (StringUtils.isBlank(tip))
+                    firstLine.getChildren().setAll(titleLabel);
+                else {
+                    var tipContainer = new StackPane(SVG.INFO.createIcon(16));
+                    FXUtils.installFastTooltip(tipContainer, tip);
+                    firstLine.getChildren().setAll(titleLabel, tipContainer);
+                }
+            });
 
             if (sublist.isHasSubtitle()) {
                 Label subtitleLabel = new Label();
+                subtitleLabel.setPickOnBounds(true);
                 subtitleLabel.textProperty().bind(sublist.subtitleProperty());
                 subtitleLabel.getStyleClass().add("subtitle-label");
                 subtitleLabel.textFillProperty().bind(Themes.colorSchemeProperty().getOnSurfaceVariant());
                 labelVBox.getChildren().add(subtitleLabel);
             }
         } else {
+            labelVBox.setMouseTransparent(true);
             labelVBox.getChildren().setAll(leftNode);
         }
 

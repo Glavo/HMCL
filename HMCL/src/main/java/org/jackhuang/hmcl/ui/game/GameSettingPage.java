@@ -293,35 +293,25 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             return List.of(pane);
         });
         basicSettings.getContent().add(customCommandSettings);
+        customCommandSettings.setHasSubtitle(true);
         customCommandSettings.setTitle(i18n("settings.advanced.custom_commands"));
-
+        customCommandSettings.setSubtitle("喵喵喵".repeat(10));
+        customCommandSettings.setTip(i18n("settings.advanced.custom_commands.hint"));
+        customCommandSettings.setHeaderRight(createHeaderRight());
     }
 
     // region Helper Methods for UI
 
-    private Pane createTitle(String title,
-                             @Nullable String tooltip,
-                             @Nullable BooleanProperty inheritGlobalSettings) {
+    private @Nullable Pane createHeaderRight() {
+        if (isGlobalSetting) { // TODO: use inheritGlobalSettings
+            return null;
+        }
 
-        var box = new HBox(8);
+        HBox box = new HBox(8);
         box.setAlignment(Pos.CENTER_LEFT);
-        box.setPadding(new Insets(8, 0, 0, 0));
 
-        box.getChildren().add(new Label(title));
-
-        if (tooltip != null) {
-            var icon = new StackPane(SVG.INFO.createIcon(16));
-            FXUtils.installFastTooltip(icon, tooltip);
-            box.getChildren().add(icon);
-        }
-
-        if (!isGlobalSetting) { // TODO: use inheritGlobalSettings
-            var padding = new StackPane();
-            HBox.setHgrow(padding, Priority.ALWAYS);
-
-            var inherit = new JFXCheckBox();
-            box.getChildren().addAll(padding, new Label("继承全局设置"), inherit);
-        }
+        var inherit = new JFXCheckBox();
+        box.getChildren().addAll(inherit, new Label("覆盖全局设置"));
 
         return box;
     }
