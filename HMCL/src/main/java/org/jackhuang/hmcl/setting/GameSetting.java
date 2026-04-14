@@ -90,12 +90,21 @@ public sealed abstract class GameSetting extends ObservableSetting {
     }
 
     protected final <T> SettingProperty<T> newSettingProperty(String name) {
-        return new SimpleSettingProperty<>(this, name);
+        return new SimpleSettingProperty<>(this, null, name);
     }
 
     protected final <T> SettingProperty<T> newSettingProperty(String name, T defaultValue) {
-        return new SimpleSettingProperty<>(this, name, defaultValue);
+        return new SimpleSettingProperty<>(this, null, name, defaultValue);
     }
+
+    protected final <T> SettingProperty<T> newSettingProperty(SettingGroup group, String name) {
+        return new SimpleSettingProperty<>(this, group, name);
+    }
+
+    protected final <T> SettingProperty<T> newSettingProperty(SettingGroup group, String name, T defaultValue) {
+        return new SimpleSettingProperty<>(this, group, name, defaultValue);
+    }
+
 
     protected final <T> InheritableProperty<T> newInheritableProperty(String name) {
         return new SimpleInheritableProperty<>(this, name);

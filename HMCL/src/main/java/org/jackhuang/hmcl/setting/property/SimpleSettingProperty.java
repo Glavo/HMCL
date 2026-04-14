@@ -32,14 +32,6 @@ public class SimpleSettingProperty<T> extends SimpleObjectProperty<T>
     private final @Nullable SettingGroup group;
     private final @UnknownNullability T defaultValue;
 
-    public SimpleSettingProperty(@NotNull GameSetting bean, String name) {
-        this(bean, null, name);
-    }
-
-    public SimpleSettingProperty(@NotNull GameSetting bean, String name, T defaultValue) {
-        this(bean, null, name, defaultValue);
-    }
-
     public SimpleSettingProperty(@NotNull GameSetting bean,
                                  @Nullable SettingGroup group,
                                  String name) {
