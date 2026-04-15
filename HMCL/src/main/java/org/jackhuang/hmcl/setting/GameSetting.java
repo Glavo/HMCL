@@ -280,9 +280,9 @@ public sealed abstract class GameSetting extends ObservableSetting {
     // Game Window
 
     @SerializedName("windowType")
-    private final SettingProperty<GameWindowType> windowType = newInheritableProperty("windowType", GameWindowType.WINDOWED);
+    private final InheritableProperty<GameWindowType> windowType = newInheritableProperty("windowType", GameWindowType.WINDOWED);
 
-    public SettingProperty<GameWindowType> windowTypeProperty() {
+    public InheritableProperty<GameWindowType> windowTypeProperty() {
         return windowType;
     }
 
@@ -306,16 +306,16 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
     /// The process priority of the game.
     @SerializedName("processPriority")
-    private final SettingProperty<ProcessPriority> processPriority = newSettingProperty("processPriority", ProcessPriority.NORMAL);
+    private final InheritableProperty<ProcessPriority> processPriority = newInheritableProperty("processPriority", ProcessPriority.NORMAL);
 
-    public SettingProperty<ProcessPriority> processPriorityProperty() {
+    public InheritableProperty<ProcessPriority> processPriorityProperty() {
         return processPriority;
     }
 
     @SerializedName("launcherVisibility")
-    private final SettingProperty<LauncherVisibility> launcherVisibility = newSettingProperty("launcherVisibility", LauncherVisibility.KEEP);
+    private final InheritableProperty<LauncherVisibility> launcherVisibility = newInheritableProperty("launcherVisibility", LauncherVisibility.KEEP);
 
-    public SettingProperty<LauncherVisibility> launcherVisibilityProperty() {
+    public InheritableProperty<LauncherVisibility> launcherVisibilityProperty() {
         return launcherVisibility;
     }
 

@@ -225,25 +225,29 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             // TODO: Memory Setting
 
             // Launcher Visibility Setting
-            var launcherVisibilityPane = new LineSelectButton<LauncherVisibility>();
+            var launcherVisibilityPane = createInheritableButton(
+                    GameSetting::launcherVisibilityProperty,
+                    value -> i18n("settings.advanced.launcher_visibility." + value.name().toLowerCase(Locale.ROOT)),
+                    null,
+                    LauncherVisibility.values()
+            );
             basicSettings.getContent().add(launcherVisibilityPane);
             launcherVisibilityPane.setTitle(i18n("settings.advanced.launcher_visible"));
-            launcherVisibilityPane.setItems(LauncherVisibility.values());
-            launcherVisibilityPane.setConverter(e -> i18n("settings.advanced.launcher_visibility." + e.name().toLowerCase(Locale.ROOT)));
-            bindSettingBidirectional(launcherVisibilityPane.valueProperty(), GameSetting::launcherVisibilityProperty);
 
             // Game Window Setting
-            var windowTypePane = new LineSelectButton<GameWindowType>();
+            var windowTypePane = createInheritableButton(
+                    GameSetting::windowTypeProperty,
+                    type -> switch (type) {
+                        // TODO: i18n
+                        case FULLSCREEN -> "全屏";
+                        case MAXIMIZED -> "最大化";
+                        case WINDOWED -> "窗口化";
+                    },
+                    null,
+                    GameWindowType.values()
+            );
             basicSettings.getContent().add(windowTypePane);
             windowTypePane.setTitle("游戏窗口类型"); // TODO: i18n
-            windowTypePane.setItems(GameWindowType.values());
-            windowTypePane.setConverter(type -> switch (type) {
-                // TODO: i18n
-                case FULLSCREEN -> "全屏";
-                case MAXIMIZED -> "最大化";
-                case WINDOWED -> "窗口化";
-            });
-            bindSettingBidirectional(windowTypePane.valueProperty(), GameSetting::windowTypeProperty);
 
             // Show Logs Window Setting
             var showLogsPane = createInheritableBooleanButton(GameSetting::showLogsProperty);
@@ -256,16 +260,17 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             enableDebugLogOutputPane.setTitle(i18n("settings.enable_debug_log_output"));
 
             // Process Priority Setting
-            var processPriorityPane = new LineSelectButton<ProcessPriority>();
+            var processPriorityPane = createInheritableButton(
+                    GameSetting::processPriorityProperty,
+                    e -> i18n("settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT)),
+                    e -> {
+                        String bundleKey = "settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT) + ".desc";
+                        return I18n.hasKey(bundleKey) ? i18n(bundleKey) : "";
+                    },
+                    ProcessPriority.values()
+            );
             basicSettings.getContent().add(processPriorityPane);
             processPriorityPane.setTitle(i18n("settings.advanced.process_priority"));
-            processPriorityPane.setConverter(e -> i18n("settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT)));
-            processPriorityPane.setDescriptionConverter(e -> {
-                String bundleKey = "settings.advanced.process_priority." + e.name().toLowerCase(Locale.ROOT) + ".desc";
-                return I18n.hasKey(bundleKey) ? i18n(bundleKey) : null;
-            });
-            processPriorityPane.setItems(ProcessPriority.values());
-            bindSettingBidirectional(processPriorityPane.valueProperty(), GameSetting::processPriorityProperty);
 
             // Server Pane
             // TODO: Quick Play?
@@ -433,6 +438,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         );
     }
 
+    @SafeVarargs
     private <T> LineSelectButton<@Nullable T> createInheritableButton(
             Function<S, InheritableProperty<T>> propertyGetter,
             Function<T, String> convert,
