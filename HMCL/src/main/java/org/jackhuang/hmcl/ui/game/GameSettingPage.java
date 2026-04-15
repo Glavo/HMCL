@@ -19,19 +19,16 @@ package org.jackhuang.hmcl.ui.game;
 
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXTextField;
-import com.jfoenix.controls.JFXToggleButton;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.WeakListener;
 import javafx.beans.property.*;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Toggle;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
@@ -61,6 +58,7 @@ import org.jetbrains.annotations.UnknownNullability;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
@@ -425,18 +423,73 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         bindSettingBidirectional(property, (Function<S, Property<T>>) propertyGetter);
     }
 
+    private LineSelectButton<@Nullable Boolean> createInheritableBooleanButton(
+            Function<S, InheritableProperty<Boolean>> propertyGetter) {
+        return createInheritableButton(
+                propertyGetter,
+                value -> value ? "启用" : "禁用",
+                null,
+                true, false
+        );
+    }
+
+    private <T> LineSelectButton<@Nullable T> createInheritableButton(
+            Function<S, InheritableProperty<T>> propertyGetter,
+            Function<T, String> convert,
+            @Nullable Function<T, String> descriptionConverter,
+            T... items
+    ) {
+        var button = new LineSelectButton<@Nullable T>();
+
+        button.setConverter2(value -> value != null ? convert.apply(value) : I18N_INHERIT_GLOBAL_SETTING);
+
+        if (descriptionConverter != null)
+            button.setDescriptionConverter(value -> value != null ? descriptionConverter.apply(value) : null); // TODO
+
+        if (isGlobalSetting) {
+            button.setItems(items);
+        } else {
+            var actualItems = new ArrayList<@Nullable T>(items.length + 1);
+            actualItems.add(null);
+            actualItems.addAll(Arrays.asList(items));
+            button.setItems(actualItems);
+        }
+
+        this.currentSetting.addListener((o, oldValue, newValue) -> {
+            if (oldValue != null) {
+                var property = propertyGetter.apply(oldValue);
+                button.setValue(isGlobalSetting ? property.defaultValue() : null);
+
+                var binding = new InheritableBidirectionalBinding<>(isGlobalSetting, button, property);
+                button.valueProperty().removeListener(binding);
+                oldValue.removeListener(binding);
+            }
+
+            if (newValue != null) {
+                var property = propertyGetter.apply(newValue);
+                button.setValue(isGlobalSetting && property.getValue() == null ? property.defaultValue() : property.getValue());
+
+                var binding = new InheritableBidirectionalBinding<>(isGlobalSetting, button, property);
+                button.valueProperty().addListener(binding);
+                newValue.addListener(binding);
+            }
+        });
+
+        return button;
+    }
+
     /// @see #createInheritableBooleanButton(Function)
-    private static final class InheritableBooleanBidirectionalBinding implements InvalidationListener, WeakListener {
+    private static final class InheritableBidirectionalBinding<T> implements InvalidationListener, WeakListener {
         private final boolean isGlobalSetting;
-        private final WeakReference<LineSelectButton<@Nullable Boolean>> buttonRef;
-        private final WeakReference<InheritableProperty<Boolean>> propertyRef;
+        private final WeakReference<LineSelectButton<@Nullable T>> buttonRef;
+        private final WeakReference<InheritableProperty<T>> propertyRef;
         private final int hashCode;
 
         private boolean updating = false;
 
-        private InheritableBooleanBidirectionalBinding(boolean isGlobal,
-                                                       LineSelectButton<@Nullable Boolean> button,
-                                                       InheritableProperty<Boolean> property) {
+        private InheritableBidirectionalBinding(boolean isGlobal,
+                                                LineSelectButton<@Nullable T> button,
+                                                InheritableProperty<T> property) {
             this.isGlobalSetting = isGlobal;
             this.buttonRef = new WeakReference<>(button);
             this.propertyRef = new WeakReference<>(property);
@@ -446,8 +499,8 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         @Override
         public void invalidated(Observable sourceProperty) {
             if (!updating) {
-                final LineSelectButton<@Nullable Boolean> button = buttonRef.get();
-                final InheritableProperty<Boolean> property = propertyRef.get();
+                final LineSelectButton<@Nullable T> button = buttonRef.get();
+                final InheritableProperty<T> property = propertyRef.get();
 
                 if (button == null || property == null) {
                     if (button != null) {
@@ -461,7 +514,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                     updating = true;
                     try {
                         if (property == sourceProperty) {
-                            @Nullable Boolean newValue = property.getValue();
+                            @Nullable T newValue = property.getValue();
                             if (newValue == null) {
                                 button.setValue(isGlobalSetting ? property.defaultValue() : null);
                             } else {
@@ -491,7 +544,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         public boolean equals(Object o) {
             if (this == o)
                 return true;
-            if (!(o instanceof GameSettingPage.InheritableBooleanBidirectionalBinding that))
+            if (!(o instanceof GameSettingPage.InheritableBidirectionalBinding<?> that))
                 return false;
 
             final var button = this.buttonRef.get();
@@ -505,46 +558,6 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
             return button == thatColorPicker && property == thatProperty;
         }
-    }
-
-    private LineSelectButton<@Nullable Boolean> createInheritableBooleanButton(
-            Function<S, InheritableProperty<Boolean>> propertyGetter) {
-        var button = new LineSelectButton<@Nullable Boolean>();
-        if (isGlobalSetting) {
-            button.setItems(true, false);
-        } else {
-            button.setItems(null, true, false);
-        }
-
-        // TODO: i18n
-        button.setConverter2(it -> {
-            if (it == null) {
-                return I18N_INHERIT_GLOBAL_SETTING;
-            } else
-                return it ? "启用" : "禁用";
-        });
-
-        this.currentSetting.addListener((o, oldValue, newValue) -> {
-            if (oldValue != null) {
-                var property = propertyGetter.apply(oldValue);
-                button.setValue(isGlobalSetting ? property.defaultValue() : null);
-
-                var binding = new InheritableBooleanBidirectionalBinding(isGlobalSetting, button, property);
-                button.valueProperty().removeListener(binding);
-                oldValue.removeListener(binding);
-            }
-
-            if (newValue != null) {
-                var property = propertyGetter.apply(newValue);
-                button.setValue(isGlobalSetting && property.getValue() == null ? property.defaultValue() : property.getValue());
-
-                var binding = new InheritableBooleanBidirectionalBinding(isGlobalSetting, button, property);
-                button.valueProperty().addListener(binding);
-                newValue.addListener(binding);
-            }
-        });
-
-        return button;
     }
 
     // endregion
