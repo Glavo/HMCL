@@ -96,7 +96,8 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     private final @UnknownNullability ImagePickerItem iconPickerItem;
 
     private final ComponentSublist javaSublist;
-    private final MultiFileItem<@Nullable Pair<JavaVersionType, @Nullable JavaRuntime>> javaItem;
+    private final MultiFileItem<@Nullable Pair<@Nullable JavaVersionType, @Nullable JavaRuntime>> javaItem;
+    private final MultiFileItem.Option<Pair<@Nullable JavaVersionType, @Nullable JavaRuntime>> javaInheritedOption;
     private final MultiFileItem.Option<Pair<JavaVersionType, @Nullable JavaRuntime>> javaAutoDeterminedOption;
     private final MultiFileItem.StringOption<Pair<JavaVersionType, @Nullable JavaRuntime>> javaVersionOption;
     private final MultiFileItem.FileOption<Pair<JavaVersionType, @Nullable JavaRuntime>> javaCustomOption;
@@ -148,6 +149,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 javaItem = new MultiFileItem<>();
                 javaSublist.getContent().setAll(javaItem);
 
+                javaInheritedOption = new MultiFileItem.Option<>("继承全局设置", pair(null, null));
                 javaAutoDeterminedOption = new MultiFileItem.Option<>(i18n("settings.game.java_directory.auto"), pair(JavaVersionType.AUTO, null));
                 javaVersionOption = new MultiFileItem.StringOption<>(i18n("settings.game.java_directory.version"), pair(JavaVersionType.VERSION, null));
                 javaVersionOption.setValidators(new NumberValidator(true));
@@ -159,7 +161,10 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                     javaCustomOption.addExtensionFilter(new FileChooser.ExtensionFilter("Java", "java.exe"));
 
                 holder.add(FXUtils.onWeakChangeAndOperate(JavaManager.getAllJavaProperty(), allJava -> {
-                    var options = new ArrayList<MultiFileItem.Option<@Nullable Pair<JavaVersionType, @Nullable JavaRuntime>>>();
+                    var options = new ArrayList<MultiFileItem.Option<@Nullable Pair<@Nullable JavaVersionType, @Nullable JavaRuntime>>>();
+                    if (!isGlobalSetting) {
+                        options.add(javaInheritedOption);
+                    }
                     options.add(javaAutoDeterminedOption);
                     options.add(javaVersionOption);
                     if (allJava != null) {
@@ -554,48 +559,53 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             return;
 
         updatingSelectedJava = true;
-        switch (setting.javaTypeProperty().getValue()) { // TODO: null?
-            case CUSTOM:
-                javaCustomOption.setSelected(true);
-                break;
-            case VERSION:
-                javaVersionOption.setSelected(true);
-                javaVersionOption.setValue(setting.javaVersionProperty().getValue());
-                break;
-            case AUTO:
-                javaAutoDeterminedOption.setSelected(true);
-                break;
-            default:
-                Toggle toggle = null;
-                if (JavaManager.isInitialized()) {
-                    try {
-                        JavaRuntime java = setting.getJava(null, null);
-                        if (java != null) {
-                            for (Toggle t : javaItem.getGroup().getToggles()) {
-                                if (t.getUserData() != null) {
-                                    @SuppressWarnings("unchecked")
-                                    var userData = (Pair<JavaVersionType, JavaRuntime>) t.getUserData();
-                                    if (userData.getValue() != null && java.getBinary().equals(userData.getValue().getBinary())) {
-                                        toggle = t;
-                                        break;
+        JavaVersionType javaType = setting.javaTypeProperty().getValue();
+        if (javaType != null) {
+            switch (javaType) {
+                case CUSTOM:
+                    javaCustomOption.setSelected(true);
+                    break;
+                case VERSION:
+                    javaVersionOption.setSelected(true);
+                    javaVersionOption.setValue(setting.javaVersionProperty().getValue());
+                    break;
+                case AUTO:
+                    javaAutoDeterminedOption.setSelected(true);
+                    break;
+                default:
+                    Toggle toggle = null;
+                    if (JavaManager.isInitialized()) {
+                        try {
+                            JavaRuntime java = setting.getJava(null, null);
+                            if (java != null) {
+                                for (Toggle t : javaItem.getGroup().getToggles()) {
+                                    if (t.getUserData() != null) {
+                                        @SuppressWarnings("unchecked")
+                                        var userData = (Pair<JavaVersionType, JavaRuntime>) t.getUserData();
+                                        if (userData.getValue() != null && java.getBinary().equals(userData.getValue().getBinary())) {
+                                            toggle = t;
+                                            break;
 
+                                        }
                                     }
                                 }
                             }
+                        } catch (InterruptedException ignored) {
                         }
-                    } catch (InterruptedException ignored) {
                     }
-                }
 
-                if (toggle != null) {
-                    toggle.setSelected(true);
-                } else {
-                    Toggle selectedToggle = javaItem.getGroup().getSelectedToggle();
-                    if (selectedToggle != null) {
-                        selectedToggle.setSelected(false);
+                    if (toggle != null) {
+                        toggle.setSelected(true);
+                    } else {
+                        Toggle selectedToggle = javaItem.getGroup().getSelectedToggle();
+                        if (selectedToggle != null) {
+                            selectedToggle.setSelected(false);
+                        }
                     }
-                }
-                break;
+                    break;
+            }
+        } else {
+            javaInheritedOption.setSelected(true);
         }
         updatingSelectedJava = false;
     }

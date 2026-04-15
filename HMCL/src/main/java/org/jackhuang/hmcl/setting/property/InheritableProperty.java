@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 /// @author Glavo
-public interface InheritableProperty<T> extends SettingProperty<T> {
+public interface InheritableProperty<T> extends SettingProperty<@Nullable T> {
 
     /// Always returns `null` because each `InheritableProperty`
     /// can independently override properties from the parent settings.
