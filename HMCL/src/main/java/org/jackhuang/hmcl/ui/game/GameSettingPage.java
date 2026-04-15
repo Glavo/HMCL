@@ -241,7 +241,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 // TODO: i18n
                 case FULLSCREEN -> "全屏";
                 case MAXIMIZED -> "最大化";
-                case CUSTOM -> "自定义";
+                case WINDOWED -> "窗口化";
             });
             bindSettingBidirectional(windowTypePane.valueProperty(), GameSetting::windowTypeProperty);
 
