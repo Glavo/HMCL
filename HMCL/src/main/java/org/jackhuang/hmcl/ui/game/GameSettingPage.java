@@ -101,6 +101,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
     private final MultiFileItem.Option<Pair<JavaVersionType, @Nullable JavaRuntime>> javaAutoDeterminedOption;
     private final MultiFileItem.StringOption<Pair<JavaVersionType, @Nullable JavaRuntime>> javaVersionOption;
     private final MultiFileItem.FileOption<Pair<JavaVersionType, @Nullable JavaRuntime>> javaCustomOption;
+    private final InvalidationListener javaListener = o -> initializeSelectedJava();
 
     public GameSettingPage(Class<S> settingType) {
         assert settingType == GameSetting.Global.class || settingType == GameSetting.Instance.class;
@@ -186,6 +187,23 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                     initializeSelectedJava();
                 }));
             }
+            currentSetting.addListener((o, oldSetting, newSetting) -> {
+                if (oldSetting != null) {
+                    oldSetting.javaTypeProperty().removeListener(javaListener);
+                    oldSetting.defaultJavaPathProperty().removeListener(javaListener);
+                    oldSetting.customJavaPathProperty().removeListener(javaListener);
+                    oldSetting.javaVersionProperty().removeListener(javaListener);
+                }
+
+                if (newSetting != null) {
+                    newSetting.javaTypeProperty().addListener(javaListener);
+                    newSetting.defaultJavaPathProperty().addListener(javaListener);
+                    newSetting.customJavaPathProperty().addListener(javaListener);
+                    newSetting.javaVersionProperty().addListener(javaListener);
+                }
+
+                initJavaSubtitle();
+            });
 
             // Isolation Setting
 
