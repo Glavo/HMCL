@@ -112,9 +112,9 @@ public sealed abstract class GameSetting extends ObservableSetting {
     /// - For global game setting, it is equivalent to [JavaVersionType#AUTO].
     /// - For instance game setting, it inherits the value from global game setting.
     @SerializedName("javaType")
-    private final SettingProperty<JavaVersionType> javaType = newSettingProperty("javaType");
+    private final InheritableProperty<JavaVersionType> javaType = newInheritableProperty("javaType", JavaVersionType.AUTO);
 
-    public SettingProperty<JavaVersionType> javaTypeProperty() {
+    public InheritableProperty<JavaVersionType> javaTypeProperty() {
         return javaType;
     }
 
