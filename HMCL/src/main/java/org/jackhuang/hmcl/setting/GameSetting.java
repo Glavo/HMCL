@@ -67,9 +67,9 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
         /// Whether to isolate the instance from other instances.
         @SerializedName("isolation")
-        private final BooleanProperty isolation = new SimpleBooleanProperty(this, "isolation", false);
+        private final SettingProperty<Boolean> isolation = newSettingProperty("isolation", false);
 
-        public BooleanProperty isolationProperty() {
+        public SettingProperty<Boolean> isolationProperty() {
             return isolation;
         }
     }
