@@ -73,6 +73,8 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 public final class GameSettingPage<S extends GameSetting> extends StackPane
         implements DecoratorPage, VersionPage.VersionLoadable, PageAware {
 
+    private static final String I18N_INHERIT_GLOBAL_SETTING = "继承全局设置"; // TODO: i18n
+
     private final boolean isGlobalSetting;
 
     private final ObjectProperty<State> state = new SimpleObjectProperty<>(this, "state", new State("", null, false, false, false));
@@ -150,7 +152,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 javaItem = new MultiFileItem<>();
                 javaSublist.getContent().setAll(javaItem);
 
-                javaInheritedOption = new MultiFileItem.Option<>("继承全局设置", pair(null, null));
+                javaInheritedOption = new MultiFileItem.Option<>(I18N_INHERIT_GLOBAL_SETTING, pair(null, null));
                 javaAutoDeterminedOption = new MultiFileItem.Option<>(i18n("settings.game.java_directory.auto"), pair(JavaVersionType.AUTO, null));
                 javaVersionOption = new MultiFileItem.StringOption<>(i18n("settings.game.java_directory.version"), pair(JavaVersionType.VERSION, null));
                 javaVersionOption.setValidators(new NumberValidator(true));
@@ -517,7 +519,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         // TODO: i18n
         button.setConverter2(it -> {
             if (it == null) {
-                return "继承全局设置";
+                return I18N_INHERIT_GLOBAL_SETTING;
             } else
                 return it ? "启用" : "禁用";
         });
