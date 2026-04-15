@@ -17,13 +17,16 @@
  */
 package org.jackhuang.hmcl.setting;
 
+/// The initial display mode of the game window.
+///
 /// @author Glavo
 public enum GameWindowType {
-    DEFAULT,
+    /// Start the game in a normal window.
+    WINDOWED,
 
+    /// Start the game in fullscreen mode.
     FULLSCREEN,
 
+    /// Start the game in a maximized window.
     MAXIMIZED,
-
-    CUSTOM,
 }

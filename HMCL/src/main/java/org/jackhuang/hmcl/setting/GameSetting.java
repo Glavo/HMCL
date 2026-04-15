@@ -280,7 +280,7 @@ public sealed abstract class GameSetting extends ObservableSetting {
     // Game Window
 
     @SerializedName("windowType")
-    private final SettingProperty<GameWindowType> windowType = newSettingProperty("windowType", GameWindowType.DEFAULT);
+    private final SettingProperty<GameWindowType> windowType = newInheritableProperty("windowType", GameWindowType.WINDOWED);
 
     public SettingProperty<GameWindowType> windowTypeProperty() {
         return windowType;

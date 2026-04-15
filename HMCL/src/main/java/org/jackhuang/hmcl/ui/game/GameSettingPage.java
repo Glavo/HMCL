@@ -237,7 +237,12 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             basicSettings.getContent().add(windowTypePane);
             windowTypePane.setTitle("游戏窗口类型"); // TODO: i18n
             windowTypePane.setItems(GameWindowType.values());
-            windowTypePane.setConverter(Enum::name); // TODO: i18n
+            windowTypePane.setConverter(type -> switch (type) {
+                // TODO: i18n
+                case FULLSCREEN -> "全屏";
+                case MAXIMIZED -> "最大化";
+                case CUSTOM -> "自定义";
+            });
             bindSettingBidirectional(windowTypePane.valueProperty(), GameSetting::windowTypeProperty);
 
             // Show Logs Window Setting
@@ -367,7 +372,6 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         jvmSettings.setTitle(i18n("settings.advanced.jvm"));
         jvmSettings.setSubtitle("自定义 JVM 参数等信息"); // TODO
         jvmSettings.setHeaderRight(createHeaderRight());
-
     }
 
     // region Helper Methods for UI
