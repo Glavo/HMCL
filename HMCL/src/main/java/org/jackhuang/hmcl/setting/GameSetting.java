@@ -18,8 +18,8 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.*;
 import org.jackhuang.hmcl.game.ProcessPriority;
+import org.jackhuang.hmcl.game.QuickPlayType;
 import org.jackhuang.hmcl.game.Renderer;
 import org.jackhuang.hmcl.game.Version;
 import org.jackhuang.hmcl.java.JavaManager;
@@ -379,12 +379,34 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
     // Quick Play
 
-    /// The IP address of the server to join.
-    @SerializedName("serverIP")
-    private final SettingProperty<String> serverIP = newSettingProperty("serverIP", "");
+    @SerializedName("quickPlay")
+    private final InheritableProperty<QuickPlayType> quickPlay = newInheritableProperty("quickPlay", QuickPlayType.NONE);
 
-    public SettingProperty<String> serverIPProperty() {
-        return serverIP;
+    public InheritableProperty<QuickPlayType> quickPlayProperty() {
+        return quickPlay;
+    }
+
+    /// The IP address of the server to quick play.
+    @SerializedName("quickPlayMultiplayer")
+    private final SettingProperty<String> quickPlayMultiplayer = newSettingProperty("quickPlayMultiplayer", "");
+
+    public SettingProperty<String> quickPlayMultiplayerProperty() {
+        return quickPlayMultiplayer;
+    }
+
+    /// The world dir name of the server to quick play.
+    @SerializedName("quickPlaySingleplayer")
+    private final SettingProperty<String> quickPlaySingleplayer = newSettingProperty("quickPlaySingleplayer", "");
+
+    public SettingProperty<String> quickPlaySingleplayerProperty() {
+        return quickPlaySingleplayer;
+    }
+
+    @SerializedName("quickPlayRealms")
+    private final SettingProperty<String> quickPlayRealms = newSettingProperty("quickPlayRealms", "");
+
+    public SettingProperty<String> quickPlayRealmsProperty() {
+        return quickPlayRealms;
     }
 
     // Logging

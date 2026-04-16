@@ -32,9 +32,7 @@ import javafx.scene.control.Toggle;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
-import org.jackhuang.hmcl.game.HMCLGameRepository;
-import org.jackhuang.hmcl.game.ProcessPriority;
-import org.jackhuang.hmcl.game.Version;
+import org.jackhuang.hmcl.game.*;
 import org.jackhuang.hmcl.java.JavaManager;
 import org.jackhuang.hmcl.java.JavaRuntime;
 import org.jackhuang.hmcl.setting.*;
@@ -49,6 +47,7 @@ import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.ServerAddress;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.i18n.I18n;
+import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jackhuang.hmcl.util.platform.Architecture;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
@@ -272,16 +271,14 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             basicSettings.getContent().add(processPriorityPane);
             processPriorityPane.setTitle(i18n("settings.advanced.process_priority"));
 
-            // Server Pane
-            // TODO: Quick Play?
-            var serverPane = new LinePane();
-            basicSettings.getContent().add(serverPane); // TODO: Move to other pane?
-            serverPane.setTitle(i18n("settings.advanced.server_ip"));
-            {
-                var txtServerIP = new JFXTextField();
-                serverPane.setRight(txtServerIP);
-                txtServerIP.setPromptText(i18n("settings.advanced.server_ip.prompt"));
-                Validator.addTo(txtServerIP).accept(str -> {
+            // Quick Play
+            var quickSublist = new ComponentSublist(() -> {
+                var quickPlayItem = new MultiFileItem<@Nullable QuickPlayType>();
+
+                var noneOption = new MultiFileItem.Option<>("无", QuickPlayType.NONE);
+
+                var multiplayerOption = new MultiFileItem.StringOption<>("多人联机", QuickPlayType.MULTIPLAYER);
+                multiplayerOption.setValidators(new Validator(str -> {
                     if (StringUtils.isBlank(str))
                         return true;
                     try {
@@ -290,11 +287,41 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                     } catch (Exception ignored) {
                         return false;
                     }
-                });
-                FXUtils.setLimitWidth(txtServerIP, 300);
-                bindSettingBidirectional(txtServerIP.textProperty(), GameSetting::serverIPProperty);
-            }
+                }));
 
+                var singleplayerOption = new MultiFileItem.StringOption<>("单人游戏", QuickPlayType.MULTIPLAYER);
+                singleplayerOption.setValidators(new Validator(str -> {
+                    if (StringUtils.isBlank(str))
+                        return true;
+                    return FileUtils.isNameValid(str);
+                }));
+
+                var realmsOption = new MultiFileItem.StringOption<>("领域服", QuickPlayType.REALMS);
+
+                var options = new ArrayList<MultiFileItem.Option<@Nullable QuickPlayType>>();
+                if (isGlobalSetting) {
+                    quickPlayItem.setFallbackData(QuickPlayType.NONE);
+                } else {
+                    options.add(new MultiFileItem.Option<>(I18N_INHERIT_GLOBAL_SETTING, null));
+                    quickPlayItem.setFallbackData(null);
+                }
+                options.addAll(List.of(
+                        noneOption,
+                        multiplayerOption,
+                        singleplayerOption,
+                        realmsOption
+                ));
+
+                quickPlayItem.loadChildren(options);
+
+                //noinspection NullableProblems
+                bindSettingBidirectional(quickPlayItem.selectedDataProperty(), GameSetting::quickPlayProperty);
+                return List.of(quickPlayItem);
+            });
+            basicSettings.getContent().add(quickSublist);
+            quickSublist.setTitle("快速游玩");
+            quickSublist.setSubtitle("启动游戏后直接进入指定服务器或世界");
+            quickSublist.setHasSubtitle(true);
         }
 
         var customCommandSettings = new ComponentSublist(() -> {
