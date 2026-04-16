@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.ui.game;
 
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXTextField;
+import com.jfoenix.controls.JFXToggleButton;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.WeakListener;
@@ -404,6 +405,104 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         jvmSettings.setTitle(i18n("settings.advanced.jvm"));
         jvmSettings.setSubtitle("自定义 JVM 参数等信息"); // TODO
         jvmSettings.setHeaderRight(createHeaderRight());
+
+        var workaroundSettings = new ComponentSublist(() -> {
+            var items = new ArrayList<Node>();
+
+            var noAutoNatives = new LineToggleButton();
+            items.add(noAutoNatives);
+            noAutoNatives.setTitle("不使用自动提供的本机库"); // TODO: i18n
+
+            var graphicsBackendPane = new LineSelectButton<GraphicsAPI>();
+            items.add(graphicsBackendPane);
+            graphicsBackendPane.setTitle(i18n("settings.advanced.graphics_backend"));
+            graphicsBackendPane.setConverter(backend -> i18n("settings.advanced.graphics_backend." + backend.name().toLowerCase(Locale.ROOT)));
+            graphicsBackendPane.setDescriptionConverter(backend -> switch (backend) {
+                case DEFAULT -> i18n("settings.advanced.graphics_backend.default.desc");
+                case OPENGL -> i18n("settings.advanced.graphics_backend.opengl.desc");
+                case VULKAN -> {
+//                    if (gameVersion == null)
+//                        yield i18n("settings.advanced.graphics_backend.vulkan.desc.global");
+//                    else if (gameVersion.compareTo("26.2-snapshot-2") < 0)
+//                        yield i18n("settings.advanced.graphics_backend.vulkan.desc.unsupported");
+//                    else
+//                        yield i18n("settings.advanced.graphics_backend.vulkan.desc");
+                    yield i18n("settings.advanced.graphics_backend.vulkan.desc");
+                }
+                default -> null;
+            });
+            graphicsBackendPane.setValue(GraphicsAPI.DEFAULT);
+            graphicsBackendPane.setItems(GraphicsAPI.values());
+
+            var rendererPane = new LineSelectButton<Renderer>();
+            rendererPane.setTitle(i18n("settings.advanced.renderer"));
+            rendererPane.setConverter(e -> i18n("settings.advanced.renderer." + e.name().toLowerCase(Locale.ROOT)));
+            rendererPane.setDescriptionConverter(e -> {
+                String bundleKey = "settings.advanced.renderer." + e.name().toLowerCase(Locale.ROOT) + ".desc";
+                return I18n.hasKey(bundleKey) ? i18n(bundleKey) : null;
+            });
+            rendererPane.setValue(Renderer.DEFAULT);
+
+            FXUtils.onChangeAndOperate(graphicsBackendPane.valueProperty(), backend -> {
+                if (backend == null) { // unbind
+                    return;
+                }
+
+                rendererPane.setItems(Renderer.getSupported(backend));
+                if (backend == GraphicsAPI.DEFAULT) {
+                    rendererPane.setDisable(true);
+                    rendererPane.setValue(Renderer.DEFAULT);
+                } else {
+                    rendererPane.setDisable(false);
+                    if (!(rendererPane.getValue() instanceof Renderer.Driver driver) || driver.api() != backend)
+                        rendererPane.setValue(Renderer.DEFAULT);
+                }
+            });
+
+            var noJVMArgsPane = new LineToggleButton();
+            items.add(noJVMArgsPane);
+            noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
+
+            var noOptimizingJVMArgsPane = new LineToggleButton();
+            items.add(noOptimizingJVMArgsPane);
+            noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
+            noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
+
+            var noGameCheckPane = new LineToggleButton();
+            items.add(noGameCheckPane);
+            noGameCheckPane.setTitle(i18n("settings.advanced.dont_check_game_completeness"));
+
+            var noJVMCheckPane = new LineToggleButton();
+            items.add(noJVMCheckPane);
+            noJVMCheckPane.setTitle(i18n("settings.advanced.dont_check_jvm_validity"));
+
+            var noNativesPatchPane = new LineToggleButton();
+            items.add(noNativesPatchPane);
+            noNativesPatchPane.setTitle(i18n("settings.advanced.dont_patch_natives"));
+
+            var useNativeGLFWPane = new LineToggleButton();
+            useNativeGLFWPane.setTitle(i18n("settings.advanced.use_native_glfw"));
+            useNativeGLFWPane.setSubtitle(i18n("settings.advanced.linux_freebsd_only"));
+
+            var useNativeOpenALPane = new LineToggleButton();
+            useNativeOpenALPane.setTitle(i18n("settings.advanced.use_native_openal"));
+            useNativeOpenALPane.setSubtitle(i18n("settings.advanced.linux_freebsd_only"));
+
+            if (OperatingSystem.CURRENT_OS.isLinuxOrBSD()) {
+                items.add(useNativeGLFWPane);
+                items.add(useNativeOpenALPane);
+            } else {
+                ComponentSublist unsupportedOptionsSublist = new ComponentSublist();
+                unsupportedOptionsSublist.setTitle(i18n("settings.advanced.unsupported_system_options"));
+                unsupportedOptionsSublist.getContent().addAll(useNativeGLFWPane, useNativeOpenALPane);
+                items.add(unsupportedOptionsSublist);
+            }
+
+            return items;
+        });
+        basicSettings.getContent().add(workaroundSettings);
+        workaroundSettings.setTitle("高级设置"); // TODO: i18n
+        workaroundSettings.setSubtitle(" "); // TODO: i18n
     }
 
     // region Helper Methods for UI
