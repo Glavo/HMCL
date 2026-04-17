@@ -24,6 +24,7 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.WeakListener;
 import javafx.beans.property.*;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
@@ -122,7 +123,10 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         scrollPane.setContent(rootPane);
 
         var basicSettings = new ComponentList();
-        rootPane.getChildren().add(basicSettings);
+        rootPane.getChildren().addAll(
+                ComponentList.createComponentListTitle("基本设置"),
+                basicSettings
+        );
         {
             if (isGlobalSetting) {
                 iconPickerItem = null;
@@ -325,8 +329,16 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             quickSublist.setHasSubtitle(true);
         }
 
+
+        var advancedSettings = new ComponentList();
+        rootPane.getChildren().addAll(
+                ComponentList.createComponentListTitle(i18n("settings.advanced")),
+                advancedSettings
+        );
+
         var customCommandSettings = new ComponentSublist(() -> {
-            GridPane pane = new GridPane();
+            var pane = new GridPane();
+            pane.setPadding(new Insets(10, 16, 10, 16));
             pane.setHgap(16);
             pane.setVgap(8);
             pane.getColumnConstraints().setAll(new ColumnConstraints(), FXUtils.getColumnHgrowing());
@@ -353,15 +365,26 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
             return List.of(pane);
         });
-        basicSettings.getContent().add(customCommandSettings);
+        advancedSettings.getContent().add(customCommandSettings);
         customCommandSettings.setHasSubtitle(true);
         customCommandSettings.setTitle(i18n("settings.advanced.custom_commands"));
         customCommandSettings.setSubtitle("自定义启动游戏时的命令"); // TODO: i18n
         customCommandSettings.setTip(i18n("settings.advanced.custom_commands.hint"));
         customCommandSettings.setHeaderRight(createHeaderRight());
 
+
+        var noJVMArgsPane = new LineToggleButton();
+        advancedSettings.getContent().add(noJVMArgsPane);
+        noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
+
+        var noOptimizingJVMArgsPane = new LineToggleButton();
+        advancedSettings.getContent().add(noOptimizingJVMArgsPane);
+        noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
+        noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
+
         var jvmSettings = new ComponentSublist(() -> {
-            GridPane pane = new GridPane();
+            var pane = new GridPane();
+
             ColumnConstraints title = new ColumnConstraints();
             ColumnConstraints value = new ColumnConstraints();
             value.setFillWidth(true);
@@ -383,24 +406,14 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             txtMetaspace.setValidators(new NumberValidator(i18n("input.number"), true));
             pane.addRow(row++, new Label(i18n("settings.advanced.java_permanent_generation_space")), txtMetaspace);
 
-            var noJVMArgsPane = new LineToggleButton();
-            noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
-            GridPane.setColumnSpan(noJVMArgsPane, 2);
-            pane.addRow(row++, noJVMArgsPane);
-
-            var noOptimizingJVMArgsPane = new LineToggleButton();
-            noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
-            noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
-            GridPane.setColumnSpan(noOptimizingJVMArgsPane, 2);
-            pane.addRow(row++, noOptimizingJVMArgsPane);
-
-            var txtEnvironmentVariables = new JFXTextField();
-            txtEnvironmentVariables.getStyleClass().add("fit-width");
-            pane.addRow(row++, new Label(i18n("settings.advanced.environment_variables")), txtEnvironmentVariables);
+            // TODO
+//            var txtEnvironmentVariables = new JFXTextField();
+//            txtEnvironmentVariables.getStyleClass().add("fit-width");
+//            pane.addRow(row++, new Label(i18n("settings.advanced.environment_variables")), txtEnvironmentVariables);
 
             return List.of(pane);
         });
-        basicSettings.getContent().add(jvmSettings);
+        advancedSettings.getContent().add(jvmSettings);
         jvmSettings.setHasSubtitle(true);
         jvmSettings.setTitle(i18n("settings.advanced.jvm"));
         jvmSettings.setSubtitle("自定义 JVM 参数等信息"); // TODO
@@ -460,15 +473,6 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
                 }
             });
 
-            var noJVMArgsPane = new LineToggleButton();
-            items.add(noJVMArgsPane);
-            noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
-
-            var noOptimizingJVMArgsPane = new LineToggleButton();
-            items.add(noOptimizingJVMArgsPane);
-            noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
-            noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
-
             var noGameCheckPane = new LineToggleButton();
             items.add(noGameCheckPane);
             noGameCheckPane.setTitle(i18n("settings.advanced.dont_check_game_completeness"));
@@ -501,7 +505,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
 
             return items;
         });
-        basicSettings.getContent().add(workaroundSettings);
+        advancedSettings.getContent().add(workaroundSettings);
         workaroundSettings.setTitle("高级设置"); // TODO: i18n
         workaroundSettings.setSubtitle(" "); // TODO: i18n
     }
