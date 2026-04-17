@@ -435,6 +435,7 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
             graphicsBackendPane.setItems(GraphicsAPI.values());
 
             var rendererPane = new LineSelectButton<Renderer>();
+            items.add(rendererPane);
             rendererPane.setTitle(i18n("settings.advanced.renderer"));
             rendererPane.setConverter(e -> i18n("settings.advanced.renderer." + e.name().toLowerCase(Locale.ROOT)));
             rendererPane.setDescriptionConverter(e -> {
