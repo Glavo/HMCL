@@ -18,6 +18,8 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableSet;
 import org.jackhuang.hmcl.game.ProcessPriority;
 import org.jackhuang.hmcl.game.QuickPlayType;
 import org.jackhuang.hmcl.game.Renderer;
@@ -71,6 +73,13 @@ public sealed abstract class GameSetting extends ObservableSetting {
 
         public SettingProperty<Boolean> isolationProperty() {
             return isolation;
+        }
+
+        @SerializedName("overrideGroups")
+        private final ObservableSet<SettingGroup> overrideGroups = FXCollections.observableSet();
+
+        public ObservableSet<SettingGroup> getOverrideGroups() {
+            return overrideGroups;
         }
     }
 

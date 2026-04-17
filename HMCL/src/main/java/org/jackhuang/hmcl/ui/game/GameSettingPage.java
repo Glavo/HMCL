@@ -372,7 +372,6 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         customCommandSettings.setTip(i18n("settings.advanced.custom_commands.hint"));
         customCommandSettings.setHeaderRight(createHeaderRight());
 
-
         var noJVMArgsPane = new LineToggleButton();
         advancedSettings.getContent().add(noJVMArgsPane);
         noJVMArgsPane.setTitle(i18n("settings.advanced.no_jvm_args"));
