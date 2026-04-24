@@ -381,42 +381,31 @@ public final class GameSettingPage<S extends GameSetting> extends StackPane
         noOptimizingJVMArgsPane.setTitle(i18n("settings.advanced.no_optimizing_jvm_args"));
         noOptimizingJVMArgsPane.disableProperty().bind(noJVMArgsPane.selectedProperty());
 
-        var jvmSettings = new ComponentSublist(() -> {
-            var pane = new GridPane();
+        if (!isGlobalSetting) {
+            var noInheritJVMArgsPane = new LineToggleButton();
+            advancedSettings.getContent().add(noInheritJVMArgsPane);
+            noInheritJVMArgsPane.setTitle("不继承全局 JVM 参数");
+        }
 
-            ColumnConstraints title = new ColumnConstraints();
-            ColumnConstraints value = new ColumnConstraints();
-            value.setFillWidth(true);
-            value.setHgrow(Priority.ALWAYS);
-            pane.setHgap(16);
-            pane.setVgap(8);
-            pane.getColumnConstraints().setAll(title, value);
-
-            int row = 0;
-
+        var jvmArgsPane = new LinePane();
+        advancedSettings.getContent().add(jvmArgsPane);
+        jvmArgsPane.setTitle(i18n("settings.advanced.jvm_args"));
+        {
             var txtJVMArgs = new JFXTextField();
-            txtJVMArgs.getStyleClass().add("fit-width");
-            pane.addRow(row++, createLabelWithTip(i18n("settings.advanced.jvm_args"), i18n("settings.advanced.jvm_args.prompt")), txtJVMArgs);
+            // txtJVMArgs.setPromptText(i18n("settings.advanced.jvm_args.prompt"));
+            txtJVMArgs.setPrefWidth(400);
+            jvmArgsPane.setRight(txtJVMArgs);
+        }
 
+        var metaSpacePane = new LinePane();
+        advancedSettings.getContent().add(metaSpacePane);
+        metaSpacePane.setTitle(i18n("settings.advanced.java_permanent_generation_space"));
+        {
             var txtMetaspace = new JFXTextField();
             txtMetaspace.setPromptText(i18n("settings.advanced.java_permanent_generation_space.prompt"));
-            txtMetaspace.getStyleClass().add("fit-width");
-            FXUtils.setValidateWhileTextChanged(txtMetaspace, true);
-            txtMetaspace.setValidators(new NumberValidator(i18n("input.number"), true));
-            pane.addRow(row++, new Label(i18n("settings.advanced.java_permanent_generation_space")), txtMetaspace);
-
-            // TODO
-//            var txtEnvironmentVariables = new JFXTextField();
-//            txtEnvironmentVariables.getStyleClass().add("fit-width");
-//            pane.addRow(row++, new Label(i18n("settings.advanced.environment_variables")), txtEnvironmentVariables);
-
-            return List.of(pane);
-        });
-        advancedSettings.getContent().add(jvmSettings);
-        jvmSettings.setHasSubtitle(true);
-        jvmSettings.setTitle(i18n("settings.advanced.jvm"));
-        jvmSettings.setSubtitle("自定义 JVM 参数等信息"); // TODO
-        jvmSettings.setHeaderRight(createHeaderRight());
+            txtMetaspace.setPrefWidth(400);
+            metaSpacePane.setRight(txtMetaspace);
+        }
 
         var workaroundSettings = new ComponentSublist(() -> {
             var items = new ArrayList<Node>();
