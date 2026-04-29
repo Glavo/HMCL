@@ -29,6 +29,7 @@ import javafx.scene.text.FontSmoothingType;
 import org.jackhuang.hmcl.setting.FontManager;
 import org.jackhuang.hmcl.theme.Theme;
 import org.jackhuang.hmcl.theme.Themes;
+import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.*;
@@ -77,24 +78,26 @@ public class PersonalizationPage extends StackPane {
 
             themeList.getContent().add(brightnessPane);
             var lightThemeButton = new LineSelectButton<Theme>();
-            lightThemeButton.setTitle("浅色主题");
+            lightThemeButton.setTitle("浅色主题");  // TODO: i18n
             lightThemeButton.managedProperty().bindBidirectional(lightThemeButton.visibleProperty());
             themeList.getContent().add(lightThemeButton);
 
             var editLightThemeButton = LineButton.createNavigationButton();
-            editLightThemeButton.setTitle("修改浅色主题");
+            editLightThemeButton.setTitle("修改浅色主题");  // TODO: i18n
+            editLightThemeButton.setOnAction(e -> Controllers.navigate(new ThemeSettingsPage()));
             editLightThemeButton.managedProperty().bindBidirectional(editLightThemeButton.visibleProperty());
 
             themeList.getContent().add(editLightThemeButton);
 
             var darkThemeButton = new LineSelectButton<Theme>();
-            darkThemeButton.setTitle("深色主题");
+            darkThemeButton.setTitle("深色主题");  // TODO: i18n
             darkThemeButton.managedProperty().bindBidirectional(darkThemeButton.visibleProperty());
 
             themeList.getContent().add(darkThemeButton);
 
             var editDarkThemeButton = LineButton.createNavigationButton();
-            editDarkThemeButton.setTitle("修改深色主题");
+            editDarkThemeButton.setTitle("修改深色主题"); // TODO: i18n
+            editDarkThemeButton.setOnAction(e -> Controllers.navigate(new ThemeSettingsPage()));
             editDarkThemeButton.managedProperty().bindBidirectional(editDarkThemeButton.visibleProperty());
 
             themeList.getContent().add(editDarkThemeButton);
