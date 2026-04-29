@@ -21,4 +21,5 @@ import javafx.scene.layout.StackPane;
 
 /// @author Glavo
 public final class ThemeSettingsPage extends StackPane {
+
 }
