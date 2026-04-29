@@ -70,9 +70,6 @@ public record Theme(
     public static final int CURRENT_VERSION_MAJOR = 1;
     public static final int CURRENT_VERSION_MINOR = 0;
 
-    /// The current default (and maximum supported) theme schema version.
-    public static final String DEFAULT_VERSION = CURRENT_VERSION_MAJOR + "." + CURRENT_VERSION_MINOR;
-
     /// Returns `true` if this theme has no pending overrides and does not need
     /// to be resolved further.
     public boolean isResolved() {
