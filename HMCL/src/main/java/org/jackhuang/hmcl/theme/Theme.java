@@ -52,8 +52,6 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// @param background        The background configuration, or `null` if no custom background is set.
 /// @param backgroundOpacity The opacity of the background image in the range `[0.0, 1.0]`, or `null` if not specified.
 /// @param contrast          The contrast level preference, or `null` to use the system default.
-/// @param rules             The compatibility rules that guard this theme entry. An empty list means the theme always applies.
-/// @param overrides         The overrides that are merged on top of the base values when [resolve(Map)] is called.
 /// @author Glavo
 public record Theme(
         @Nullable String version,
@@ -62,79 +60,11 @@ public record Theme(
         @Nullable ColorStyle colorStyle,
         @Nullable ThemeBackground background,
         @Nullable Double backgroundOpacity,
-        @Nullable Contrast contrast,
-        @NotNull List<CompatibilityRule> rules,
-        @NotNull List<Theme> overrides
+        @Nullable Contrast contrast
 ) {
 
     public static final int CURRENT_VERSION_MAJOR = 1;
     public static final int CURRENT_VERSION_MINOR = 0;
-
-    /// Returns `true` if this theme has no pending overrides and does not need
-    /// to be resolved further.
-    public boolean isResolved() {
-        return overrides.isEmpty();
-    }
-
-    /// Resolves this theme against the given feature map by iterating over
-    /// [overrides] in order and merging each override whose compatibility rules
-    /// are satisfied by `features` into the base values.
-    ///
-    /// If this theme [isResolved()] already, `this` is returned unchanged.
-    /// If no override ends up being applicable, `this` is also returned unchanged.
-    /// Otherwise a new [Theme] record is returned containing the merged field values
-    /// while keeping the original [rules] and [overrides] references.
-    ///
-    /// @param features a map of named feature flags used to evaluate [CompatibilityRule]s
-    /// @return a [Theme] with all applicable overrides merged in
-    public Theme resolve(Map<String, Boolean> features) {
-        if (isResolved())
-            return this;
-
-        String version = this.version;
-        Brightness brightness = this.brightness;
-        ThemeColor color = this.color;
-        ColorStyle colorStyle = this.colorStyle;
-        ThemeBackground background = this.background;
-        Double backgroundOpacity = this.backgroundOpacity;
-        Contrast contrast = this.contrast;
-
-        boolean hasOverride = false;
-        for (Theme override : overrides) {
-            if (!override.rules().isEmpty()) {
-                if (!CompatibilityRule.appliesToCurrentEnvironment(override.rules(), features)) {
-                    continue;
-                }
-            }
-
-            hasOverride = true;
-
-            if (override.brightness != null)
-                brightness = override.brightness;
-            if (override.color != null)
-                color = override.color;
-            if (override.colorStyle != null)
-                colorStyle = override.colorStyle;
-            if (override.background != null)
-                background = override.background;
-            if (override.backgroundOpacity != null)
-                backgroundOpacity = override.backgroundOpacity;
-            if (override.contrast != null)
-                contrast = override.contrast;
-        }
-
-        return hasOverride ? new Theme(
-                version,
-                brightness,
-                color,
-                colorStyle,
-                background,
-                backgroundOpacity,
-                contrast,
-                rules,
-                overrides
-        ) : this;
-    }
 
     /// Parses a [Theme] from the given JSON object.
     ///
@@ -281,9 +211,7 @@ public record Theme(
                 colorStyle,
                 background,
                 backgroundOpacity,
-                contrast,
-                List.of(),
-                List.of()
+                contrast
         );
     }
 
@@ -318,14 +246,6 @@ public record Theme(
 
         if (contrast != null)
             jsonObject.addProperty("contrast", contrast == Contrast.HIGH ? "high" : "low");
-
-        if (!overrides.isEmpty()) {
-            JsonArray overridesArray = new JsonArray();
-            for (Theme override : overrides) {
-                overridesArray.add(override.toJson());
-            }
-            jsonObject.add("overrides", overridesArray);
-        }
 
         return jsonObject;
     }
