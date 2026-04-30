@@ -51,9 +51,8 @@ public record ThemePack(
         if (!(json instanceof JsonObject jsonObject))
             throw new JsonParseException("Expected JSON object, got: " + json);
 
-        String versionString;
         if (jsonObject.get("version") instanceof JsonPrimitive version) {
-            versionString = version.getAsString();
+            String versionString = version.getAsString();
             Pattern versionPattern = Pattern.compile("(?<major>[0-9]+)\\.(?<minor>[0-9]+)");
 
             Matcher matcher = versionPattern.matcher(versionString);
@@ -75,8 +74,6 @@ public record ThemePack(
 
             if (major == CURRENT_VERSION_MAJOR && minor > CURRENT_VERSION_MINOR)
                 LOG.warning("Unsupported theme version: " + versionString);
-        } else {
-            versionString = null;
         }
 
         LocalizedText name;
