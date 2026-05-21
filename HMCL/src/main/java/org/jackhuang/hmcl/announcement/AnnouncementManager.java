@@ -22,6 +22,7 @@ import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyListProperty;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.collections.FXCollections;
+import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.setting.ConfigHolder;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -51,7 +52,7 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 @NotNullByDefault
 public final class AnnouncementManager {
     /// The default remote announcement feed.
-    public static final String DEFAULT_URL = Metadata.DOCS_URL + "/announcements.json";
+    public static final URI DEFAULT_URL = Metadata.CURRENT_DIRECTORY.resolve("accouncements.json").toUri();
 
     /// The system property that overrides the remote announcement feed URL.
     public static final String URL_OVERRIDE_PROPERTY = "hmcl.announcements.url";
@@ -152,13 +153,15 @@ public final class AnnouncementManager {
         }
 
         long now = System.currentTimeMillis();
-        boolean shouldFetch = current.getAnnouncements().isEmpty()
+        URI feedUri = getFeedUri();
+        boolean shouldFetch = !NetworkUtils.isHttpUri(feedUri)
+                || current.getAnnouncements().isEmpty()
                 || now - current.getLastFetchAttemptTime() >= REFRESH_INTERVAL.toMillis();
 
         if (shouldFetch) {
             current.setLastFetchAttemptTime(now);
             try {
-                FetchResult result = fetch(current.getEtag());
+                FetchResult result = fetch(feedUri, current.getEtag());
                 if (result.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                     saveQuietly(current);
                 } else if (result.statusCode == HttpURLConnection.HTTP_OK && result.body != null) {
@@ -212,8 +215,24 @@ public final class AnnouncementManager {
         }
     }
 
-    private static FetchResult fetch(@Nullable String etag) throws IOException {
-        URI uri = URI.create(System.getProperty(URL_OVERRIDE_PROPERTY, DEFAULT_URL));
+    private static URI getFeedUri() {
+        try {
+            String urlOverride = System.getProperty(URL_OVERRIDE_PROPERTY);
+            if (StringUtils.isNotBlank(urlOverride))
+                return WebURL.parseBrowserInputToURI(urlOverride);
+        } catch (Exception e) {
+            LOG.warning("Failed to parse announcement feed URL override", e);
+        }
+
+        return DEFAULT_URL;
+
+    }
+
+    private static FetchResult fetch(URI uri, @Nullable String etag) throws IOException {
+        if (!NetworkUtils.isHttpUri(uri)) {
+            return new FetchResult(HttpURLConnection.HTTP_OK, null, Files.readString(Path.of(uri)));
+        }
+
         HttpURLConnection connection = NetworkUtils.createHttpConnection(uri);
         connection.setRequestProperty("Accept", "application/json");
         if (StringUtils.isNotBlank(etag)) {
