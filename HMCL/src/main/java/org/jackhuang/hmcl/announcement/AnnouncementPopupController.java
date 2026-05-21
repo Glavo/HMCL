@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.JFXHyperlink;
+import org.jackhuang.hmcl.util.FXThread;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.HashSet;
@@ -45,6 +46,7 @@ public final class AnnouncementPopupController {
     }
 
     /// Installs listeners and attempts to display already loaded popup announcements.
+    @FXThread
     public static void init() {
         if (initialized) {
             return;

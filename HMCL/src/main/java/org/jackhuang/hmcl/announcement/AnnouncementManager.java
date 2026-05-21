@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.setting.ConfigHolder;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.FXThread;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.FileUtils;
@@ -67,13 +68,10 @@ public final class AnnouncementManager {
     }
 
     /// Initializes the announcement system and starts a background refresh when enabled.
+    @FXThread
     public static void init() {
-        synchronized (LOCK) {
-            if (initialized) {
-                return;
-            }
-
-            initialized = true;
+        if (initialized) {
+            return;
         }
 
         ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
