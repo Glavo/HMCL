@@ -17,11 +17,11 @@
  */
 package org.jackhuang.hmcl.announcement;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.util.StringUtils;
+import org.jackhuang.hmcl.util.i18n.I18n;
+import org.jackhuang.hmcl.util.i18n.LocalizedText;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -43,15 +43,15 @@ public final class Announcement {
 
     /// Localized announcement title.
     @SerializedName("title")
-    private @Nullable JsonElement title;
+    private @Nullable LocalizedText title;
 
     /// Localized HTML body. This field is mutually exclusive with [#link].
     @SerializedName("content")
-    private @Nullable JsonElement content;
+    private @Nullable LocalizedText content;
 
     /// Localized external body link. This field is mutually exclusive with [#content].
     @SerializedName("link")
-    private @Nullable JsonElement link;
+    private @Nullable LocalizedText link;
 
     /// Single display target kept for compatibility with the original design.
     @SerializedName("type")
@@ -261,48 +261,8 @@ public final class Announcement {
         }
     }
 
-    private static @Nullable String localize(@Nullable JsonElement element) {
-        if (element == null || element.isJsonNull()) {
-            return null;
-        }
-
-        if (element.isJsonPrimitive()) {
-            return element.getAsString();
-        }
-
-        if (!element.isJsonObject()) {
-            return null;
-        }
-
-        JsonObject object = element.getAsJsonObject();
-        Locale locale = Locale.getDefault();
-        for (String key : localeKeys(locale)) {
-            JsonElement value = object.get(key);
-            if (value != null && value.isJsonPrimitive()) {
-                return value.getAsString();
-            }
-        }
-
-        for (var entry : object.entrySet()) {
-            JsonElement value = entry.getValue();
-            if (value.isJsonPrimitive()) {
-                return value.getAsString();
-            }
-        }
-
-        return null;
-    }
-
-    private static @Unmodifiable List<String> localeKeys(Locale locale) {
-        String languageTag = locale.toLanguageTag();
-        String underscoreTag = languageTag.replace('-', '_');
-        String language = locale.getLanguage();
-
-        if (StringUtils.isBlank(language)) {
-            return List.of("default");
-        }
-
-        return List.of(languageTag, underscoreTag, language, "default");
+    private static @Nullable String localize(@Nullable LocalizedText text) {
+        return text == null ? null : text.getText(I18n.getLocale().getCandidateLocales());
     }
 
     /// @return The set of currently known severity values.
