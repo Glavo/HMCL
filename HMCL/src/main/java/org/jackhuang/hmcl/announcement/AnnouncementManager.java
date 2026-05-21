@@ -240,7 +240,6 @@ public final class AnnouncementManager {
         }
 
         HttpURLConnection connection = NetworkUtils.createHttpConnection(uri);
-        connection.setRequestProperty("Accept", "application/json");
         if (StringUtils.isNotBlank(etag)) {
             connection.setRequestProperty("If-None-Match", etag);
         }
