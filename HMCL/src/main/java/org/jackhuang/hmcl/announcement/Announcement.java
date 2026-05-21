@@ -73,6 +73,14 @@ public final class Announcement {
     @SerializedName("parent")
     private @Nullable String parent;
 
+    /// Single announcement category used by the category visibility settings.
+    @SerializedName("category")
+    private @Nullable String category;
+
+    /// Multiple announcement categories used by the category visibility settings.
+    @SerializedName("categories")
+    private @Nullable List<String> categories;
+
     /// Optional ISO-8601 instant when the announcement starts being active.
     @SerializedName("startsAt")
     private @Nullable String startsAt;
@@ -127,6 +135,22 @@ public final class Announcement {
     /// @return The parent announcement ID, or `null` when there is no parent.
     public @Nullable String getParent() {
         return parent;
+    }
+
+    /// @return The normalized categories that classify this announcement.
+    public @Unmodifiable List<String> getCategories() {
+        if (categories != null && !categories.isEmpty()) {
+            return categories.stream()
+                    .filter(StringUtils::isNotBlank)
+                    .map(value -> value.toLowerCase(Locale.ROOT))
+                    .toList();
+        }
+
+        if (StringUtils.isNotBlank(category)) {
+            return List.of(category.toLowerCase(Locale.ROOT));
+        }
+
+        return List.of(AnnouncementManager.CATEGORY_GENERAL);
     }
 
     /// @return Whether users may dismiss this announcement.

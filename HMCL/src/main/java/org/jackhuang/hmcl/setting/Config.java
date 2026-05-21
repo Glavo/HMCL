@@ -271,6 +271,15 @@ public final class Config extends ObservableSetting {
         this.enableAnnouncements.set(enableAnnouncements);
     }
 
+    /// Announcement category visibility map. Missing categories are treated as enabled.
+    @SerializedName("announcementCategories")
+    private final ObservableMap<String, Boolean> announcementCategories = FXCollections.observableHashMap();
+
+    /// @return Mutable announcement category visibility settings.
+    public ObservableMap<String, Boolean> getAnnouncementCategories() {
+        return announcementCategories;
+    }
+
     @SerializedName("shownTips")
     private final ObservableMap<String, Object> shownTips = FXCollections.observableHashMap();
 

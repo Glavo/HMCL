@@ -10,6 +10,7 @@
       "zh": "<p>这是一个从本地测试文件加载的 <strong>主页</strong> 公告。</p><ul><li>内容由 HTMLRenderer 渲染。</li><li><a href=\"https://docs.hmcl.net/\">打开 HMCL 文档</a></li></ul>"
     },
     "type": "board",
+    "category": "promotion",
     "priority": 100,
     "severity": "info",
     "startsAt": "2026-01-01T00:00:00Z",
@@ -27,6 +28,7 @@
       "zh": "<p>这个弹窗公告同样会直接使用 <strong>HTMLRenderer</strong> 渲染。</p>"
     },
     "type": "popup",
+    "category": "security",
     "priority": 90,
     "severity": "warning",
     "startsAt": "2026-01-01T00:00:00Z",

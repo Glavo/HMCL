@@ -52,6 +52,15 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// Coordinates announcement cache loading, remote refreshing, filtering, and dismissal.
 @NotNullByDefault
 public final class AnnouncementManager {
+    /// General announcements that do not fit a more specific category.
+    public static final String CATEGORY_GENERAL = "general";
+
+    /// Promotional announcements such as events, surveys, or community campaigns.
+    public static final String CATEGORY_PROMOTION = "promotion";
+
+    /// Security announcements that warn users about account, launcher, or ecosystem risks.
+    public static final String CATEGORY_SECURITY = "security";
+
     /// The default remote announcement feed.
     public static final URI DEFAULT_URL = Metadata.CURRENT_DIRECTORY.resolve("accouncements.json").toUri();
 
@@ -74,18 +83,19 @@ public final class AnnouncementManager {
         }
         initialized = true;
 
-        ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
+            ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
+                if (ConfigHolder.config().isEnableAnnouncements()) {
+                    refreshAsync();
+                } else {
+                    cache = new AnnouncementCache();
+                    updatePublishedAnnouncements(cache);
+                }
+            });
+            ConfigHolder.config().getAnnouncementCategories().addListener(observable -> updatePublishedAnnouncements(requireCache()));
+
             if (ConfigHolder.config().isEnableAnnouncements()) {
                 refreshAsync();
-            } else {
-                cache = new AnnouncementCache();
-                updatePublishedAnnouncements(cache);
             }
-        });
-
-        if (ConfigHolder.config().isEnableAnnouncements()) {
-            refreshAsync();
-        }
     }
 
     /// @return Active board announcements that should be rendered on the homepage.
@@ -280,6 +290,7 @@ public final class AnnouncementManager {
         Set<String> closed = cache.getClosed();
         List<Announcement> initiallyActive = cache.getAnnouncements().stream()
                 .filter(announcement -> announcement.isActive(now))
+                .filter(AnnouncementManager::isCategoryEnabled)
                 .filter(announcement -> {
                     String id = announcement.getId();
                     return id != null && !closed.contains(id);
@@ -322,6 +333,17 @@ public final class AnnouncementManager {
             case "warning" -> 1;
             default -> 0;
         };
+    }
+
+    private static boolean isCategoryEnabled(Announcement announcement) {
+        Map<String, Boolean> categorySettings = ConfigHolder.config().getAnnouncementCategories();
+        return announcement.getCategories().stream()
+                .anyMatch(category -> categorySettings.getOrDefault(category, true));
+    }
+
+    /// @return The categories that HMCL currently exposes as user-facing switches.
+    public static @Unmodifiable List<String> knownCategories() {
+        return List.of(CATEGORY_GENERAL, CATEGORY_PROMOTION, CATEGORY_SECURITY);
     }
 
     private record FetchResult(int statusCode, @Nullable String etag, @Nullable String body) {

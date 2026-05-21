@@ -31,6 +31,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.Metadata;
+import org.jackhuang.hmcl.announcement.AnnouncementManager;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -224,6 +225,17 @@ public final class SettingsPage extends ScrollPane {
                     enableAnnouncementsPane.selectedProperty().bindBidirectional(config().enableAnnouncementsProperty());
 
                     miscPaneList.getContent().add(enableAnnouncementsPane);
+
+                    for (String category : AnnouncementManager.knownCategories()) {
+                        LineToggleButton categoryPane = new LineToggleButton();
+                        categoryPane.setTitle(i18n("settings.launcher.announcement_category." + category));
+                        categoryPane.setSelected(config().getAnnouncementCategories().getOrDefault(category, true));
+                        categoryPane.disableProperty().bind(config().enableAnnouncementsProperty().not());
+                        categoryPane.selectedProperty().addListener(observable ->
+                                config().getAnnouncementCategories().put(category, categoryPane.isSelected()));
+
+                        miscPaneList.getContent().add(categoryPane);
+                    }
                 }
 
                 {
