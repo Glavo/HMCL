@@ -54,9 +54,6 @@ public final class AnnouncementManager {
     /// The default remote announcement feed.
     public static final URI DEFAULT_URL = Metadata.CURRENT_DIRECTORY.resolve("accouncements.json").toUri();
 
-    /// The system property that overrides the remote announcement feed URL.
-    public static final String URL_OVERRIDE_PROPERTY = "hmcl.announcements.url";
-
     private static final Duration REFRESH_INTERVAL = Duration.ofMinutes(30);
     private static final Path CACHE_PATH = Metadata.HMCL_CURRENT_DIRECTORY.resolve("announcements.json");
     private static final ReadOnlyListWrapper<Announcement> BOARD_ANNOUNCEMENTS = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
@@ -217,7 +214,7 @@ public final class AnnouncementManager {
 
     private static URI getFeedUri() {
         try {
-            String urlOverride = System.getProperty(URL_OVERRIDE_PROPERTY);
+            String urlOverride = System.getProperty("hmcl.announcements.url");
             if (StringUtils.isNotBlank(urlOverride))
                 return WebURL.parseBrowserInputToURI(urlOverride);
         } catch (Exception e) {
