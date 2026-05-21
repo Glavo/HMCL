@@ -19,10 +19,10 @@ package org.jackhuang.hmcl.announcement;
 
 import com.google.gson.JsonParseException;
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.ReadOnlyListProperty;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.collections.FXCollections;
-import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.setting.ConfigHolder;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -91,7 +91,7 @@ public final class AnnouncementManager {
                     updatePublishedAnnouncements(cache);
                 }
             });
-            ConfigHolder.config().getAnnouncementCategories().addListener(observable -> updatePublishedAnnouncements(requireCache()));
+            ConfigHolder.config().getAnnouncementCategories().addListener((InvalidationListener) observable -> updatePublishedAnnouncements(requireCache()));
 
             if (ConfigHolder.config().isEnableAnnouncements()) {
                 refreshAsync();
@@ -219,8 +219,13 @@ public final class AnnouncementManager {
     private static URI getFeedUri() {
         try {
             String urlOverride = System.getProperty("hmcl.announcements.url");
-            if (StringUtils.isNotBlank(urlOverride))
-                return WebURL.parseBrowserInputToURI(urlOverride);
+            if (StringUtils.isNotBlank(urlOverride)) {
+                URI uri = NetworkUtils.toURI(urlOverride);
+                if (uri.getScheme() == null) {
+                    return Path.of(urlOverride).toUri();
+                }
+                return uri;
+            }
         } catch (Exception e) {
             LOG.warning("Failed to parse announcement feed URL override", e);
         }
