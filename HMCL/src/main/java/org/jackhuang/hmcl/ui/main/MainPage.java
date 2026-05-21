@@ -23,6 +23,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.property.*;
+import javafx.collections.ListChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
@@ -34,13 +35,13 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.Metadata;
+import org.jackhuang.hmcl.announcement.Announcement;
+import org.jackhuang.hmcl.announcement.AnnouncementManager;
+import org.jackhuang.hmcl.announcement.AnnouncementUI;
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.VersionList;
@@ -57,6 +58,7 @@ import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
+import org.jackhuang.hmcl.ui.construct.JFXHyperlink;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jackhuang.hmcl.ui.construct.TwoLineListItem;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
@@ -85,7 +87,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 public final class MainPage extends StackPane implements DecoratorPage {
-    private static final String ANNOUNCEMENT = "announcement";
+    private static final String LOCAL_ANNOUNCEMENT_TIP = "announcement";
 
     private final ReadOnlyObjectWrapper<State> state = new ReadOnlyObjectWrapper<>();
 
@@ -95,7 +97,8 @@ public final class MainPage extends StackPane implements DecoratorPage {
     private final ObservableList<Version> versions = FXCollections.observableArrayList();
     private Profile profile;
 
-    private TransitionPane announcementPane;
+    private final TransitionPane announcementPane;
+    private final VBox announcementBox;
     private final StackPane updatePane;
     private final JFXButton menuButton;
 
@@ -118,7 +121,14 @@ public final class MainPage extends StackPane implements DecoratorPage {
 
         setPadding(new Insets(20));
 
-        if (Metadata.isNightly() || (Metadata.isDev() && !Objects.equals(Metadata.VERSION, config().getShownTips().get(ANNOUNCEMENT)))) {
+        announcementBox = new VBox(16);
+        announcementBox.setPadding(new Insets(15));
+
+        announcementPane = new TransitionPane();
+        StackPane.setMargin(announcementPane, new Insets(-15));
+        getChildren().add(announcementPane);
+
+        if (Metadata.isNightly() || (Metadata.isDev() && !Objects.equals(Metadata.VERSION, config().getShownTips().get(LOCAL_ANNOUNCEMENT_TIP)))) {
             String title;
             String content;
             if (Metadata.isNightly()) {
@@ -129,40 +139,16 @@ public final class MainPage extends StackPane implements DecoratorPage {
                 content = i18n("update.channel.dev.hint");
             }
 
-            VBox announcementCard = new VBox();
-
-            BorderPane titleBar = new BorderPane();
-            titleBar.getStyleClass().add("title");
-            titleBar.setLeft(new Label(title));
-
-            JFXButton btnHide = new JFXButton();
-            btnHide.setOnAction(e -> {
-                announcementPane.setContent(new StackPane(), ContainerAnimations.FADE);
+            announcementBox.getChildren().add(createAnnouncementCard(title, FXUtils.segmentToTextFlow(content, Controllers::onHyperlinkAction), () -> {
                 if (Metadata.isDev()) {
-                    config().getShownTips().put(ANNOUNCEMENT, Metadata.VERSION);
+                    config().getShownTips().put(LOCAL_ANNOUNCEMENT_TIP, Metadata.VERSION);
                 }
-            });
-            btnHide.getStyleClass().add("announcement-close-button");
-            btnHide.setGraphic(SVG.CLOSE.createIcon(20));
-            titleBar.setRight(btnHide);
-
-            TextFlow body = FXUtils.segmentToTextFlow(content, Controllers::onHyperlinkAction);
-            body.setLineSpacing(4);
-
-            announcementCard.getChildren().setAll(titleBar, body);
-            announcementCard.setSpacing(16);
-            announcementCard.getStyleClass().addAll("card", "announcement");
-
-            VBox announcementBox = new VBox(16);
-            announcementBox.setPadding(new Insets(15));
-            announcementBox.getChildren().add(announcementCard);
-
-            announcementPane = new TransitionPane();
-            announcementPane.setContent(announcementBox, ContainerAnimations.NONE);
-
-            StackPane.setMargin(announcementPane, new Insets(-15));
-            getChildren().add(announcementPane);
+                refreshAnnouncementPane();
+            }));
         }
+        updateRemoteAnnouncements();
+        AnnouncementManager.boardAnnouncementsProperty().addListener((ListChangeListener<? super Announcement>) change -> updateRemoteAnnouncements());
+        refreshAnnouncementPane();
 
         updatePane = new StackPane();
         updatePane.setVisible(false);
@@ -274,6 +260,67 @@ public final class MainPage extends StackPane implements DecoratorPage {
 
         getChildren().addAll(updatePane, launchPane);
 
+    }
+
+    private void updateRemoteAnnouncements() {
+        announcementBox.getChildren().removeIf(node -> node.getProperties().containsKey("remoteAnnouncement"));
+
+        for (Announcement announcement : AnnouncementManager.boardAnnouncementsProperty()) {
+            Region card = createAnnouncementCard(
+                    announcement.getLocalizedTitle(),
+                    createAnnouncementContent(announcement),
+                    () -> {
+                        AnnouncementManager.dismiss(announcement);
+                        refreshAnnouncementPane();
+                    });
+            card.getProperties().put("remoteAnnouncement", Boolean.TRUE);
+            card.getStyleClass().add("announcement-" + announcement.getSeverity());
+            announcementBox.getChildren().add(card);
+        }
+
+        refreshAnnouncementPane();
+    }
+
+    private Region createAnnouncementCard(String title, javafx.scene.Node body, Runnable closeAction) {
+        VBox announcementCard = new VBox();
+
+        BorderPane titleBar = new BorderPane();
+        titleBar.getStyleClass().add("title");
+        titleBar.setLeft(new Label(title));
+
+        JFXButton btnHide = new JFXButton();
+        btnHide.setOnAction(e -> {
+            closeAction.run();
+            announcementBox.getChildren().remove(announcementCard);
+            refreshAnnouncementPane();
+        });
+        btnHide.getStyleClass().add("announcement-close-button");
+        btnHide.setGraphic(SVG.CLOSE.createIcon(20));
+        titleBar.setRight(btnHide);
+
+        announcementCard.getChildren().setAll(titleBar, body);
+        announcementCard.setSpacing(16);
+        announcementCard.getStyleClass().addAll("card", "announcement");
+        return announcementCard;
+    }
+
+    private javafx.scene.Node createAnnouncementContent(Announcement announcement) {
+        String content = announcement.getLocalizedContent();
+        if (StringUtils.isNotBlank(content)) {
+            return AnnouncementUI.renderHtml(content);
+        }
+
+        JFXHyperlink link = new JFXHyperlink(i18n("announcement.open"));
+        link.setExternalLink(announcement.getLocalizedLink());
+        return link;
+    }
+
+    private void refreshAnnouncementPane() {
+        if (announcementBox.getChildren().isEmpty()) {
+            announcementPane.setContent(new StackPane(), ContainerAnimations.FADE);
+        } else {
+            announcementPane.setContent(announcementBox, ContainerAnimations.FADE);
+        }
     }
 
     private void showUpdate(boolean show) {

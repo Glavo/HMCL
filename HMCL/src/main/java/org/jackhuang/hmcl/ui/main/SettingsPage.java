@@ -218,6 +218,15 @@ public final class SettingsPage extends ScrollPane {
                 }
 
                 {
+                    LineToggleButton enableAnnouncementsPane = new LineToggleButton();
+                    enableAnnouncementsPane.setTitle(i18n("settings.launcher.enable_announcements"));
+                    enableAnnouncementsPane.setSubtitle(i18n("settings.launcher.enable_announcements.subtitle"));
+                    enableAnnouncementsPane.selectedProperty().bindBidirectional(config().enableAnnouncementsProperty());
+
+                    miscPaneList.getContent().add(enableAnnouncementsPane);
+                }
+
+                {
                     BorderPane debugPane = new BorderPane();
 
                     Label left = new Label(i18n("settings.launcher.debug"));

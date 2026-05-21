@@ -35,6 +35,8 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.setting.ConfigHolder;
 import org.jackhuang.hmcl.setting.SambaException;
+import org.jackhuang.hmcl.announcement.AnnouncementManager;
+import org.jackhuang.hmcl.announcement.AnnouncementPopupController;
 import org.jackhuang.hmcl.task.AsyncTaskExecutor;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -140,6 +142,8 @@ public final class Launcher extends Application {
                     Themes.applyNativeDarkMode(primaryStage);
 
                 UpdateChecker.init();
+                AnnouncementManager.init();
+                AnnouncementPopupController.init();
 
                 primaryStage.show();
             });

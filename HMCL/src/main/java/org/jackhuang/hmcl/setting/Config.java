@@ -252,6 +252,25 @@ public final class Config extends ObservableSetting {
         this.disableAprilFools.set(disableAprilFools);
     }
 
+    /// Whether HMCL should fetch and display remote launcher announcements.
+    @SerializedName("enableAnnouncements")
+    private final BooleanProperty enableAnnouncements = new SimpleBooleanProperty(true);
+
+    /// @return The property controlling remote launcher announcements.
+    public BooleanProperty enableAnnouncementsProperty() {
+        return enableAnnouncements;
+    }
+
+    /// @return Whether remote launcher announcements are enabled.
+    public boolean isEnableAnnouncements() {
+        return enableAnnouncements.get();
+    }
+
+    /// @param enableAnnouncements Whether remote launcher announcements are enabled.
+    public void setEnableAnnouncements(boolean enableAnnouncements) {
+        this.enableAnnouncements.set(enableAnnouncements);
+    }
+
     @SerializedName("shownTips")
     private final ObservableMap<String, Object> shownTips = FXCollections.observableHashMap();
 

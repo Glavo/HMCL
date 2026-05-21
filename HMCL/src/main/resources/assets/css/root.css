@@ -160,6 +160,10 @@
     -fx-font-size: 13px;
 }
 
+.announcement .html {
+    -fx-font-size: 13px;
+}
+
 .announcement .hyperlink {
     -fx-fill: -monet-primary;
     -fx-font-size: 13px;
