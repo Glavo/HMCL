@@ -83,19 +83,19 @@ public final class AnnouncementManager {
         }
         initialized = true;
 
-            ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
-                if (ConfigHolder.config().isEnableAnnouncements()) {
-                    refreshAsync();
-                } else {
-                    cache = new AnnouncementCache();
-                    updatePublishedAnnouncements(cache);
-                }
-            });
-            ConfigHolder.config().getAnnouncementCategories().addListener((InvalidationListener) observable -> updatePublishedAnnouncements(requireCache()));
-
+        ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
             if (ConfigHolder.config().isEnableAnnouncements()) {
                 refreshAsync();
+            } else {
+                cache = new AnnouncementCache();
+                updatePublishedAnnouncements(cache);
             }
+        });
+        ConfigHolder.config().getAnnouncementCategories().addListener((InvalidationListener) observable -> updatePublishedAnnouncements(requireCache()));
+
+        if (ConfigHolder.config().isEnableAnnouncements()) {
+            refreshAsync();
+        }
     }
 
     /// @return Active board announcements that should be rendered on the homepage.
