@@ -141,7 +141,7 @@ public final class AnnouncementManager {
         }
         refreshRunning = true;
 
-        Task.supplyAsync("refreshAnnouncements", Schedulers.io(), AnnouncementManager::refresh)
+        Task.supplyAsync(Schedulers.io(), AnnouncementManager::refresh)
                 .whenComplete(Schedulers.javafx(), (result, exception) -> {
                     refreshRunning = false;
                     if (exception != null) {
