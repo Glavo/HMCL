@@ -59,7 +59,6 @@ public final class AnnouncementManager {
     private static final Path CACHE_PATH = Metadata.HMCL_CURRENT_DIRECTORY.resolve("announcements.json");
     private static final ReadOnlyListWrapper<Announcement> BOARD_ANNOUNCEMENTS = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
     private static final ReadOnlyListWrapper<Announcement> POPUP_ANNOUNCEMENTS = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
-    private static final Object LOCK = new Object();
     private static @Nullable AnnouncementCache cache;
     private static boolean initialized;
     private static boolean refreshRunning;
@@ -73,12 +72,14 @@ public final class AnnouncementManager {
         if (initialized) {
             return;
         }
+        initialized = true;
 
         ConfigHolder.config().enableAnnouncementsProperty().addListener(observable -> {
             if (ConfigHolder.config().isEnableAnnouncements()) {
                 refreshAsync();
             } else {
-                updatePublishedAnnouncements(new AnnouncementCache());
+                cache = new AnnouncementCache();
+                updatePublishedAnnouncements(cache);
             }
         });
 
@@ -101,52 +102,52 @@ public final class AnnouncementManager {
     ///
     /// @param announcement Announcement to dismiss.
     public static void dismiss(Announcement announcement) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> dismiss(announcement));
+            return;
+        }
+
         String id = announcement.getId();
         if (StringUtils.isBlank(id) || !announcement.isDismissible()) {
             return;
         }
 
-        synchronized (LOCK) {
-            AnnouncementCache current = requireCache();
-            current.getClosed().add(id);
-            cleanupClosed(current);
-            saveQuietly(current);
-            updatePublishedAnnouncements(current);
-        }
+        AnnouncementCache current = requireCache();
+        current.getClosed().add(id);
+        cleanupClosed(current);
+        saveQuietly(current);
+        updatePublishedAnnouncements(current);
     }
 
     /// Starts an asynchronous refresh if no refresh is currently running.
     public static void refreshAsync() {
-        synchronized (LOCK) {
-            if (refreshRunning) {
-                return;
-            }
-            refreshRunning = true;
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(AnnouncementManager::refreshAsync);
+            return;
         }
 
-        Task.runAsync("refreshAnnouncements", Schedulers.io(), AnnouncementManager::refresh)
-                .whenComplete(Schedulers.javafx(), exception -> {
-                    synchronized (LOCK) {
-                        refreshRunning = false;
-                    }
+        if (refreshRunning) {
+            return;
+        }
+        refreshRunning = true;
 
+        Task.supplyAsync("refreshAnnouncements", Schedulers.io(), AnnouncementManager::refresh)
+                .whenComplete(Schedulers.javafx(), (result, exception) -> {
+                    refreshRunning = false;
                     if (exception != null) {
                         LOG.warning("Failed to refresh announcements", exception);
+                        AnnouncementCache current = requireCache();
+                        updatePublishedAnnouncements(current);
+                    } else {
+                        cache = result;
+                        updatePublishedAnnouncements(result);
                     }
                 })
                 .start();
     }
 
-    private static void refresh() throws IOException {
-        AnnouncementCache current;
-        synchronized (LOCK) {
-            current = requireCache();
-        }
-
-        if (!Files.isRegularFile(CACHE_PATH)) {
-            current = loadCache();
-        }
-
+    private static AnnouncementCache refresh() throws IOException {
+        AnnouncementCache current = loadCache();
         long now = System.currentTimeMillis();
         URI feedUri = getFeedUri();
         boolean shouldFetch = !NetworkUtils.isHttpUri(feedUri)
@@ -157,9 +158,7 @@ public final class AnnouncementManager {
             current.setLastFetchAttemptTime(now);
             try {
                 FetchResult result = fetch(feedUri, current.getEtag());
-                if (result.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
-                    saveQuietly(current);
-                } else if (result.statusCode == HttpURLConnection.HTTP_OK && result.body != null) {
+                if (result.statusCode == HttpURLConnection.HTTP_OK && result.body != null) {
                     List<Announcement> announcements = JsonUtils.fromNonNullJson(result.body, JsonUtils.listTypeOf(Announcement.class));
                     current.setAnnouncements(announcements.stream()
                             .filter(Announcement::isValid)
@@ -167,20 +166,18 @@ public final class AnnouncementManager {
                     current.setEtag(result.etag);
                     current.setLastSuccessfulFetchTime(now);
                     cleanupClosed(current);
-                    saveQuietly(current);
+                } else if (result.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
+                    cleanupClosed(current);
                 }
             } catch (IOException | JsonParseException e) {
                 LOG.warning("Failed to load remote announcements", e);
-                saveQuietly(current);
             }
         } else {
             cleanupClosed(current);
         }
 
-        synchronized (LOCK) {
-            cache = current;
-            updatePublishedAnnouncements(current);
-        }
+        saveQuietly(current);
+        return current;
     }
 
     private static AnnouncementCache requireCache() {
@@ -202,7 +199,6 @@ public final class AnnouncementManager {
             }
 
             cleanupClosed(loaded);
-            updatePublishedAnnouncements(loaded);
             return loaded;
         } catch (IOException | JsonParseException e) {
             LOG.warning("Failed to load announcement cache", e);
