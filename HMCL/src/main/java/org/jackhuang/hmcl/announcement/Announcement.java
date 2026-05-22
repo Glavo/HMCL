@@ -29,7 +29,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -140,11 +139,11 @@ public final class Announcement {
 
     /// Optional ISO-8601 instant when the announcement starts being active.
     @SerializedName("startsAt")
-    private @Nullable String startsAt;
+    private @Nullable Instant startsAt;
 
     /// Optional ISO-8601 instant when the announcement stops being active.
     @SerializedName("expiresAt")
-    private @Nullable String expiresAt;
+    private @Nullable Instant expiresAt;
 
     /// Optional compatibility rules that restrict where this announcement applies.
     @SerializedName("rules")
@@ -250,13 +249,11 @@ public final class Announcement {
 
     /// @return Whether this announcement should be considered active now.
     public boolean isActive(Instant now) {
-        Instant start = parseInstant(startsAt);
-        if (start != null && now.isBefore(start)) {
+        if (startsAt != null && now.isBefore(startsAt)) {
             return false;
         }
 
-        Instant expiration = parseInstant(expiresAt);
-        if (expiration != null && !now.isBefore(expiration)) {
+        if (expiresAt != null && !now.isBefore(expiresAt)) {
             return false;
         }
 
@@ -265,8 +262,7 @@ public final class Announcement {
 
     /// @return The instant used for secondary sorting.
     public Instant getSortTime() {
-        Instant start = parseInstant(startsAt);
-        return start == null ? Instant.EPOCH : start;
+        return startsAt == null ? Instant.EPOCH : startsAt;
     }
 
     /// @return Feature flags supplied to [CompatibilityRule] evaluation.
@@ -276,22 +272,6 @@ public final class Announcement {
                 "hmcl_channel_dev", Metadata.isDev(),
                 "hmcl_channel_nightly", Metadata.isNightly()
         );
-    }
-
-    /// Parses an optional ISO-8601 instant.
-    ///
-    /// @param value Nullable instant string.
-    /// @return Parsed instant, or `null` when the value is blank or malformed.
-    private static @Nullable Instant parseInstant(@Nullable String value) {
-        if (StringUtils.isBlank(value)) {
-            return null;
-        }
-
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     /// @return The set of currently known severity values.
