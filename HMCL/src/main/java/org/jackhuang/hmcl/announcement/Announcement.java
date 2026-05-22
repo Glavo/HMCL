@@ -34,6 +34,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 /// A remote announcement entry loaded from the public announcements feed.
 ///
@@ -41,7 +42,7 @@ import java.util.Set;
 ///
 /// ```json
 /// {
-///   "id": "announcement-id",
+///   "id": "019976b2-ad49-7451-b090-83b66c532cdd",
 ///   "title": {
 ///     "default": "Announcement title",
 ///     "zh": "Announcement title in Chinese"
@@ -57,7 +58,7 @@ import java.util.Set;
 ///   "categories": ["general"],
 ///   "priority": 0,
 ///   "severity": "info",
-///   "parent": "parent-announcement-id",
+///   "parent": "019976b2-ad49-7451-b090-83b66c532cdc",
 ///   "startsAt": "2026-01-01T00:00:00Z",
 ///   "expiresAt": "2027-01-01T00:00:00Z",
 ///   "minVersion": "3.6.0",
@@ -75,6 +76,10 @@ import java.util.Set;
 /// treats `content.value` as an external URL. A single announcement has exactly one `content` payload, so inline HTML
 /// and external links cannot be configured at the same level.
 ///
+/// `id` is a UUID value represented as a UUID string in JSON. Production feeds should generate UUID v7 values on the
+/// server side, but the client accepts any UUID that can be parsed by the configured JSON adapter. `parent`, when
+/// present, must refer to another announcement ID.
+///
 /// `targets` replaces the legacy single `type` field when an announcement should appear on multiple surfaces. The
 /// supported targets are `board` for the homepage announcement area and `popup` for startup dialogs. `categories`
 /// likewise replaces the legacy single `category` field when an announcement belongs to multiple user-controllable
@@ -82,9 +87,9 @@ import java.util.Set;
 @NotNullByDefault
 @JsonSerializable
 public final class Announcement {
-    /// Unique announcement identifier.
+    /// Unique announcement UUID.
     @SerializedName("id")
-    private @Nullable String id;
+    private @Nullable UUID id;
 
     /// Localized announcement title.
     @SerializedName("title")
@@ -110,9 +115,9 @@ public final class Announcement {
     @SerializedName("severity")
     private @Nullable String severity;
 
-    /// Optional parent announcement ID.
+    /// Optional parent announcement UUID.
     @SerializedName("parent")
-    private @Nullable String parent;
+    private @Nullable UUID parent;
 
     /// Single announcement category used by the category visibility settings.
     @SerializedName("category")
@@ -159,7 +164,7 @@ public final class Announcement {
     private @Nullable Boolean ackRequired;
 
     /// @return The unique announcement identifier.
-    public @Nullable String getId() {
+    public @Nullable UUID getId() {
         return id;
     }
 
@@ -174,7 +179,7 @@ public final class Announcement {
     }
 
     /// @return The parent announcement ID, or `null` when there is no parent.
-    public @Nullable String getParent() {
+    public @Nullable UUID getParent() {
         return parent;
     }
 
@@ -237,7 +242,7 @@ public final class Announcement {
 
     /// @return Whether this announcement is structurally valid enough to display.
     public boolean isValid() {
-        if (StringUtils.isBlank(id) || StringUtils.isBlank(getLocalizedTitle())) {
+        if (id == null || StringUtils.isBlank(getLocalizedTitle())) {
             return false;
         }
 

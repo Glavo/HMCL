@@ -31,13 +31,14 @@ import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 /// Shows popup announcements one at a time after the JavaFX UI is ready.
 @NotNullByDefault
 public final class AnnouncementPopupController {
-    private static final Set<String> SHOWN_THIS_SESSION = new HashSet<>();
+    private static final Set<UUID> SHOWN_THIS_SESSION = new HashSet<>();
     private static boolean initialized;
     private static boolean showing;
 
@@ -62,7 +63,7 @@ public final class AnnouncementPopupController {
         }
 
         for (Announcement announcement : AnnouncementManager.popupAnnouncementsProperty()) {
-            String id = announcement.getId();
+            UUID id = announcement.getId();
             if (id == null || SHOWN_THIS_SESSION.contains(id)) {
                 continue;
             }

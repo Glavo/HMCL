@@ -117,8 +117,8 @@ public final class AnnouncementManager {
             return;
         }
 
-        String id = announcement.getId();
-        if (StringUtils.isBlank(id) || !announcement.isDismissible()) {
+        UUID id = announcement.getId();
+        if (id == null || !announcement.isDismissible()) {
             return;
         }
 
@@ -263,7 +263,7 @@ public final class AnnouncementManager {
 
     private static void cleanupClosed(AnnouncementCache cache) {
         Instant now = Instant.now();
-        Set<String> validIds = cache.getAnnouncements().stream()
+        Set<UUID> validIds = cache.getAnnouncements().stream()
                 .filter(announcement -> announcement.isActive(now))
                 .map(Announcement::getId)
                 .filter(Objects::nonNull)
@@ -296,18 +296,18 @@ public final class AnnouncementManager {
 
     private static @Unmodifiable List<Announcement> getActiveAnnouncements(AnnouncementCache cache) {
         Instant now = Instant.now();
-        Set<String> closed = cache.getClosed();
+        Set<UUID> closed = cache.getClosed();
         List<Announcement> initiallyActive = cache.getAnnouncements().stream()
                 .filter(announcement -> announcement.isActive(now))
                 .filter(AnnouncementManager::isCategoryEnabled)
                 .filter(announcement -> {
-                    String id = announcement.getId();
+                    UUID id = announcement.getId();
                     return id != null && !closed.contains(id);
                 })
                 .sorted(AnnouncementManager::compareAnnouncements)
                 .toList();
 
-        Set<String> activeIds = initiallyActive.stream()
+        Set<UUID> activeIds = initiallyActive.stream()
                 .map(Announcement::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());

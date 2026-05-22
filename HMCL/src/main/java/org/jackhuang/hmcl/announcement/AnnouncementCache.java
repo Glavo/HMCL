@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /// Local cache persisted in `.hmcl/announcements.json`.
 @NotNullByDefault
@@ -43,7 +44,7 @@ final class AnnouncementCache {
 
     /// Announcement IDs dismissed by the user.
     @SerializedName("closed")
-    private @Nullable Set<String> closed;
+    private @Nullable Set<UUID> closed;
 
     /// Last announcement list received from the server.
     @SerializedName("announcements")
@@ -75,7 +76,7 @@ final class AnnouncementCache {
     }
 
     /// @return Mutable dismissed announcement IDs.
-    Set<String> getClosed() {
+    Set<UUID> getClosed() {
         if (closed == null) {
             closed = new HashSet<>();
         }
