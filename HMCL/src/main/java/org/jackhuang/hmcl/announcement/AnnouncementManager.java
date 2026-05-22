@@ -167,16 +167,13 @@ public final class AnnouncementManager {
         if (shouldFetch) {
             current.setLastFetchAttemptTime(now);
             try {
-                FetchResult result = fetch(feedUri, current.getEtag());
+                FetchResult result = fetch(feedUri);
                 if (result.statusCode == HttpURLConnection.HTTP_OK && result.body != null) {
                     List<Announcement> announcements = JsonUtils.fromNonNullJson(result.body, JsonUtils.listTypeOf(Announcement.class));
                     current.setAnnouncements(announcements.stream()
                             .filter(Announcement::isValid)
                             .collect(Collectors.toList()));
-                    current.setEtag(result.etag);
                     current.setLastSuccessfulFetchTime(now);
-                    cleanupClosed(current);
-                } else if (result.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                     cleanupClosed(current);
                 }
             } catch (IOException | JsonParseException e) {
@@ -234,26 +231,18 @@ public final class AnnouncementManager {
 
     }
 
-    private static FetchResult fetch(URI uri, @Nullable String etag) throws IOException {
+    private static FetchResult fetch(URI uri) throws IOException {
         if (!NetworkUtils.isHttpUri(uri)) {
-            return new FetchResult(HttpURLConnection.HTTP_OK, null, Files.readString(Path.of(uri)));
+            return new FetchResult(HttpURLConnection.HTTP_OK, Files.readString(Path.of(uri)));
         }
 
         HttpURLConnection connection = NetworkUtils.createHttpConnection(uri);
-        if (StringUtils.isNotBlank(etag)) {
-            connection.setRequestProperty("If-None-Match", etag);
-        }
-
         int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
-            return new FetchResult(responseCode, connection.getHeaderField("ETag"), null);
-        }
-
         if (responseCode != HttpURLConnection.HTTP_OK) {
-            return new FetchResult(responseCode, connection.getHeaderField("ETag"), null);
+            return new FetchResult(responseCode, null);
         }
 
-        return new FetchResult(responseCode, connection.getHeaderField("ETag"), NetworkUtils.readFullyAsString(connection));
+        return new FetchResult(responseCode, NetworkUtils.readFullyAsString(connection));
     }
 
     private static void cleanupClosed(AnnouncementCache cache) {
@@ -350,7 +339,7 @@ public final class AnnouncementManager {
         return List.of(CATEGORY_GENERAL, CATEGORY_PROMOTION, CATEGORY_SECURITY);
     }
 
-    private record FetchResult(int statusCode, @Nullable String etag, @Nullable String body) {
+    private record FetchResult(int statusCode, @Nullable String body) {
         /// Stores a remote fetch result.
         private FetchResult {
         }

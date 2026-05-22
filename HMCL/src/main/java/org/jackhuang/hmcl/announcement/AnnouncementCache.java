@@ -37,10 +37,6 @@ final class AnnouncementCache {
     @SerializedName("lastSuccessfulFetchTime")
     private long lastSuccessfulFetchTime;
 
-    /// HTTP entity tag returned by the server.
-    @SerializedName("etag")
-    private @Nullable String etag;
-
     /// Announcement IDs dismissed by the user.
     @SerializedName("closed")
     private @Nullable Set<String> closed;
@@ -62,16 +58,6 @@ final class AnnouncementCache {
     /// @param lastSuccessfulFetchTime Last successful fetch timestamp in milliseconds since epoch.
     void setLastSuccessfulFetchTime(long lastSuccessfulFetchTime) {
         this.lastSuccessfulFetchTime = lastSuccessfulFetchTime;
-    }
-
-    /// @return The cached HTTP entity tag.
-    @Nullable String getEtag() {
-        return etag;
-    }
-
-    /// @param etag The cached HTTP entity tag.
-    void setEtag(@Nullable String etag) {
-        this.etag = etag;
     }
 
     /// @return Mutable dismissed announcement IDs.
