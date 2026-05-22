@@ -37,6 +37,10 @@ final class AnnouncementCache {
     @SerializedName("lastSuccessfulFetchTime")
     private long lastSuccessfulFetchTime;
 
+    /// Last modified timestamp returned by the announcement feed server.
+    @SerializedName("lastModifiedTime")
+    private long lastModifiedTime;
+
     /// Announcement IDs dismissed by the user.
     @SerializedName("closed")
     private @Nullable Set<String> closed;
@@ -58,6 +62,16 @@ final class AnnouncementCache {
     /// @param lastSuccessfulFetchTime Last successful fetch timestamp in milliseconds since epoch.
     void setLastSuccessfulFetchTime(long lastSuccessfulFetchTime) {
         this.lastSuccessfulFetchTime = lastSuccessfulFetchTime;
+    }
+
+    /// @return Last modified timestamp in milliseconds since epoch.
+    long getLastModifiedTime() {
+        return lastModifiedTime;
+    }
+
+    /// @param lastModifiedTime Last modified timestamp in milliseconds since epoch.
+    void setLastModifiedTime(long lastModifiedTime) {
+        this.lastModifiedTime = lastModifiedTime;
     }
 
     /// @return Mutable dismissed announcement IDs.

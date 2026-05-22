@@ -167,13 +167,19 @@ public final class AnnouncementManager {
         if (shouldFetch) {
             current.setLastFetchAttemptTime(now);
             try {
-                FetchResult result = fetch(feedUri);
+                FetchResult result = fetch(feedUri, current.getLastModifiedTime());
                 if (result.statusCode == HttpURLConnection.HTTP_OK && result.body != null) {
                     List<Announcement> announcements = JsonUtils.fromNonNullJson(result.body, JsonUtils.listTypeOf(Announcement.class));
                     current.setAnnouncements(announcements.stream()
                             .filter(Announcement::isValid)
                             .collect(Collectors.toList()));
+                    current.setLastModifiedTime(result.lastModifiedTime);
                     current.setLastSuccessfulFetchTime(now);
+                    cleanupClosed(current);
+                } else if (result.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
+                    if (result.lastModifiedTime > 0) {
+                        current.setLastModifiedTime(result.lastModifiedTime);
+                    }
                     cleanupClosed(current);
                 }
             } catch (IOException | JsonParseException e) {
@@ -231,18 +237,28 @@ public final class AnnouncementManager {
 
     }
 
-    private static FetchResult fetch(URI uri) throws IOException {
+    private static FetchResult fetch(URI uri, long lastModifiedTime) throws IOException {
         if (!NetworkUtils.isHttpUri(uri)) {
-            return new FetchResult(HttpURLConnection.HTTP_OK, Files.readString(Path.of(uri)));
+            Path path = Path.of(uri);
+            return new FetchResult(HttpURLConnection.HTTP_OK, Files.getLastModifiedTime(path).toMillis(), Files.readString(path));
         }
 
         HttpURLConnection connection = NetworkUtils.createHttpConnection(uri);
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            return new FetchResult(responseCode, null);
+        if (lastModifiedTime > 0) {
+            connection.setIfModifiedSince(lastModifiedTime);
         }
 
-        return new FetchResult(responseCode, NetworkUtils.readFullyAsString(connection));
+        int responseCode = connection.getResponseCode();
+        long responseLastModifiedTime = connection.getLastModified();
+        if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
+            return new FetchResult(responseCode, responseLastModifiedTime, null);
+        }
+
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            return new FetchResult(responseCode, responseLastModifiedTime, null);
+        }
+
+        return new FetchResult(responseCode, responseLastModifiedTime, NetworkUtils.readFullyAsString(connection));
     }
 
     private static void cleanupClosed(AnnouncementCache cache) {
@@ -339,7 +355,7 @@ public final class AnnouncementManager {
         return List.of(CATEGORY_GENERAL, CATEGORY_PROMOTION, CATEGORY_SECURITY);
     }
 
-    private record FetchResult(int statusCode, @Nullable String body) {
+    private record FetchResult(int statusCode, long lastModifiedTime, @Nullable String body) {
         /// Stores a remote fetch result.
         private FetchResult {
         }
