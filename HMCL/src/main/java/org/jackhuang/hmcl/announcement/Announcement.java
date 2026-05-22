@@ -19,12 +19,11 @@ package org.jackhuang.hmcl.announcement;
 
 import com.google.gson.annotations.SerializedName;
 import org.jackhuang.hmcl.Metadata;
+import org.jackhuang.hmcl.game.CompatibilityRule;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonSerializable;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.i18n.LocalizedText;
-import org.jackhuang.hmcl.util.platform.OperatingSystem;
-import org.jackhuang.hmcl.util.versioning.VersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -33,6 +32,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -61,10 +61,17 @@ import java.util.UUID;
 ///   "parent": "019976b2-ad49-7451-b090-83b66c532cdc",
 ///   "startsAt": "2026-01-01T00:00:00Z",
 ///   "expiresAt": "2027-01-01T00:00:00Z",
-///   "minVersion": "3.6.0",
-///   "maxVersion": "3.7.0",
-///   "platforms": ["windows", "linux", "osx"],
-///   "channels": ["stable", "nightly"],
+///   "rules": [
+///     {
+///       "action": "allow",
+///       "os": {
+///         "name": "windows"
+///       },
+///       "features": {
+///         "hmcl_channel_stable": true
+///       }
+///     }
+///   ],
 ///   "dismissible": true,
 ///   "showOnce": true,
 ///   "ackRequired": true
@@ -84,6 +91,10 @@ import java.util.UUID;
 /// supported targets are `board` for the homepage announcement area and `popup` for startup dialogs. `categories`
 /// likewise replaces the legacy single `category` field when an announcement belongs to multiple user-controllable
 /// groups.
+///
+/// `rules` uses [CompatibilityRule] to describe environment restrictions. Operating system restrictions use the
+/// existing `os` object. HMCL build channels are exposed as boolean features named `hmcl_channel_stable`,
+/// `hmcl_channel_dev`, and `hmcl_channel_nightly`.
 @NotNullByDefault
 @JsonSerializable
 public final class Announcement {
@@ -135,21 +146,9 @@ public final class Announcement {
     @SerializedName("expiresAt")
     private @Nullable String expiresAt;
 
-    /// Optional minimum HMCL version.
-    @SerializedName("minVersion")
-    private @Nullable String minVersion;
-
-    /// Optional maximum HMCL version.
-    @SerializedName("maxVersion")
-    private @Nullable String maxVersion;
-
-    /// Optional operating systems allowed to receive this announcement.
-    @SerializedName("platforms")
-    private @Nullable List<String> platforms;
-
-    /// Optional HMCL build channels allowed to receive this announcement.
-    @SerializedName("channels")
-    private @Nullable List<String> channels;
+    /// Optional compatibility rules that restrict where this announcement applies.
+    @SerializedName("rules")
+    private @Nullable List<CompatibilityRule> rules;
 
     /// Whether users may dismiss this announcement.
     @SerializedName("dismissible")
@@ -261,9 +260,7 @@ public final class Announcement {
             return false;
         }
 
-        return isVersionAllowed()
-                && isPlatformAllowed()
-                && isChannelAllowed();
+        return CompatibilityRule.appliesToCurrentEnvironment(rules, getCompatibilityFeatures());
     }
 
     /// @return The instant used for secondary sorting.
@@ -272,27 +269,19 @@ public final class Announcement {
         return start == null ? Instant.EPOCH : start;
     }
 
-    private boolean isVersionAllowed() {
-        VersionNumber current = VersionNumber.asVersion(Metadata.VERSION);
-        if (StringUtils.isNotBlank(minVersion) && current.compareTo(VersionNumber.asVersion(minVersion)) < 0) {
-            return false;
-        }
-
-        return StringUtils.isBlank(maxVersion) || current.compareTo(VersionNumber.asVersion(maxVersion)) <= 0;
+    /// @return Feature flags supplied to [CompatibilityRule] evaluation.
+    private static @Unmodifiable Map<String, Boolean> getCompatibilityFeatures() {
+        return Map.of(
+                "hmcl_channel_stable", Metadata.isStable(),
+                "hmcl_channel_dev", Metadata.isDev(),
+                "hmcl_channel_nightly", Metadata.isNightly()
+        );
     }
 
-    private boolean isPlatformAllowed() {
-        return containsIgnoreCaseOrEmpty(platforms, OperatingSystem.CURRENT_OS.getCheckedName());
-    }
-
-    private boolean isChannelAllowed() {
-        return containsIgnoreCaseOrEmpty(channels, Metadata.BUILD_CHANNEL);
-    }
-
-    private static boolean containsIgnoreCaseOrEmpty(@Nullable List<String> values, String expected) {
-        return values == null || values.isEmpty() || values.stream().anyMatch(expected::equalsIgnoreCase);
-    }
-
+    /// Parses an optional ISO-8601 instant.
+    ///
+    /// @param value Nullable instant string.
+    /// @return Parsed instant, or `null` when the value is blank or malformed.
     private static @Nullable Instant parseInstant(@Nullable String value) {
         if (StringUtils.isBlank(value)) {
             return null;

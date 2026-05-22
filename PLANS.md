@@ -18,11 +18,7 @@
 - 增加公告生命周期字段：
   - `startsAt`
   - `expiresAt`
-- 增加版本、平台和发布渠道过滤字段：
-  - `minVersion`
-  - `maxVersion`
-  - `platforms`
-  - `channels`
+- 复用 `CompatibilityRule` 描述公告的环境限制，避免单独定义 `platforms`、`channels`、`minVersion`、`maxVersion` 等字段。
 - 明确 `parent` 的语义，避免“父公告未展示”因关闭、过期、语言不匹配或配置禁用而产生歧义。
 - 明确排序规则：
   1. 严重性更高的公告优先。
