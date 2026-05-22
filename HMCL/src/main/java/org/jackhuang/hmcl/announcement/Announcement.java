@@ -36,6 +36,49 @@ import java.util.Locale;
 import java.util.Set;
 
 /// A remote announcement entry loaded from the public announcements feed.
+///
+/// The JSON structure is:
+///
+/// ```json
+/// {
+///   "id": "announcement-id",
+///   "title": {
+///     "default": "Announcement title",
+///     "zh": "Announcement title in Chinese"
+///   },
+///   "content": {
+///     "type": "html",
+///     "value": {
+///       "default": "<p>Announcement body</p>",
+///       "zh": "<p>Announcement body in Chinese</p>"
+///     }
+///   },
+///   "targets": ["board", "popup"],
+///   "categories": ["general"],
+///   "priority": 0,
+///   "severity": "info",
+///   "parent": "parent-announcement-id",
+///   "startsAt": "2026-01-01T00:00:00Z",
+///   "expiresAt": "2027-01-01T00:00:00Z",
+///   "minVersion": "3.6.0",
+///   "maxVersion": "3.7.0",
+///   "platforms": ["windows", "linux", "osx"],
+///   "channels": ["stable", "nightly"],
+///   "dismissible": true,
+///   "showOnce": true,
+///   "ackRequired": true
+/// }
+/// ```
+///
+/// `title` and `content.value` use [LocalizedText], so they may be either a plain string or an object keyed by locale.
+/// `content.type` is a tagged payload discriminator: `html` renders `content.value` with `HTMLRenderer`, while `link`
+/// treats `content.value` as an external URL. A single announcement has exactly one `content` payload, so inline HTML
+/// and external links cannot be configured at the same level.
+///
+/// `targets` replaces the legacy single `type` field when an announcement should appear on multiple surfaces. The
+/// supported targets are `board` for the homepage announcement area and `popup` for startup dialogs. `categories`
+/// likewise replaces the legacy single `category` field when an announcement belongs to multiple user-controllable
+/// groups.
 @NotNullByDefault
 @JsonSerializable
 public final class Announcement {
