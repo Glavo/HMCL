@@ -6,8 +6,11 @@
       "zh": "主页公告测试"
     },
     "content": {
-      "default": "<p>This is a <strong>board</strong> announcement loaded from the local test file.</p><ul><li>It is rendered by HTMLRenderer.</li><li><a href=\"https://docs.hmcl.net/\">Open HMCL docs</a></li></ul>",
-      "zh": "<p>这是一个从本地测试文件加载的 <strong>主页</strong> 公告。</p><ul><li>内容由 HTMLRenderer 渲染。</li><li><a href=\"https://docs.hmcl.net/\">打开 HMCL 文档</a></li></ul>"
+      "type": "html",
+      "value": {
+        "default": "<p>This is a <strong>board</strong> announcement loaded from the local test file.</p><ul><li>It is rendered by HTMLRenderer.</li><li><a href=\"https://docs.hmcl.net/\">Open HMCL docs</a></li></ul>",
+        "zh": "<p>这是一个从本地测试文件加载的 <strong>主页</strong> 公告。</p><ul><li>内容由 HTMLRenderer 渲染。</li><li><a href=\"https://docs.hmcl.net/\">打开 HMCL 文档</a></li></ul>"
+      }
     },
     "type": "board",
     "category": "promotion",
@@ -24,8 +27,11 @@
       "zh": "弹窗公告测试"
     },
     "content": {
-      "default": "<p>This popup announcement is also rendered directly with <strong>HTMLRenderer</strong>.</p>",
-      "zh": "<p>这个弹窗公告同样会直接使用 <strong>HTMLRenderer</strong> 渲染。</p>"
+      "type": "html",
+      "value": {
+        "default": "<p>This popup announcement is also rendered directly with <strong>HTMLRenderer</strong>.</p>",
+        "zh": "<p>这个弹窗公告同样会直接使用 <strong>HTMLRenderer</strong> 渲染。</p>"
+      }
     },
     "type": "popup",
     "category": "security",
@@ -36,5 +42,26 @@
     "dismissible": true,
     "showOnce": true,
     "ackRequired": true
+  },
+  {
+    "id": "019976b2-ad49-7451-b090-83b66c532cdf",
+    "title": {
+      "default": "External announcement test",
+      "zh": "外部链接公告测试"
+    },
+    "content": {
+      "type": "link",
+      "value": {
+        "default": "https://docs.hmcl.net/",
+        "zh": "https://docs.hmcl.net/"
+      }
+    },
+    "type": "board",
+    "category": "general",
+    "priority": 80,
+    "severity": "info",
+    "startsAt": "2026-01-01T00:00:00Z",
+    "expiresAt": "2027-01-01T00:00:00Z",
+    "dismissible": true
   }
 ]

@@ -11,7 +11,7 @@
 ## 服务端公告 Schema
 
 - 将 `title` 统一为本地化文本对象，而不是单一字符串。
-- 明确 `content` 与 `link` 的互斥规则：两者至少存在一个，且不能同时存在。
+- 将正文和外部链接统一到单一 `content` 字段，使用 `type` 区分 `html` 与 `link`，并用 `value` 存储本地化内容。
 - 固定 `type` 或展示目标的枚举值。
   - 如果一个公告可能同时用于主页和弹窗，考虑使用 `targets` 数组代替单一 `type`。
 - 固定 `severity` 枚举，例如 `info`、`warning`、`critical`。
@@ -34,11 +34,11 @@
 
 - 将 `lastAccessTime` 改为更准确的 `lastFetchAttemptTime`。
 - 增加 `lastSuccessfulFetchTime`，区分尝试请求和成功更新。
-- 保存服务端返回的 `ETag`，优先使用 `If-None-Match` 进行条件请求。
+- 保存服务端返回的 `Last-Modified` 时间，优先使用 `If-Modified-Since` 进行条件请求。
 - 本地缓存结构建议包含：
   - `lastFetchAttemptTime`
   - `lastSuccessfulFetchTime`
-  - `etag`
+  - `lastModifiedTime`
   - `closed`
   - `announcements`
 - 清理 `closed` 时只保留仍存在且仍有效的公告 ID。
@@ -48,9 +48,9 @@
 - 启动后异步刷新公告，不阻塞启动器主流程。
 - 如果本地没有缓存，尝试从服务器拉取公告。
 - 如果本地已有缓存且未超过刷新间隔，直接使用缓存。
-- 如果超过刷新间隔，使用 `ETag` 发起条件请求。
+- 如果超过刷新间隔，使用 `If-Modified-Since` 发起条件请求。
 - 服务器返回 `304 Not Modified` 时只刷新 `lastFetchAttemptTime`。
-- 服务器返回新公告时更新 `announcements`、`etag` 和成功刷新时间。
+- 服务器返回新公告时更新 `announcements`、`lastModifiedTime` 和成功刷新时间。
 - 网络失败、解析失败或服务端返回异常格式时：
   - 保留旧缓存。
   - 不覆盖本地有效数据。
@@ -96,11 +96,10 @@
 
 1. 定义公告服务端 schema 和本地缓存 schema。
 2. 实现公告解析、校验、过滤和排序逻辑。
-3. 实现本地缓存读写和 `ETag` 条件请求。
+3. 实现本地缓存读写和 `If-Modified-Since` 条件请求。
 4. 实现失败兜底策略，确保公告系统不会影响启动器启动。
 5. 接入用户设置开关。
 6. 实现主页 `board` 公告展示。
 7. 实现启动时 `popup` 公告展示。
 8. 补充 HTML 或富文本内容安全处理。
 9. 添加针对缓存、过滤、排序、关闭状态和失败策略的测试。
-

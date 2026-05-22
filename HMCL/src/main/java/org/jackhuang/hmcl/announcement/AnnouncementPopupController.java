@@ -24,7 +24,6 @@ import javafx.collections.ListChangeListener;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import org.jackhuang.hmcl.ui.Controllers;
-import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.JFXHyperlink;
 import org.jackhuang.hmcl.util.FXThread;
@@ -86,7 +85,7 @@ public final class AnnouncementPopupController {
             scrollPane.setFitToWidth(true);
             scrollPane.setMaxHeight(360);
             layout.setBody(scrollPane);
-        } else {
+        } else if (link != null) {
             JFXHyperlink hyperlink = new JFXHyperlink(i18n("announcement.open"));
             hyperlink.setExternalLink(link);
             layout.setBody(hyperlink);
@@ -99,18 +98,7 @@ public final class AnnouncementPopupController {
             layout.fireEvent(new DialogCloseEvent());
         });
 
-        if (link != null && content != null) {
-            JFXButton viewButton = new JFXButton(i18n("button.view"));
-            viewButton.getStyleClass().add("dialog-accept");
-            viewButton.setOnAction(event -> {
-                FXUtils.openLink(link);
-                closeAnnouncement(announcement);
-                layout.fireEvent(new DialogCloseEvent());
-            });
-            layout.setActions(viewButton, okButton);
-        } else {
-            layout.setActions(okButton);
-        }
+        layout.setActions(okButton);
 
         layout.setMaxWidth(520);
         Controllers.dialog(layout);

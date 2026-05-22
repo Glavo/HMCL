@@ -20,6 +20,7 @@ package org.jackhuang.hmcl.announcement;
 import com.google.gson.annotations.SerializedName;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.util.StringUtils;
+import org.jackhuang.hmcl.util.gson.JsonSerializable;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.i18n.LocalizedText;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
@@ -36,6 +37,7 @@ import java.util.Set;
 
 /// A remote announcement entry loaded from the public announcements feed.
 @NotNullByDefault
+@JsonSerializable
 public final class Announcement {
     /// Unique announcement identifier.
     @SerializedName("id")
@@ -45,13 +47,9 @@ public final class Announcement {
     @SerializedName("title")
     private @Nullable LocalizedText title;
 
-    /// Localized HTML body. This field is mutually exclusive with [#link].
+    /// Localized announcement content.
     @SerializedName("content")
-    private @Nullable LocalizedText content;
-
-    /// Localized external body link. This field is mutually exclusive with [#content].
-    @SerializedName("link")
-    private @Nullable LocalizedText link;
+    private @Nullable Content content;
 
     /// Single display target kept for compatibility with the original design.
     @SerializedName("type")
@@ -170,18 +168,18 @@ public final class Announcement {
 
     /// @return The localized title, or the announcement ID if no title is available.
     public String getLocalizedTitle() {
-        String localized = localize(title);
+        String localized = title == null ? null : title.getText(I18n.getLocale().getCandidateLocales());
         return StringUtils.isBlank(localized) ? String.valueOf(id) : localized;
     }
 
     /// @return The localized HTML content, or `null` when the announcement uses a link.
     public @Nullable String getLocalizedContent() {
-        return localize(content);
+        return content != null && content.isHtml() ? content.getLocalizedValue() : null;
     }
 
     /// @return The localized external content link, or `null` when inline content is used.
     public @Nullable String getLocalizedLink() {
-        return localize(link);
+        return content != null && content.isLink() ? content.getLocalizedValue() : null;
     }
 
     /// @return Whether this announcement targets the given surface.
@@ -200,9 +198,7 @@ public final class Announcement {
             return false;
         }
 
-        boolean hasContent = StringUtils.isNotBlank(getLocalizedContent());
-        boolean hasLink = StringUtils.isNotBlank(getLocalizedLink());
-        return hasContent != hasLink && (hasTarget("board") || hasTarget("popup"));
+        return content != null && content.isValid() && (hasTarget("board") || hasTarget("popup"));
     }
 
     /// @return Whether this announcement should be considered active now.
@@ -261,12 +257,46 @@ public final class Announcement {
         }
     }
 
-    private static @Nullable String localize(@Nullable LocalizedText text) {
-        return text == null ? null : text.getText(I18n.getLocale().getCandidateLocales());
-    }
-
     /// @return The set of currently known severity values.
     public static @Unmodifiable Set<String> knownSeverities() {
         return Set.of("info", "warning", "critical");
+    }
+
+    /// A mutually exclusive announcement content payload.
+    @NotNullByDefault
+    @JsonSerializable
+    public static final class Content {
+        /// Content kind, such as `html` or `link`.
+        @SerializedName("type")
+        private @Nullable String type;
+
+        /// Localized content value.
+        @SerializedName("value")
+        private @Nullable LocalizedText value;
+
+        /// @return Whether this payload stores inline HTML.
+        boolean isHtml() {
+            return "html".equals(getNormalizedType());
+        }
+
+        /// @return Whether this payload stores an external link.
+        boolean isLink() {
+            return "link".equals(getNormalizedType());
+        }
+
+        /// @return The localized payload value, or `null` when unavailable.
+        private @Nullable String getLocalizedValue() {
+            return value == null ? null : value.getText(I18n.getLocale().getCandidateLocales());
+        }
+
+        /// @return Whether this payload has a known type and a non-blank localized value.
+        private boolean isValid() {
+            return (isHtml() || isLink()) && StringUtils.isNotBlank(getLocalizedValue());
+        }
+
+        /// @return The normalized content type.
+        private String getNormalizedType() {
+            return StringUtils.isBlank(type) ? "" : type.toLowerCase(Locale.ROOT);
+        }
     }
 }
