@@ -62,6 +62,12 @@ public final class Metadata {
     public static final Path MINECRAFT_DIRECTORY = OperatingSystem.getWorkingDirectory("minecraft");
     /// The distribution-level directory for package-managed configuration files.
     public static final Path HMCL_DISTRIBUTION_HOME;
+    /// The distribution directory storing package-managed configuration files.
+    public static final Path HMCL_DISTRIBUTION_CONFIG_DIRECTORY;
+    /// The distribution metadata path provided by package maintainers.
+    public static final Path HMCL_DISTRIBUTION_METADATA_LOCATION;
+    /// The package-managed distribution metadata for this HMCL runtime.
+    public static final DistributionMetadata DISTRIBUTION_METADATA;
     public static final Path HMCL_USER_HOME;
     public static final Path HMCL_LOCAL_HOME;
     public static final Path DEPENDENCIES_DIRECTORY;
@@ -78,6 +84,10 @@ public final class Metadata {
                     .toAbsolutePath()
                     .normalize();
         }
+
+        HMCL_DISTRIBUTION_CONFIG_DIRECTORY = HMCL_DISTRIBUTION_HOME.resolve("config");
+        HMCL_DISTRIBUTION_METADATA_LOCATION = HMCL_DISTRIBUTION_CONFIG_DIRECTORY.resolve("distribution.json");
+        DISTRIBUTION_METADATA = DistributionMetadata.load(HMCL_DISTRIBUTION_METADATA_LOCATION);
 
         String hmclHome = System.getProperty("hmcl.home", System.getenv("HMCL_USER_HOME"));
         if (StringUtils.isBlank(hmclHome)) {

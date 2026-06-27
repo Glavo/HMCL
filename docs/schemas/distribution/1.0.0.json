@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.glavo.site/hmcl/distribution/1.0.0",
+  "title": "HMCL Distribution Metadata",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "$schema",
+    "packageType"
+  ],
+  "patternProperties": {
+    "^\\$schema$": {
+      "enum": [
+        "https://schemas.glavo.site/hmcl/distribution/1.0.0"
+      ]
+    }
+  },
+  "properties": {
+    "packageType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "packageName": {
+      "type": "string"
+    },
+    "packageVersion": {
+      "type": "string"
+    },
+    "maintainer": {
+      "type": "string"
+    }
+  }
+}
