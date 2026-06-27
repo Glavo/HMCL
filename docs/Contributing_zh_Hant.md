@@ -90,6 +90,7 @@ HMCL 提供了一系列除錯選項，用於控制啟動器的行為。
 | `HMCL_UI_SCALE`             |                                              | 設定 HMCL 的 UI 縮放比例               | 遵循系統目前的縮放比例                                                                                       | 支援倍數 (1.5)、百分比 (150%) 或 DPI (144dpi) |
 |                             | `-Dhmcl.dir=<path>`                          | 設定 HMCL 的目前資料存放位置               | `./.hmcl`                                                                                                   |              |
 |                             | `-Dhmcl.home=<path>`                         | 設定 HMCL 的使用者資料存放位置               | Windows: `%APPDATA%\.hmcl`<br>Linux/BSD: `$XDG_DATA_HOME/hmcl`<br>macOS: `~Library/Application Support/hmcl` |              |
+| `HMCL_DISTRIBUTION_HOME`    | `-Dhmcl.distribution.home=<path>`            | 設定 HMCL 的發行包級設定資料夾             | HMCL JAR 所在目錄下的 `.hmcl`；無法偵測 JAR 路徑時為 `./.hmcl`                                                        |              |
 |                             | `-Dhmcl.self_integrity_check.disable=true`   | 檢查更新時不檢查程式完整性                  |                                                                                                             |              |
 |                             | `-Dhmcl.bmclapi.override=<url>`              | 設定 BMCLAPI 的 API Root          | `https://bmclapi2.bangbang93.com`                                                                           |              |
 |                             | `-Dhmcl.discoapi.override=<url>`             | 設定 foojay Disco API 的 API Root | `https://api.foojay.io/disco/v3.0`                                                                          |
@@ -102,4 +103,3 @@ HMCL 提供了一系列除錯選項，用於控制啟動器的行為。
 |                             | `-Dhmcl.curseforge.apikey=<Api Key>`         | 設定 CurseForge API 金鑰           | 使用 HMCL 內建的 CurseForge API 金鑰                                                                               |              |
 |                             | `-Dhmcl.native.backend=<auto/jna/none>`      | 設定 HMCL 使用的本機後端                  | `auto`                                                                                                      |
 |                             | `-Dhmcl.hardware.fastfetch=<true/false>`     | 設定是否使用 fastfetch 檢測硬體資訊        | `true`                                                                                                      |
-

@@ -60,11 +60,25 @@ public final class Metadata {
 
     public static final Path CURRENT_DIRECTORY = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
     public static final Path MINECRAFT_DIRECTORY = OperatingSystem.getWorkingDirectory("minecraft");
+    /// The distribution-level directory for package-managed configuration files.
+    public static final Path HMCL_DISTRIBUTION_HOME;
     public static final Path HMCL_USER_HOME;
     public static final Path HMCL_LOCAL_HOME;
     public static final Path DEPENDENCIES_DIRECTORY;
 
     static {
+        String hmclDistributionHome = System.getProperty("hmcl.distribution.home", System.getenv("HMCL_DISTRIBUTION_HOME"));
+        if (StringUtils.isNotBlank(hmclDistributionHome)) {
+            HMCL_DISTRIBUTION_HOME = Path.of(hmclDistributionHome).toAbsolutePath().normalize();
+        } else {
+            @Nullable Path jarPath = JarUtils.thisJarPath();
+            @Nullable Path jarDirectory = jarPath != null ? jarPath.getParent() : null;
+            HMCL_DISTRIBUTION_HOME = (jarDirectory != null ? jarDirectory : CURRENT_DIRECTORY)
+                    .resolve(".hmcl")
+                    .toAbsolutePath()
+                    .normalize();
+        }
+
         String hmclHome = System.getProperty("hmcl.home", System.getenv("HMCL_USER_HOME"));
         if (StringUtils.isBlank(hmclHome)) {
             if (OperatingSystem.CURRENT_OS.isLinuxOrBSD()) {

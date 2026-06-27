@@ -351,6 +351,7 @@ public final class Launcher extends Application {
             LOG.info("Java VM Version: " + System.getProperty("java.vm.name") + " (" + System.getProperty("java.vm.info") + "), " + System.getProperty("java.vm.vendor"));
             LOG.info("Java Home: " + System.getProperty("java.home"));
             LOG.info("Current Directory: " + Metadata.CURRENT_DIRECTORY);
+            LOG.info("HMCL Distribution Home: " + Metadata.HMCL_DISTRIBUTION_HOME);
             LOG.info("HMCL User Home: " + Metadata.HMCL_USER_HOME);
             LOG.info("HMCL Local Home: " + Metadata.HMCL_LOCAL_HOME);
             LOG.info("HMCL Jar Path: " + Lang.requireNonNullElse(JarUtils.thisJarPath(), "Not Found"));

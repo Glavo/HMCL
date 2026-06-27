@@ -90,6 +90,7 @@ HMCL 提供了一系列调试选项，用于控制启动器的行为。
 | `HMCL_UI_SCALE`             |                                              | 指定 HMCL 的 UI 缩放比例                 | 遵循系统当前的缩放比例                                                                                       | 支持倍数 (1.5)、百分比 (150%) 或 DPI (144dpi) |
 |                             | `-Dhmcl.dir=<path>`                          | 指定 HMCL 的当前数据文件夹               | `./.hmcl`                                                                                                   |              |
 |                             | `-Dhmcl.home=<path>`                         | 指定 HMCL 的用户数据文件夹               | Windows: `%APPDATA%\.hmcl`<br>Linux/BSD: `$XDG_DATA_HOME/hmcl`<br>macOS: `~Library/Application Support/hmcl` |              |
+| `HMCL_DISTRIBUTION_HOME`    | `-Dhmcl.distribution.home=<path>`            | 指定 HMCL 的发行包级配置文件夹             | HMCL JAR 所在目录下的 `.hmcl`；无法检测 JAR 路径时为 `./.hmcl`                                                        |              |
 |                             | `-Dhmcl.self_integrity_check.disable=true`   | 检查更新时不检查本体完整性                  |                                                                                                             |              |
 |                             | `-Dhmcl.bmclapi.override=<url>`              | 指定 BMCLAPI 的 API Root          | `https://bmclapi2.bangbang93.com`                                                                           |              |
 |                             | `-Dhmcl.discoapi.override=<url>`             | 指定 foojay Disco API 的 API Root | `https://api.foojay.io/disco/v3.0`                                                                          |
@@ -102,4 +103,3 @@ HMCL 提供了一系列调试选项，用于控制启动器的行为。
 |                             | `-Dhmcl.curseforge.apikey=<Api Key>`         | 指定 CurseForge API 密钥           | 使用 HMCL 内置的 CurseForge API 密钥                                                                               |              |
 |                             | `-Dhmcl.native.backend=<auto/jna/none>`      | 指定HMCL使用的本机后端                  | `auto`                                                                                                      |
 |                             | `-Dhmcl.hardware.fastfetch=<true/false>`     | 指定是否使用 fastfetch 检测硬件信息        | `true`                                                                                                      |
-
