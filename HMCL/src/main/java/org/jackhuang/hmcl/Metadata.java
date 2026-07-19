@@ -67,7 +67,7 @@ public final class Metadata {
     /// The distribution metadata path provided by package maintainers.
     public static final Path HMCL_DISTRIBUTION_METADATA_LOCATION;
     /// The package-managed distribution metadata for this HMCL runtime.
-    public static final DistributionMetadata DISTRIBUTION_METADATA;
+    public static final @Nullable DistributionMetadata DISTRIBUTION_METADATA;
     public static final Path HMCL_USER_HOME;
     public static final Path HMCL_LOCAL_HOME;
     public static final Path DEPENDENCIES_DIRECTORY;
