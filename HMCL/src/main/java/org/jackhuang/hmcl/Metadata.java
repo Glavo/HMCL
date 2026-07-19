@@ -25,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.Objects;
 
 /**
  * Stores metadata about this application.
@@ -67,7 +68,7 @@ public final class Metadata {
     /// The distribution metadata path provided by package maintainers.
     public static final Path HMCL_DISTRIBUTION_METADATA_LOCATION;
     /// The package-managed distribution metadata for this HMCL runtime.
-    public static final @Nullable DistributionMetadata DISTRIBUTION_METADATA;
+    public static final DistributionMetadata DISTRIBUTION_METADATA;
     public static final Path HMCL_USER_HOME;
     public static final Path HMCL_LOCAL_HOME;
     public static final Path DEPENDENCIES_DIRECTORY;
@@ -87,7 +88,10 @@ public final class Metadata {
 
         HMCL_DISTRIBUTION_CONFIG_DIRECTORY = HMCL_DISTRIBUTION_HOME.resolve("config");
         HMCL_DISTRIBUTION_METADATA_LOCATION = HMCL_DISTRIBUTION_CONFIG_DIRECTORY.resolve("distribution.json");
-        DISTRIBUTION_METADATA = DistributionMetadata.load(HMCL_DISTRIBUTION_METADATA_LOCATION);
+        DISTRIBUTION_METADATA = Objects.requireNonNullElse(
+                DistributionMetadata.load(HMCL_DISTRIBUTION_METADATA_LOCATION),
+                DistributionMetadata.DEFAULT
+        );
 
         String hmclHome = System.getProperty("hmcl.home", System.getenv("HMCL_USER_HOME"));
         if (StringUtils.isBlank(hmclHome)) {

@@ -105,6 +105,12 @@ public final class UpdateChecker {
         Platform.runLater(() -> {
             if (isCheckingUpdate())
                 return;
+
+            if (Metadata.DISTRIBUTION_METADATA.updateManagedExternally()) {
+                latestVersion.setValue(null);
+                return;
+            }
+
             checkingUpdate.set(true);
 
             thread(() -> {

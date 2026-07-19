@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
@@ -44,10 +45,19 @@ public record DistributionMetadata(
         JsonSchema schema,
         @Nullable PackageType packageType,
         @Nullable String packageName,
-        @Nullable String packageVersion
+        @Nullable String packageVersion,
+        boolean updateManagedExternally
 ) {
     /// The JSON schema supported by this distribution metadata class.
     public static final JsonSchema CURRENT_SCHEMA = new JsonSchema("distribution", new JsonSchema.Version(1, 0, 0));
+
+    public static final DistributionMetadata DEFAULT = new DistributionMetadata(
+            CURRENT_SCHEMA,
+            null,
+            null,
+            null,
+            false
+    );
 
     public static @Nullable DistributionMetadata load(Path location) {
         if (!Files.isRegularFile(location))
@@ -86,8 +96,24 @@ public record DistributionMetadata(
         }
     }
 
+    @Override
+    public PackageType packageType() {
+        return Objects.requireNonNullElse(packageType, PackageType.STANDALONE);
+    }
+
     @JsonAdapter(LowerCaseEnumTypeAdapterFactory.class)
     public enum PackageType {
-        DEB
+        STANDALONE("Standalone"),
+        DEB("Deb");
+
+        private final String displayName;
+
+        PackageType(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 }
