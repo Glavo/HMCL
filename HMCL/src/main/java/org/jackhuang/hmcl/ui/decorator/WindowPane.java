@@ -23,8 +23,8 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
-import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -55,6 +55,7 @@ import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.wizard.Navigation;
+import org.jackhuang.hmcl.util.javafx.NodeWindowProperty;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -62,28 +63,45 @@ import org.jetbrains.annotations.Nullable;
 /// Represents the clipped portion of a [Decorator] window inside its drop shadow.
 ///
 /// This pane owns the themed background, page and floating-content layers, title bar, navigation
-/// controls, and window buttons. It also manages moving, maximizing, and resizing the containing
-/// stage; resize gestures are observed on the outer interaction pane supplied at construction.
+/// controls, and window buttons. It manages moving, maximizing, and resizing whichever [Stage]
+/// currently contains it; resize gestures are observed on the outer interaction pane supplied at
+/// construction.
 @NotNullByDefault
-final class DecoratorWindow extends StackPane {
-    /// The decorator whose properties and actions drive this content.
+final class WindowPane extends StackPane {
+    /// The decorator whose properties and actions drive this pane.
     private final Decorator decorator;
 
     /// The outer pane that receives move and resize pointer events, including the shadow insets.
     private final StackPane interactionPane;
 
-    /// The stage manipulated by window interactions.
-    private final Stage primaryStage;
+    /// Tracks the stage that currently contains this pane without retaining a fixed stage.
+    private final NodeWindowProperty<Stage> stage = NodeWindowProperty.newStageProperty(this);
 
     /// The title container used to determine the minimum dimensions during window resizing.
     private final StackPane titleContainer;
 
-    /// Retains the listener referenced weakly by the stage state properties.
-    @SuppressWarnings("FieldCanBeLocal")
-    private final @Nullable InvalidationListener onWindowsStatusChange;
+    /// Ends active move and resize gestures received by the outer interaction pane.
+    private final EventHandler<MouseEvent> onMouseReleased = this::onMouseReleased;
+
+    /// Processes move and resize gestures received by the outer interaction pane.
+    private final EventHandler<MouseEvent> onMouseDragged = this::onMouseDragged;
+
+    /// Updates the resize cursor over the outer interaction pane.
+    private final EventHandler<MouseEvent> onMouseMoved = this::onMouseMoved;
+
+    /// Updates interaction filters when the current stage changes window state.
+    private final InvalidationListener windowStatusChangedListener =
+            observable -> updateInteractionFilters();
+
+    /// Transfers window-state observation when this pane moves between stages.
+    private final ChangeListener<@Nullable Stage> stageChangedListener =
+            (observable, oldStage, newStage) -> stageChanged(oldStage, newStage);
 
     /// Handles title-bar double clicks on platforms with custom maximize behavior.
     private final @Nullable EventHandler<MouseEvent> onTitleBarDoubleClick;
+
+    /// Whether move and resize filters are currently installed on the interaction pane.
+    private boolean interactionFiltersInstalled;
 
     /// The initial horizontal screen coordinate of the active drag gesture.
     private double mouseInitX;
@@ -103,54 +121,34 @@ final class DecoratorWindow extends StackPane {
     /// The stage's initial height for the active drag gesture.
     private double stageInitHeight;
 
-    /// Creates and binds the non-shadow content of a decorator window.
+    /// Creates and binds the non-shadow portion of a custom window.
     ///
     /// The constructor registers this pane as the snackbar container and assigns the internal
     /// wrapper used as the decorator's dialog container.
     ///
     /// @param decorator the decorator represented by this window
     /// @param interactionPane the outer pane that receives move and resize pointer events
-    DecoratorWindow(Decorator decorator, StackPane interactionPane) {
+    WindowPane(Decorator decorator, StackPane interactionPane) {
         this.decorator = decorator;
         this.interactionPane = interactionPane;
-        this.primaryStage = decorator.getPrimaryStage();
-
-        EventHandler<MouseEvent> onMouseReleased = this::onMouseReleased;
-        EventHandler<MouseEvent> onMouseDragged = this::onMouseDragged;
-        EventHandler<MouseEvent> onMouseMoved = this::onMouseMoved;
 
         // https://github.com/HMCL-dev/HMCL/issues/4290
         if (OperatingSystem.CURRENT_OS != OperatingSystem.MACOS) {
-            onWindowsStatusChange = observable -> {
-                if (primaryStage.isIconified() || primaryStage.isFullScreen() || primaryStage.isMaximized()) {
-                    interactionPane.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-                    interactionPane.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-                    interactionPane.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-                } else {
-                    interactionPane.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-                    interactionPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-                    interactionPane.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-                }
-            };
             onTitleBarDoubleClick = event -> {
-                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                    primaryStage.setMaximized(!primaryStage.isMaximized());
+                @Nullable Stage currentStage = stage.get();
+                if (currentStage != null
+                        && event.getButton() == MouseButton.PRIMARY
+                        && event.getClickCount() == 2) {
+                    currentStage.setMaximized(!currentStage.isMaximized());
                     event.consume();
                 }
             };
-            WeakInvalidationListener weakOnWindowsStatusChange =
-                    new WeakInvalidationListener(onWindowsStatusChange);
-            primaryStage.iconifiedProperty().addListener(weakOnWindowsStatusChange);
-            primaryStage.maximizedProperty().addListener(weakOnWindowsStatusChange);
-            primaryStage.fullScreenProperty().addListener(weakOnWindowsStatusChange);
-            onWindowsStatusChange.invalidated(primaryStage.iconifiedProperty());
         } else {
-            onWindowsStatusChange = null;
             onTitleBarDoubleClick = null;
-            interactionPane.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-            interactionPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-            interactionPane.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
         }
+
+        stage.addListener(stageChangedListener);
+        stageChanged(null, stage.get());
 
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(widthProperty());
@@ -303,19 +301,66 @@ final class DecoratorWindow extends StackPane {
         getChildren().add(buttonLayer);
     }
 
+    /// Transfers window-state listeners between the previous and current stages.
+    ///
+    /// @param oldStage the stage that previously contained this pane, or `null` if there was none
+    /// @param newStage the stage that now contains this pane, or `null` if there is none
+    private void stageChanged(@Nullable Stage oldStage, @Nullable Stage newStage) {
+        if (oldStage != null) {
+            oldStage.iconifiedProperty().removeListener(windowStatusChangedListener);
+            oldStage.maximizedProperty().removeListener(windowStatusChangedListener);
+            oldStage.fullScreenProperty().removeListener(windowStatusChangedListener);
+        }
+        if (newStage != null) {
+            newStage.iconifiedProperty().addListener(windowStatusChangedListener);
+            newStage.maximizedProperty().addListener(windowStatusChangedListener);
+            newStage.fullScreenProperty().addListener(windowStatusChangedListener);
+        }
+
+        decorator.setDragging(false);
+        updateInteractionFilters();
+    }
+
+    /// Installs interaction filters only while the current stage accepts custom window gestures.
+    private void updateInteractionFilters() {
+        @Nullable Stage currentStage = stage.get();
+        boolean shouldInstall = currentStage != null
+                && (OperatingSystem.CURRENT_OS == OperatingSystem.MACOS
+                    || !(currentStage.isIconified()
+                        || currentStage.isFullScreen()
+                        || currentStage.isMaximized()));
+
+        if (shouldInstall == interactionFiltersInstalled) {
+            return;
+        }
+
+        interactionFiltersInstalled = shouldInstall;
+        if (shouldInstall) {
+            interactionPane.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
+            interactionPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
+            interactionPane.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
+        } else {
+            interactionPane.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
+            interactionPane.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
+            interactionPane.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
+            interactionPane.setCursor(Cursor.DEFAULT);
+        }
+    }
+
     /// Restores a maximized stage and initializes movement when dragging begins in the title bar.
     ///
     /// @param mouseEvent the title-bar drag event
     private void onTitleBarDragged(MouseEvent mouseEvent) {
-        if (!decorator.isDragging() && primaryStage.isMaximized()) {
+        @Nullable Stage currentStage = stage.get();
+        if (currentStage != null && !decorator.isDragging() && currentStage.isMaximized()) {
             decorator.setDragging(true);
             mouseInitX = mouseEvent.getScreenX();
             mouseInitY = mouseEvent.getScreenY();
-            primaryStage.setMaximized(false);
-            stageInitWidth = primaryStage.getWidth();
-            stageInitHeight = primaryStage.getHeight();
-            primaryStage.setY(stageInitY = 0);
-            primaryStage.setX(stageInitX = mouseInitX - stageInitWidth / 2);
+            currentStage.setMaximized(false);
+            stageInitWidth = currentStage.getWidth();
+            stageInitHeight = currentStage.getHeight();
+            currentStage.setY(stageInitY = 0);
+            currentStage.setX(stageInitX = mouseInitX - stageInitWidth / 2);
         }
     }
 
@@ -358,33 +403,35 @@ final class DecoratorWindow extends StackPane {
     /// A negative dimension preserves the current value. Width and height are always written
     /// together to avoid JDK-8344372.
     ///
+    /// @param currentStage the stage being resized
     /// @param newWidth the requested width, or a negative value to preserve the current width
     /// @param newHeight the requested height, or a negative value to preserve the current height
-    private void resizeStage(double newWidth, double newHeight) {
+    private void resizeStage(Stage currentStage, double newWidth, double newHeight) {
         if (newWidth < 0)
-            newWidth = primaryStage.getWidth();
-        if (newWidth < primaryStage.getMinWidth())
-            newWidth = primaryStage.getMinWidth();
+            newWidth = currentStage.getWidth();
+        if (newWidth < currentStage.getMinWidth())
+            newWidth = currentStage.getMinWidth();
         if (newWidth < titleContainer.getMinWidth())
             newWidth = titleContainer.getMinWidth();
 
         if (newHeight < 0)
-            newHeight = primaryStage.getHeight();
-        if (newHeight < primaryStage.getMinHeight())
-            newHeight = primaryStage.getMinHeight();
+            newHeight = currentStage.getHeight();
+        if (newHeight < currentStage.getMinHeight())
+            newHeight = currentStage.getMinHeight();
         if (newHeight < titleContainer.getMinHeight())
             newHeight = titleContainer.getMinHeight();
 
         // Width and height must be set simultaneously to avoid JDK-8344372 (https://github.com/openjdk/jfx/pull/1654)
-        primaryStage.setWidth(newWidth);
-        primaryStage.setHeight(newHeight);
+        currentStage.setWidth(newWidth);
+        currentStage.setHeight(newHeight);
     }
 
     /// Selects the resize cursor for the pointer's current position in the interaction pane.
     ///
     /// @param mouseEvent the pointer movement event
     private void onMouseMoved(MouseEvent mouseEvent) {
-        if (!primaryStage.isFullScreen() && primaryStage.isResizable()) {
+        @Nullable Stage currentStage = stage.get();
+        if (currentStage != null && !currentStage.isFullScreen() && currentStage.isResizable()) {
             double x = mouseEvent.getX();
             double y = mouseEvent.getY();
             double diagonalSize = interactionPane.snappedLeftInset() + 10;
@@ -439,17 +486,23 @@ final class DecoratorWindow extends StackPane {
     ///
     /// @param mouseEvent the active drag event
     private void onMouseDragged(MouseEvent mouseEvent) {
+        @Nullable Stage currentStage = stage.get();
+        if (currentStage == null) {
+            decorator.setDragging(false);
+            return;
+        }
+
         if (!decorator.isDragging()) {
             decorator.setDragging(true);
             mouseInitX = mouseEvent.getScreenX();
             mouseInitY = mouseEvent.getScreenY();
-            stageInitX = primaryStage.getX();
-            stageInitY = primaryStage.getY();
-            stageInitWidth = primaryStage.getWidth();
-            stageInitHeight = primaryStage.getHeight();
+            stageInitX = currentStage.getX();
+            stageInitY = currentStage.getY();
+            stageInitWidth = currentStage.getWidth();
+            stageInitHeight = currentStage.getHeight();
         }
 
-        if (primaryStage.isFullScreen()
+        if (currentStage.isFullScreen()
                 || !mouseEvent.isPrimaryButtonDown()
                 || mouseEvent.isStillSincePress())
             return;
@@ -459,48 +512,48 @@ final class DecoratorWindow extends StackPane {
 
         Cursor cursor = interactionPane.getCursor();
         if (decorator.isAllowMove() && cursor == Cursor.DEFAULT) {
-            primaryStage.setX(stageInitX + dx);
-            primaryStage.setY(stageInitY + dy);
+            currentStage.setX(stageInitX + dx);
+            currentStage.setY(stageInitY + dy);
             mouseEvent.consume();
         }
 
         if (decorator.isResizable()) {
             if (cursor == Cursor.E_RESIZE) {
-                resizeStage(stageInitWidth + dx, -1);
+                resizeStage(currentStage, stageInitWidth + dx, -1);
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.S_RESIZE) {
-                resizeStage(-1, stageInitHeight + dy);
+                resizeStage(currentStage, -1, stageInitHeight + dy);
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.W_RESIZE) {
-                resizeStage(stageInitWidth - dx, -1);
-                primaryStage.setX(stageInitX + stageInitWidth - primaryStage.getWidth());
+                resizeStage(currentStage, stageInitWidth - dx, -1);
+                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.N_RESIZE) {
-                resizeStage(-1, stageInitHeight - dy);
-                primaryStage.setY(stageInitY + stageInitHeight - primaryStage.getHeight());
+                resizeStage(currentStage, -1, stageInitHeight - dy);
+                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.SE_RESIZE) {
-                resizeStage(stageInitWidth + dx, stageInitHeight + dy);
+                resizeStage(currentStage, stageInitWidth + dx, stageInitHeight + dy);
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.SW_RESIZE) {
-                resizeStage(stageInitWidth - dx, stageInitHeight + dy);
-                primaryStage.setX(stageInitX + stageInitWidth - primaryStage.getWidth());
+                resizeStage(currentStage, stageInitWidth - dx, stageInitHeight + dy);
+                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.NW_RESIZE) {
-                resizeStage(stageInitWidth - dx, stageInitHeight - dy);
-                primaryStage.setX(stageInitX + stageInitWidth - primaryStage.getWidth());
-                primaryStage.setY(stageInitY + stageInitHeight - primaryStage.getHeight());
+                resizeStage(currentStage, stageInitWidth - dx, stageInitHeight - dy);
+                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
+                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
                 mouseEvent.consume();
 
             } else if (cursor == Cursor.NE_RESIZE) {
-                resizeStage(stageInitWidth + dx, stageInitHeight - dy);
-                primaryStage.setY(stageInitY + stageInitHeight - primaryStage.getHeight());
+                resizeStage(currentStage, stageInitWidth + dx, stageInitHeight - dy);
+                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
                 mouseEvent.consume();
             }
         }
