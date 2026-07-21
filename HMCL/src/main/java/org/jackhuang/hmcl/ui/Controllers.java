@@ -334,7 +334,7 @@ public final class Controllers {
 
         stage.setOnCloseRequest(e -> Launcher.stopApplication());
 
-        decorator = new Decorator(stage, getRootPage());
+        decorator = new Decorator(getRootPage());
         getRootPage().getMainPage().showUpdateProperty().bind(UpdateChecker.checkingUpdateProperty().not().and(UpdateChecker.outdatedProperty()));
         getRootPage().getMainPage().showUpdateDialogProperty().bind(
                 decorator.backableProperty().not()

@@ -22,18 +22,12 @@ import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
-import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
@@ -44,7 +38,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.glavo.monetfx.ColorRole;
 import org.jackhuang.hmcl.Metadata;
@@ -55,74 +48,24 @@ import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.wizard.Navigation;
-import org.jackhuang.hmcl.util.javafx.NodeWindowProperty;
-import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 /// Represents the clipped portion of a [Decorator] window inside its drop shadow.
 ///
 /// This pane owns the themed background, page and floating-content layers, title bar, navigation
-/// controls, and window buttons. It manages moving, maximizing, and resizing whichever [Stage]
-/// currently contains it; resize gestures are observed on the outer interaction pane supplied at
-/// construction.
+/// controls, and window buttons. Window lifecycle and interaction state are managed by the
+/// enclosing [Decorator].
 @NotNullByDefault
 final class WindowPane extends StackPane {
     /// The decorator whose properties and actions drive this pane.
     private final Decorator decorator;
 
-    /// The outer pane that receives move and resize pointer events, including the shadow insets.
-    private final StackPane interactionPane;
-
     /// The pane spanning the window content and hosting dialogs above it.
     private final StackPane dialogContainer = new StackPane();
 
-    /// Tracks the stage that currently contains this pane without retaining a fixed stage.
-    private final NodeWindowProperty<Stage> stage = NodeWindowProperty.newStageProperty(this);
-
-    /// The title container used to determine the minimum dimensions during window resizing.
+    /// The title container whose minimum dimensions constrain window resizing.
     private final StackPane titleContainer;
-
-    /// Ends active move and resize gestures received by the outer interaction pane.
-    private final EventHandler<MouseEvent> onMouseReleased = this::onMouseReleased;
-
-    /// Processes move and resize gestures received by the outer interaction pane.
-    private final EventHandler<MouseEvent> onMouseDragged = this::onMouseDragged;
-
-    /// Updates the resize cursor over the outer interaction pane.
-    private final EventHandler<MouseEvent> onMouseMoved = this::onMouseMoved;
-
-    /// Updates interaction filters when the current stage changes window state.
-    private final InvalidationListener windowStatusChangedListener =
-            observable -> updateInteractionFilters();
-
-    /// Transfers window-state observation when this pane moves between stages.
-    private final ChangeListener<@Nullable Stage> stageChangedListener =
-            (observable, oldStage, newStage) -> stageChanged(oldStage, newStage);
-
-    /// Handles title-bar double clicks on platforms with custom maximize behavior.
-    private final @Nullable EventHandler<MouseEvent> onTitleBarDoubleClick;
-
-    /// Whether move and resize filters are currently installed on the interaction pane.
-    private boolean interactionFiltersInstalled;
-
-    /// The initial horizontal screen coordinate of the active drag gesture.
-    private double mouseInitX;
-
-    /// The initial vertical screen coordinate of the active drag gesture.
-    private double mouseInitY;
-
-    /// The stage's initial horizontal screen position for the active drag gesture.
-    private double stageInitX;
-
-    /// The stage's initial vertical screen position for the active drag gesture.
-    private double stageInitY;
-
-    /// The stage's initial width for the active drag gesture.
-    private double stageInitWidth;
-
-    /// The stage's initial height for the active drag gesture.
-    private double stageInitHeight;
 
     /// Creates and binds the non-shadow portion of a custom window.
     ///
@@ -130,28 +73,8 @@ final class WindowPane extends StackPane {
     /// exposed by [#getDialogContainer()] for dialog presentation.
     ///
     /// @param decorator the decorator represented by this window
-    /// @param interactionPane the outer pane that receives move and resize pointer events
-    WindowPane(Decorator decorator, StackPane interactionPane) {
+    WindowPane(Decorator decorator) {
         this.decorator = decorator;
-        this.interactionPane = interactionPane;
-
-        // https://github.com/HMCL-dev/HMCL/issues/4290
-        if (OperatingSystem.CURRENT_OS != OperatingSystem.MACOS) {
-            onTitleBarDoubleClick = event -> {
-                @Nullable Stage currentStage = stage.get();
-                if (currentStage != null
-                        && event.getButton() == MouseButton.PRIMARY
-                        && event.getClickCount() == 2) {
-                    currentStage.setMaximized(!currentStage.isMaximized());
-                    event.consume();
-                }
-            };
-        } else {
-            onTitleBarDoubleClick = null;
-        }
-
-        stage.addListener(stageChangedListener);
-        stageChanged(null, stage.get());
 
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(widthProperty());
@@ -309,262 +232,18 @@ final class WindowPane extends StackPane {
         return dialogContainer;
     }
 
-    /// Transfers window-state listeners between the previous and current stages.
+    /// Returns the minimum width required by the title container.
     ///
-    /// @param oldStage the stage that previously contained this pane, or `null` if there was none
-    /// @param newStage the stage that now contains this pane, or `null` if there is none
-    private void stageChanged(@Nullable Stage oldStage, @Nullable Stage newStage) {
-        if (oldStage != null) {
-            oldStage.iconifiedProperty().removeListener(windowStatusChangedListener);
-            oldStage.maximizedProperty().removeListener(windowStatusChangedListener);
-            oldStage.fullScreenProperty().removeListener(windowStatusChangedListener);
-        }
-        if (newStage != null) {
-            newStage.iconifiedProperty().addListener(windowStatusChangedListener);
-            newStage.maximizedProperty().addListener(windowStatusChangedListener);
-            newStage.fullScreenProperty().addListener(windowStatusChangedListener);
-        }
-
-        decorator.setDragging(false);
-        updateInteractionFilters();
+    /// @return the title container's minimum width
+    double getTitleContainerMinWidth() {
+        return titleContainer.getMinWidth();
     }
 
-    /// Installs interaction filters only while the current stage accepts custom window gestures.
-    private void updateInteractionFilters() {
-        @Nullable Stage currentStage = stage.get();
-        boolean shouldInstall = currentStage != null
-                && (OperatingSystem.CURRENT_OS == OperatingSystem.MACOS
-                    || !(currentStage.isIconified()
-                        || currentStage.isFullScreen()
-                        || currentStage.isMaximized()));
-
-        if (shouldInstall == interactionFiltersInstalled) {
-            return;
-        }
-
-        interactionFiltersInstalled = shouldInstall;
-        if (shouldInstall) {
-            interactionPane.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-            interactionPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-            interactionPane.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-        } else {
-            interactionPane.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased);
-            interactionPane.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDragged);
-            interactionPane.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
-            interactionPane.setCursor(Cursor.DEFAULT);
-        }
-    }
-
-    /// Restores a maximized stage and initializes movement when dragging begins in the title bar.
+    /// Returns the minimum height required by the title container.
     ///
-    /// @param mouseEvent the title-bar drag event
-    private void onTitleBarDragged(MouseEvent mouseEvent) {
-        @Nullable Stage currentStage = stage.get();
-        if (currentStage != null && !decorator.isDragging() && currentStage.isMaximized()) {
-            decorator.setDragging(true);
-            mouseInitX = mouseEvent.getScreenX();
-            mouseInitY = mouseEvent.getScreenY();
-            currentStage.setMaximized(false);
-            stageInitWidth = currentStage.getWidth();
-            stageInitHeight = currentStage.getHeight();
-            currentStage.setY(stageInitY = 0);
-            currentStage.setX(stageInitX = mouseInitX - stageInitWidth / 2);
-        }
-    }
-
-    /// Returns whether the pointer is within the right resize inset.
-    ///
-    /// @param x the pointer's horizontal coordinate in the interaction pane
-    /// @return `true` if the pointer is within the right resize inset
-    private boolean isRightEdge(double x) {
-        return x < interactionPane.getWidth()
-                && x >= interactionPane.getWidth() - interactionPane.snappedLeftInset();
-    }
-
-    /// Returns whether the pointer is within the top resize inset.
-    ///
-    /// @param y the pointer's vertical coordinate in the interaction pane
-    /// @return `true` if the pointer is within the top resize inset
-    private boolean isTopEdge(double y) {
-        return y >= 0 && y <= interactionPane.snappedTopInset();
-    }
-
-    /// Returns whether the pointer is within the bottom resize inset.
-    ///
-    /// @param y the pointer's vertical coordinate in the interaction pane
-    /// @return `true` if the pointer is within the bottom resize inset
-    private boolean isBottomEdge(double y) {
-        return y < interactionPane.getHeight()
-                && y >= interactionPane.getHeight() - interactionPane.snappedLeftInset();
-    }
-
-    /// Returns whether the pointer is within the left resize inset.
-    ///
-    /// @param x the pointer's horizontal coordinate in the interaction pane
-    /// @return `true` if the pointer is within the left resize inset
-    private boolean isLeftEdge(double x) {
-        return x >= 0 && x <= interactionPane.snappedLeftInset();
-    }
-
-    /// Applies requested stage dimensions after enforcing stage and title-bar minimums.
-    ///
-    /// A negative dimension preserves the current value. Width and height are always written
-    /// together to avoid JDK-8344372.
-    ///
-    /// @param currentStage the stage being resized
-    /// @param newWidth the requested width, or a negative value to preserve the current width
-    /// @param newHeight the requested height, or a negative value to preserve the current height
-    private void resizeStage(Stage currentStage, double newWidth, double newHeight) {
-        if (newWidth < 0)
-            newWidth = currentStage.getWidth();
-        if (newWidth < currentStage.getMinWidth())
-            newWidth = currentStage.getMinWidth();
-        if (newWidth < titleContainer.getMinWidth())
-            newWidth = titleContainer.getMinWidth();
-
-        if (newHeight < 0)
-            newHeight = currentStage.getHeight();
-        if (newHeight < currentStage.getMinHeight())
-            newHeight = currentStage.getMinHeight();
-        if (newHeight < titleContainer.getMinHeight())
-            newHeight = titleContainer.getMinHeight();
-
-        // Width and height must be set simultaneously to avoid JDK-8344372 (https://github.com/openjdk/jfx/pull/1654)
-        currentStage.setWidth(newWidth);
-        currentStage.setHeight(newHeight);
-    }
-
-    /// Selects the resize cursor for the pointer's current position in the interaction pane.
-    ///
-    /// @param mouseEvent the pointer movement event
-    private void onMouseMoved(MouseEvent mouseEvent) {
-        @Nullable Stage currentStage = stage.get();
-        if (currentStage != null && !currentStage.isFullScreen() && currentStage.isResizable()) {
-            double x = mouseEvent.getX();
-            double y = mouseEvent.getY();
-            double diagonalSize = interactionPane.snappedLeftInset() + 10;
-            if (isRightEdge(x)) {
-                if (y < diagonalSize) {
-                    interactionPane.setCursor(Cursor.NE_RESIZE);
-                } else if (y > interactionPane.getHeight() - diagonalSize) {
-                    interactionPane.setCursor(Cursor.SE_RESIZE);
-                } else {
-                    interactionPane.setCursor(Cursor.E_RESIZE);
-                }
-            } else if (isLeftEdge(x)) {
-                if (y < diagonalSize) {
-                    interactionPane.setCursor(Cursor.NW_RESIZE);
-                } else if (y > interactionPane.getHeight() - diagonalSize) {
-                    interactionPane.setCursor(Cursor.SW_RESIZE);
-                } else {
-                    interactionPane.setCursor(Cursor.W_RESIZE);
-                }
-            } else if (isTopEdge(y)) {
-                if (x < diagonalSize) {
-                    interactionPane.setCursor(Cursor.NW_RESIZE);
-                } else if (x > interactionPane.getWidth() - diagonalSize) {
-                    interactionPane.setCursor(Cursor.NE_RESIZE);
-                } else {
-                    interactionPane.setCursor(Cursor.N_RESIZE);
-                }
-            } else if (isBottomEdge(y)) {
-                if (x < diagonalSize) {
-                    interactionPane.setCursor(Cursor.SW_RESIZE);
-                } else if (x > interactionPane.getWidth() - diagonalSize) {
-                    interactionPane.setCursor(Cursor.SE_RESIZE);
-                } else {
-                    interactionPane.setCursor(Cursor.S_RESIZE);
-                }
-            } else {
-                interactionPane.setCursor(Cursor.DEFAULT);
-            }
-        } else {
-            interactionPane.setCursor(Cursor.DEFAULT);
-        }
-    }
-
-    /// Ends the active move or resize gesture.
-    ///
-    /// @param mouseEvent the mouse release event
-    private void onMouseReleased(MouseEvent mouseEvent) {
-        decorator.setDragging(false);
-    }
-
-    /// Moves or resizes the stage according to the cursor selected at drag start.
-    ///
-    /// @param mouseEvent the active drag event
-    private void onMouseDragged(MouseEvent mouseEvent) {
-        @Nullable Stage currentStage = stage.get();
-        if (currentStage == null) {
-            decorator.setDragging(false);
-            return;
-        }
-
-        if (!decorator.isDragging()) {
-            decorator.setDragging(true);
-            mouseInitX = mouseEvent.getScreenX();
-            mouseInitY = mouseEvent.getScreenY();
-            stageInitX = currentStage.getX();
-            stageInitY = currentStage.getY();
-            stageInitWidth = currentStage.getWidth();
-            stageInitHeight = currentStage.getHeight();
-        }
-
-        if (currentStage.isFullScreen()
-                || !mouseEvent.isPrimaryButtonDown()
-                || mouseEvent.isStillSincePress())
-            return;
-
-        double dx = mouseEvent.getScreenX() - mouseInitX;
-        double dy = mouseEvent.getScreenY() - mouseInitY;
-
-        Cursor cursor = interactionPane.getCursor();
-        if (decorator.isAllowMove() && cursor == Cursor.DEFAULT) {
-            currentStage.setX(stageInitX + dx);
-            currentStage.setY(stageInitY + dy);
-            mouseEvent.consume();
-        }
-
-        if (decorator.isResizable()) {
-            if (cursor == Cursor.E_RESIZE) {
-                resizeStage(currentStage, stageInitWidth + dx, -1);
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.S_RESIZE) {
-                resizeStage(currentStage, -1, stageInitHeight + dy);
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.W_RESIZE) {
-                resizeStage(currentStage, stageInitWidth - dx, -1);
-                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.N_RESIZE) {
-                resizeStage(currentStage, -1, stageInitHeight - dy);
-                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.SE_RESIZE) {
-                resizeStage(currentStage, stageInitWidth + dx, stageInitHeight + dy);
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.SW_RESIZE) {
-                resizeStage(currentStage, stageInitWidth - dx, stageInitHeight + dy);
-                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.NW_RESIZE) {
-                resizeStage(currentStage, stageInitWidth - dx, stageInitHeight - dy);
-                currentStage.setX(stageInitX + stageInitWidth - currentStage.getWidth());
-                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
-                mouseEvent.consume();
-
-            } else if (cursor == Cursor.NE_RESIZE) {
-                resizeStage(currentStage, stageInitWidth + dx, stageInitHeight - dy);
-                currentStage.setY(stageInitY + stageInitHeight - currentStage.getHeight());
-                mouseEvent.consume();
-            }
-        }
+    /// @return the title container's minimum height
+    double getTitleContainerMinHeight() {
+        return titleContainer.getMinHeight();
     }
 
     /// Updates whether the floating layer participates in layout visibility and mouse picking.
@@ -651,10 +330,8 @@ final class WindowPane extends StackPane {
             BorderPane.setAlignment(titleNode, Pos.CENTER_LEFT);
             BorderPane.setMargin(titleNode, new Insets(0, 0, 0, 8));
         }
-        if (onTitleBarDoubleClick != null) {
-            center.setOnMouseClicked(onTitleBarDoubleClick);
-        }
-        center.setOnMouseDragged(this::onTitleBarDragged);
+        center.setOnMouseClicked(decorator::onTitleBarClicked);
+        center.setOnMouseDragged(decorator::onTitleBarDragged);
         navBar.setCenter(center);
 
         if (canRefresh) {
