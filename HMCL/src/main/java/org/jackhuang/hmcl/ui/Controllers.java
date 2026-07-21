@@ -52,7 +52,7 @@ import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
-import org.jackhuang.hmcl.ui.decorator.DecoratorController;
+import org.jackhuang.hmcl.ui.decorator.Decorator;
 import org.jackhuang.hmcl.ui.download.DownloadPage;
 import org.jackhuang.hmcl.ui.main.LauncherSettingsPage;
 import org.jackhuang.hmcl.ui.main.RootPage;
@@ -108,7 +108,8 @@ public final class Controllers {
     private static VersionPage versionPage;
     private static Lazy<GameListPage> gameListPage = new Lazy<>(GameListPage::new);
     private static Lazy<RootPage> rootPage = new Lazy<>(RootPage::new);
-    private static DecoratorController decorator;
+    /// The initialized launcher decorator, or `null` before [#initialize(Stage)] completes setup.
+    private static @Nullable Decorator decorator;
     private static DownloadPage downloadPage;
     private static Lazy<AccountListPage> accountListPage = new Lazy<>(() -> {
         AccountListPage accountListPage = new AccountListPage();
@@ -212,8 +213,11 @@ public final class Controllers {
         return terracottaPage.get();
     }
 
+    /// Returns the launcher decorator created during application initialization.
+    ///
+    /// @return the launcher decorator, or `null` before initialization
     @FXThread
-    public static DecoratorController getDecorator() {
+    public static @Nullable Decorator getDecorator() {
         return decorator;
     }
 
@@ -330,7 +334,7 @@ public final class Controllers {
 
         stage.setOnCloseRequest(e -> Launcher.stopApplication());
 
-        decorator = new DecoratorController(stage, getRootPage());
+        decorator = new Decorator(stage, getRootPage());
         getRootPage().getMainPage().showUpdateProperty().bind(UpdateChecker.checkingUpdateProperty().not().and(UpdateChecker.outdatedProperty()));
         getRootPage().getMainPage().showUpdateDialogProperty().bind(
                 decorator.backableProperty().not()
@@ -346,12 +350,12 @@ public final class Controllers {
 
         Lang.thread(JavaManager::initialize, "Search Java", true);
 
-        scene = new Scene(decorator.getDecorator());
+        scene = new Scene(decorator);
         scene.setFill(Color.TRANSPARENT);
         stage.setMinWidth(MIN_WIDTH);
         stage.setMinHeight(MIN_HEIGHT);
-        decorator.getDecorator().prefWidthProperty().bind(scene.widthProperty());
-        decorator.getDecorator().prefHeightProperty().bind(scene.heightProperty());
+        decorator.prefWidthProperty().bind(scene.widthProperty());
+        decorator.prefHeightProperty().bind(scene.heightProperty());
         StyleSheets.init(scene);
 
         FXUtils.setIcon(stage);
@@ -362,16 +366,16 @@ public final class Controllers {
         if (AnimationUtils.playWindowAnimation()) {
             Timeline timeline = new Timeline(
                     new KeyFrame(Duration.millis(0),
-                            new KeyValue(decorator.getDecorator().opacityProperty(), 0, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleXProperty(), 0.8, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleYProperty(), 0.8, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleZProperty(), 0.8, Motion.EASE)
+                            new KeyValue(decorator.opacityProperty(), 0, Motion.EASE),
+                            new KeyValue(decorator.scaleXProperty(), 0.8, Motion.EASE),
+                            new KeyValue(decorator.scaleYProperty(), 0.8, Motion.EASE),
+                            new KeyValue(decorator.scaleZProperty(), 0.8, Motion.EASE)
                     ),
                     new KeyFrame(Duration.millis(600),
-                            new KeyValue(decorator.getDecorator().opacityProperty(), 1, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleXProperty(), 1, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleYProperty(), 1, Motion.EASE),
-                            new KeyValue(decorator.getDecorator().scaleZProperty(), 1, Motion.EASE)
+                            new KeyValue(decorator.opacityProperty(), 1, Motion.EASE),
+                            new KeyValue(decorator.scaleXProperty(), 1, Motion.EASE),
+                            new KeyValue(decorator.scaleYProperty(), 1, Motion.EASE),
+                            new KeyValue(decorator.scaleZProperty(), 1, Motion.EASE)
                     )
             );
             timeline.play();
