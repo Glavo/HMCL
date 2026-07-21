@@ -17,83 +17,74 @@
  */
 package org.jackhuang.hmcl.ui.decorator;
 
-import com.jfoenix.controls.JFXButton;
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
-import javafx.beans.binding.Bindings;
-import javafx.collections.ListChangeListener;
 import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.control.SkinBase;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-
-import javafx.util.Duration;
-import org.glavo.monetfx.ColorRole;
-import org.jackhuang.hmcl.Metadata;
-import org.jackhuang.hmcl.theme.Themes;
-import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.SVG;
-import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
-import org.jackhuang.hmcl.ui.animation.Motion;
-import org.jackhuang.hmcl.ui.animation.TransitionPane;
-import org.jackhuang.hmcl.ui.wizard.Navigation;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
+/// Provides the shadow frame and native-window interaction for a [Decorator].
+@NotNullByDefault
 public class DecoratorSkin extends SkinBase<Decorator> {
-    private final StackPane root, parent;
-    private final StackPane titleContainer;
+    /// The outer pane that supplies resize insets around the window content.
+    private final StackPane root;
+
+    /// The clipped, non-shadow portion of the decorated window.
+    private final DecoratorContent windowContent;
+
+    /// The stage manipulated by window move, resize, minimize, and maximize interactions.
     private final Stage primaryStage;
-    private final TransitionPane navBarPane;
 
+    /// Retains the listener referenced weakly by the stage state properties.
     @SuppressWarnings("FieldCanBeLocal")
-    private final InvalidationListener onWindowsStatusChange;
-    private final EventHandler<MouseEvent> onTitleBarDoubleClick;
+    private final @Nullable InvalidationListener onWindowsStatusChange;
 
-    private double mouseInitX, mouseInitY, stageInitX, stageInitY, stageInitWidth, stageInitHeight;
+    /// Handles title-bar double clicks on platforms with custom maximize behavior.
+    private final @Nullable EventHandler<MouseEvent> onTitleBarDoubleClick;
 
-    /**
-     * Constructor for all SkinBase instances.
-     *
-     * @param control The control for which this Skin should attach to.
-     */
+    /// The initial horizontal screen coordinate of the active drag gesture.
+    private double mouseInitX;
+
+    /// The initial vertical screen coordinate of the active drag gesture.
+    private double mouseInitY;
+
+    /// The stage's initial horizontal screen position for the active drag gesture.
+    private double stageInitX;
+
+    /// The stage's initial vertical screen position for the active drag gesture.
+    private double stageInitY;
+
+    /// The stage's initial width for the active drag gesture.
+    private double stageInitWidth;
+
+    /// The stage's initial height for the active drag gesture.
+    private double stageInitHeight;
+
+    /// Creates a skin for the supplied decorator and installs window interaction handlers.
+    ///
+    /// @param control the decorator represented by this skin
     public DecoratorSkin(Decorator control) {
         super(control);
 
         primaryStage = control.getPrimaryStage();
 
-        Decorator skinnable = getSkinnable();
         root = new StackPane();
         root.getStyleClass().add("window");
 
         StackPane shadowContainer = new StackPane();
         shadowContainer.getStyleClass().add("body");
-        shadowContainer.setEffect(new DropShadow(BlurType.ONE_PASS_BOX, Color.rgb(0, 0, 0, 0.4), 10, 0.3, 0.0, 0.0));
-
-        parent = new StackPane();
-        Rectangle clip = new Rectangle();
-        clip.widthProperty().bind(parent.widthProperty());
-        clip.heightProperty().bind(parent.heightProperty());
-        clip.setArcWidth(8);
-        clip.setArcHeight(8);
-        parent.setClip(clip);
-
-        skinnable.getSnackbar().registerSnackbarContainer(parent);
+        shadowContainer.setEffect(new DropShadow(
+                BlurType.ONE_PASS_BOX, Color.rgb(0, 0, 0, 0.4), 10, 0.3, 0.0, 0.0));
 
         EventHandler<MouseEvent> onMouseReleased = this::onMouseReleased;
         EventHandler<MouseEvent> onMouseDragged = this::onMouseDragged;
@@ -122,7 +113,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
             primaryStage.iconifiedProperty().addListener(weakOnWindowsStatusChange);
             primaryStage.maximizedProperty().addListener(weakOnWindowsStatusChange);
             primaryStage.fullScreenProperty().addListener(weakOnWindowsStatusChange);
-            onWindowsStatusChange.invalidated(null);
+            onWindowsStatusChange.invalidated(primaryStage.iconifiedProperty());
         } else {
             onWindowsStatusChange = null;
             onTitleBarDoubleClick = null;
@@ -131,302 +122,97 @@ public class DecoratorSkin extends SkinBase<Decorator> {
             root.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMoved);
         }
 
-        shadowContainer.getChildren().setAll(parent);
+        windowContent = new DecoratorContent(control, onTitleBarDoubleClick, this::onTitleBarDragged);
+        shadowContainer.getChildren().setAll(windowContent);
         root.getChildren().setAll(shadowContainer);
-
-        StackPane wrapper = new StackPane();
-        wrapper.backgroundProperty().bind(Bindings.createObjectBinding(
-                () -> Themes.windowTransparentProperty().get()
-                        ? null
-                        : new Background(new BackgroundFill(
-                                Themes.getColorScheme().getColor(ColorRole.SURFACE_CONTAINER),
-                                CornerRadii.EMPTY,
-                                Insets.EMPTY)),
-                Themes.windowTransparentProperty(),
-                Themes.colorSchemeProperty()));
-
-        Region backgroundNode = new Region();
-        backgroundNode.setMouseTransparent(true);
-        backgroundNode.backgroundProperty().bind(Bindings.createObjectBinding(
-                () -> skinnable.getContentBackground() == null
-                        ? null
-                        : skinnable.getContentBackground().background(),
-                skinnable.contentBackgroundProperty()));
-        backgroundNode.opacityProperty().bind(Bindings.createDoubleBinding(
-                () -> skinnable.getContentBackground() == null
-                        ? 1.0
-                        : skinnable.getContentBackground().opacity(),
-                skinnable.contentBackgroundProperty()));
-        StackPane.setAlignment(backgroundNode, Pos.BOTTOM_CENTER);
-
-        BorderPane frame = new BorderPane();
-        frame.getStyleClass().addAll("jfx-decorator");
-        wrapper.getChildren().setAll(backgroundNode, frame);
-        skinnable.setDrawerWrapper(wrapper);
-
-        parent.getChildren().add(wrapper);
-
-        // center node with an animation layer at bottom, a container layer at middle and a "welcome" layer at top.
-        StackPane container = new StackPane();
-        FXUtils.setOverflowHidden(container);
-
-        // content layer at middle
-        {
-            StackPane contentPlaceHolder = new StackPane();
-            contentPlaceHolder.getStyleClass().add("jfx-decorator-content-container");
-            Bindings.bindContent(contentPlaceHolder.getChildren(), skinnable.contentProperty());
-
-            container.getChildren().add(contentPlaceHolder);
-        }
-
-        // welcome and hint layer at top
-        {
-            StackPane floatLayer = new StackPane();
-            Bindings.bindContent(floatLayer.getChildren(), skinnable.containerProperty());
-            ListChangeListener<Node> listener = c -> {
-                if (skinnable.getContainer().isEmpty()) {
-                    floatLayer.setMouseTransparent(true);
-                    floatLayer.setVisible(false);
-                } else {
-                    floatLayer.setMouseTransparent(false);
-                    floatLayer.setVisible(true);
-                }
-            };
-            skinnable.containerProperty().addListener(listener);
-            listener.onChanged(null);
-
-            container.getChildren().add(floatLayer);
-        }
-
-        frame.setCenter(container);
-
-        titleContainer = new StackPane();
-        titleContainer.setPickOnBounds(false);
-        titleContainer.getStyleClass().addAll("jfx-tool-bar");
-        backgroundNode.maxHeightProperty().bind(Bindings.createDoubleBinding(
-                () -> Math.max(0.0, wrapper.getHeight()
-                        - (skinnable.isTitleTransparent() ? 0.0 : titleContainer.getHeight())),
-                wrapper.heightProperty(),
-                skinnable.titleTransparentProperty(),
-                titleContainer.heightProperty()));
-
-        // Maybe, we can automatically identify whether the top part of the picture is light-coloured or dark when the title is transparent,
-        // and decide whether the whole top bar should be rendered in white or black. TODO
-        FXUtils.onChangeAndOperate(skinnable.titleTransparentProperty(), titleTransparent -> {
-            if (titleTransparent) {
-                titleContainer.getStyleClass().remove("background");
-                titleContainer.getStyleClass().add("gray-background");
-            } else {
-                titleContainer.getStyleClass().add("background");
-                titleContainer.getStyleClass().remove("gray-background");
-            }
-        });
-
-        control.capableDraggingWindow(titleContainer);
-
-        BorderPane titleBar = new BorderPane();
-        titleContainer.getChildren().add(titleBar);
-
-        Rectangle buttonsContainerPlaceHolder = new Rectangle();
-        {
-            navBarPane = new TransitionPane();
-            navBarPane.setId("decoratorTitleTransitionPane");
-            FXUtils.onChangeAndOperate(skinnable.stateProperty(), s -> {
-                if (s == null) return;
-                Node node = createNavBar(skinnable, s.leftPaneWidth(), s.backable(), skinnable.canCloseProperty().get(), skinnable.showCloseAsHomeProperty().get(), s.refreshable(), s.title(), s.titleNode());
-                if (s.animate()) {
-                    TransitionPane.AnimationProducer animation = switch (skinnable.getNavigationDirection()) {
-                        case NEXT -> NavBarAnimations.NEXT;
-                        case PREVIOUS -> NavBarAnimations.PREVIOUS;
-                        default -> ContainerAnimations.FADE;
-                    };
-                    skinnable.setNavigationDirection(Navigation.NavigationDirection.START);
-                    navBarPane.setContent(node, animation, Motion.SHORT4);
-                } else {
-                    navBarPane.getChildren().setAll(node);
-                }
-            });
-            titleBar.setCenter(navBarPane);
-            titleBar.setRight(buttonsContainerPlaceHolder);
-        }
-        frame.setTop(titleContainer);
-
-        {
-            HBox buttonsContainer = new HBox();
-            buttonsContainer.setAlignment(Pos.TOP_RIGHT);
-            buttonsContainer.setMaxHeight(40);
-            {
-                JFXButton btnHelp = new JFXButton();
-                btnHelp.setFocusTraversable(false);
-                btnHelp.setGraphic(SVG.HELP.createIcon(Themes.titleFillProperty()));
-                btnHelp.getStyleClass().add("jfx-decorator-button");
-                btnHelp.setOnAction(e -> FXUtils.openLink(Metadata.CONTACT_URL));
-
-                JFXButton btnMin = new JFXButton();
-                btnMin.setFocusTraversable(false);
-                btnMin.setGraphic(SVG.MINIMIZE_CENTER.createIcon(Themes.titleFillProperty()));
-                btnMin.getStyleClass().add("jfx-decorator-button");
-                btnMin.setOnAction(e -> skinnable.minimize());
-
-                JFXButton btnClose = new JFXButton();
-                btnClose.setFocusTraversable(false);
-                btnClose.setGraphic(SVG.CLOSE.createIcon(Themes.titleFillProperty()));
-                btnClose.getStyleClass().add("jfx-decorator-button");
-                btnClose.setOnAction(e -> skinnable.close());
-
-                buttonsContainer.getChildren().setAll(btnHelp, btnMin, btnClose);
-            }
-            AnchorPane layer = new AnchorPane();
-            layer.setPickOnBounds(false);
-            layer.getChildren().add(buttonsContainer);
-            AnchorPane.setTopAnchor(buttonsContainer, 0.0);
-            AnchorPane.setRightAnchor(buttonsContainer, 0.0);
-            buttonsContainerPlaceHolder.widthProperty().bind(buttonsContainer.widthProperty());
-            parent.getChildren().add(layer);
-        }
 
         getChildren().add(root);
     }
 
-    private Node createNavBar(Decorator skinnable, double leftPaneWidth, boolean canBack, boolean canClose, boolean showCloseAsHome, boolean canRefresh, String title, Node titleNode) {
-        BorderPane navBar = new BorderPane();
-        navBar.getStyleClass().add("navigation-bar");
-
-        {
-            HBox navLeft = new HBox();
-            navLeft.setAlignment(Pos.CENTER_LEFT);
-            navLeft.setPadding(new Insets(0, 5, 0, 5));
-
-            if (canBack) {
-                JFXButton backNavButton = new JFXButton();
-                skinnable.forbidDraggingWindow(backNavButton);
-                backNavButton.setFocusTraversable(false);
-                backNavButton.setGraphic(SVG.ARROW_BACK.createIcon(Themes.titleFillProperty()));
-                backNavButton.getStyleClass().add("jfx-decorator-button");
-                backNavButton.onActionProperty().bind(skinnable.onBackNavButtonActionProperty());
-                backNavButton.visibleProperty().set(canBack);
-
-                navLeft.getChildren().add(backNavButton);
-            }
-
-            if (canClose) {
-                JFXButton closeNavButton = new JFXButton();
-                skinnable.forbidDraggingWindow(closeNavButton);
-                closeNavButton.setFocusTraversable(false);
-                closeNavButton.setGraphic(SVG.CLOSE.createIcon(Themes.titleFillProperty()));
-                closeNavButton.getStyleClass().add("jfx-decorator-button");
-                closeNavButton.onActionProperty().bind(skinnable.onCloseNavButtonActionProperty());
-                if (showCloseAsHome)
-                    closeNavButton.setGraphic(SVG.HOME.createIcon(Themes.titleFillProperty()));
-                else
-                    closeNavButton.setGraphic(SVG.CLOSE.createIcon(Themes.titleFillProperty()));
-
-                navLeft.getChildren().add(closeNavButton);
-            }
-
-            if (canBack || canClose) {
-                navBar.setLeft(navLeft);
-            }
-
-            BorderPane center = new BorderPane();
-            if (title != null) {
-                Label titleLabel = new Label();
-                titleLabel.textFillProperty().bind(Themes.titleFillProperty());
-                BorderPane.setAlignment(titleLabel, Pos.CENTER_LEFT);
-                titleLabel.getStyleClass().add("jfx-decorator-title");
-                if (titleNode == null) {
-                    titleLabel.maxWidthProperty().bind(Bindings.createDoubleBinding(
-                            () -> skinnable.getWidth() - 150 - navLeft.getWidth(),
-                            skinnable.widthProperty(), navLeft.widthProperty()));
-                } else {
-                    titleLabel.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> {
-                        // 8 (margin-left)
-                        return leftPaneWidth - 8 - navLeft.getWidth();
-                    }, navLeft.widthProperty()));
-                }
-                titleLabel.setText(title);
-                center.setLeft(titleLabel);
-                BorderPane.setAlignment(titleLabel, Pos.CENTER_LEFT);
-            }
-            if (titleNode != null) {
-                center.setCenter(titleNode);
-                BorderPane.setAlignment(titleNode, Pos.CENTER_LEFT);
-                BorderPane.setMargin(titleNode, new Insets(0, 0, 0, 8));
-            }
-            if (onTitleBarDoubleClick != null)
-                center.setOnMouseClicked(onTitleBarDoubleClick);
-            center.setOnMouseDragged(mouseEvent -> {
-                if (!getSkinnable().isDragging() && primaryStage.isMaximized()) {
-                    getSkinnable().setDragging(true);
-                    mouseInitX = mouseEvent.getScreenX();
-                    mouseInitY = mouseEvent.getScreenY();
-                    primaryStage.setMaximized(false);
-                    stageInitWidth = primaryStage.getWidth();
-                    stageInitHeight = primaryStage.getHeight();
-                    primaryStage.setY(stageInitY = 0);
-                    primaryStage.setX(stageInitX = mouseInitX - stageInitWidth / 2);
-                }
-            });
-            navBar.setCenter(center);
-
-            if (canRefresh) {
-                HBox navRight = new HBox();
-                navRight.setAlignment(Pos.CENTER_RIGHT);
-                JFXButton refreshNavButton = new JFXButton();
-                refreshNavButton.setGraphic(SVG.REFRESH.createIcon(Themes.titleFillProperty()));
-                refreshNavButton.getStyleClass().add("jfx-decorator-button");
-                refreshNavButton.onActionProperty().bind(skinnable.onRefreshNavButtonActionProperty());
-                skinnable.forbidDraggingWindow(refreshNavButton);
-
-                navRight.getChildren().setAll(refreshNavButton);
-                navBar.setRight(navRight);
-            }
+    /// Restores a maximized stage and initializes movement when dragging begins in the title bar.
+    ///
+    /// @param mouseEvent the title-bar drag event
+    private void onTitleBarDragged(MouseEvent mouseEvent) {
+        if (!getSkinnable().isDragging() && primaryStage.isMaximized()) {
+            getSkinnable().setDragging(true);
+            mouseInitX = mouseEvent.getScreenX();
+            mouseInitY = mouseEvent.getScreenY();
+            primaryStage.setMaximized(false);
+            stageInitWidth = primaryStage.getWidth();
+            stageInitHeight = primaryStage.getHeight();
+            primaryStage.setY(stageInitY = 0);
+            primaryStage.setX(stageInitX = mouseInitX - stageInitWidth / 2);
         }
-        return navBar;
     }
 
-    private boolean isRightEdge(double x, double y, Bounds boundsInParent) {
+    /// Returns whether the pointer is within the right resize inset.
+    ///
+    /// @param x the pointer's horizontal coordinate in the root pane
+    /// @return `true` if the pointer is within the right resize inset
+    private boolean isRightEdge(double x) {
         return x < root.getWidth() && x >= root.getWidth() - root.snappedLeftInset();
     }
 
-    private boolean isTopEdge(double x, double y, Bounds boundsInParent) {
+    /// Returns whether the pointer is within the top resize inset.
+    ///
+    /// @param y the pointer's vertical coordinate in the root pane
+    /// @return `true` if the pointer is within the top resize inset
+    private boolean isTopEdge(double y) {
         return y >= 0 && y <= root.snappedTopInset();
     }
 
-    private boolean isBottomEdge(double x, double y, Bounds boundsInParent) {
+    /// Returns whether the pointer is within the bottom resize inset.
+    ///
+    /// @param y the pointer's vertical coordinate in the root pane
+    /// @return `true` if the pointer is within the bottom resize inset
+    private boolean isBottomEdge(double y) {
         return y < root.getHeight() && y >= root.getHeight() - root.snappedLeftInset();
     }
 
-    private boolean isLeftEdge(double x, double y, Bounds boundsInParent) {
+    /// Returns whether the pointer is within the left resize inset.
+    ///
+    /// @param x the pointer's horizontal coordinate in the root pane
+    /// @return `true` if the pointer is within the left resize inset
+    private boolean isLeftEdge(double x) {
         return x >= 0 && x <= root.snappedLeftInset();
     }
 
+    /// Applies requested stage dimensions after enforcing stage and title-bar minimums.
+    ///
+    /// A negative dimension preserves the current value. Width and height are always written
+    /// together to avoid JDK-8344372.
+    ///
+    /// @param newWidth the requested width, or a negative value to preserve the current width
+    /// @param newHeight the requested height, or a negative value to preserve the current height
     private void resizeStage(double newWidth, double newHeight) {
         if (newWidth < 0)
             newWidth = primaryStage.getWidth();
         if (newWidth < primaryStage.getMinWidth())
             newWidth = primaryStage.getMinWidth();
-        if (newWidth < titleContainer.getMinWidth())
-            newWidth = titleContainer.getMinWidth();
+        if (newWidth < windowContent.getTitleMinWidth())
+            newWidth = windowContent.getTitleMinWidth();
 
         if (newHeight < 0)
             newHeight = primaryStage.getHeight();
         if (newHeight < primaryStage.getMinHeight())
             newHeight = primaryStage.getMinHeight();
-        if (newHeight < titleContainer.getMinHeight())
-            newHeight = titleContainer.getMinHeight();
+        if (newHeight < windowContent.getTitleMinHeight())
+            newHeight = windowContent.getTitleMinHeight();
 
         // Width and height must be set simultaneously to avoid JDK-8344372 (https://github.com/openjdk/jfx/pull/1654)
         primaryStage.setWidth(newWidth);
         primaryStage.setHeight(newHeight);
     }
 
+    /// Selects the resize cursor for the pointer's current position in the outer pane.
+    ///
+    /// @param mouseEvent the pointer movement event
     private void onMouseMoved(MouseEvent mouseEvent) {
         if (!primaryStage.isFullScreen() && primaryStage.isResizable()) {
-            double x = mouseEvent.getX(), y = mouseEvent.getY();
-            Bounds boundsInParent = root.getBoundsInParent();
+            double x = mouseEvent.getX();
+            double y = mouseEvent.getY();
             double diagonalSize = root.snappedLeftInset() + 10;
-            if (this.isRightEdge(x, y, boundsInParent)) {
+            if (isRightEdge(x)) {
                 if (y < diagonalSize) {
                     root.setCursor(Cursor.NE_RESIZE);
                 } else if (y > root.getHeight() - diagonalSize) {
@@ -434,7 +220,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 } else {
                     root.setCursor(Cursor.E_RESIZE);
                 }
-            } else if (this.isLeftEdge(x, y, boundsInParent)) {
+            } else if (isLeftEdge(x)) {
                 if (y < diagonalSize) {
                     root.setCursor(Cursor.NW_RESIZE);
                 } else if (y > root.getHeight() - diagonalSize) {
@@ -442,7 +228,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 } else {
                     root.setCursor(Cursor.W_RESIZE);
                 }
-            } else if (this.isTopEdge(x, y, boundsInParent)) {
+            } else if (isTopEdge(y)) {
                 if (x < diagonalSize) {
                     root.setCursor(Cursor.NW_RESIZE);
                 } else if (x > root.getWidth() - diagonalSize) {
@@ -450,7 +236,7 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 } else {
                     root.setCursor(Cursor.N_RESIZE);
                 }
-            } else if (this.isBottomEdge(x, y, boundsInParent)) {
+            } else if (isBottomEdge(y)) {
                 if (x < diagonalSize) {
                     root.setCursor(Cursor.SW_RESIZE);
                 } else if (x > root.getWidth() - diagonalSize) {
@@ -466,10 +252,16 @@ public class DecoratorSkin extends SkinBase<Decorator> {
         }
     }
 
+    /// Ends the active move or resize gesture.
+    ///
+    /// @param mouseEvent the mouse release event
     private void onMouseReleased(MouseEvent mouseEvent) {
         getSkinnable().setDragging(false);
     }
 
+    /// Moves or resizes the stage according to the cursor selected at drag start.
+    ///
+    /// @param mouseEvent the active drag event
     private void onMouseDragged(MouseEvent mouseEvent) {
         if (!getSkinnable().isDragging()) {
             getSkinnable().setDragging(true);
@@ -536,67 +328,5 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 mouseEvent.consume();
             }
         }
-    }
-
-    enum NavBarAnimations implements TransitionPane.AnimationProducer {
-        NEXT {
-            @Override
-            public void init(TransitionPane container, Node previousNode, Node nextNode) {
-                super.init(container, previousNode, nextNode);
-                nextNode.setTranslateX(container.getWidth());
-            }
-
-            @Override
-            public Timeline animate(
-                    Pane container, Node previousNode, Node nextNode,
-                    Duration duration, Interpolator interpolator) {
-                return new Timeline(
-                        new KeyFrame(Duration.ZERO,
-                                new KeyValue(nextNode.translateXProperty(), 50, interpolator),
-                                new KeyValue(previousNode.translateXProperty(), 0, interpolator),
-                                new KeyValue(nextNode.opacityProperty(), 0, interpolator),
-                                new KeyValue(previousNode.opacityProperty(), 1, interpolator)),
-                        new KeyFrame(duration,
-                                new KeyValue(nextNode.translateXProperty(), 0, interpolator),
-                                new KeyValue(previousNode.translateXProperty(), -50, interpolator),
-                                new KeyValue(nextNode.opacityProperty(), 1, interpolator),
-                                new KeyValue(previousNode.opacityProperty(), 0, interpolator))
-                );
-            }
-
-            @Override
-            public TransitionPane.AnimationProducer opposite() {
-                return NEXT;
-            }
-        },
-
-        PREVIOUS {
-            @Override
-            public void init(TransitionPane container, Node previousNode, Node nextNode) {
-                super.init(container, previousNode, nextNode);
-                nextNode.setTranslateX(container.getWidth());
-            }
-
-            @Override
-            public Timeline animate(Pane container, Node previousNode, Node nextNode, Duration duration, Interpolator interpolator) {
-                return new Timeline(
-                        new KeyFrame(Duration.ZERO,
-                                new KeyValue(nextNode.translateXProperty(), -50, interpolator),
-                                new KeyValue(previousNode.translateXProperty(), 0, interpolator),
-                                new KeyValue(nextNode.opacityProperty(), 0, interpolator),
-                                new KeyValue(previousNode.opacityProperty(), 1, interpolator)),
-                        new KeyFrame(duration,
-                                new KeyValue(nextNode.translateXProperty(), 0, interpolator),
-                                new KeyValue(previousNode.translateXProperty(), 50, interpolator),
-                                new KeyValue(nextNode.opacityProperty(), 1, interpolator),
-                                new KeyValue(previousNode.opacityProperty(), 0, interpolator))
-                );
-            }
-
-            @Override
-            public TransitionPane.AnimationProducer opposite() {
-                return PREVIOUS;
-            }
-        };
     }
 }
