@@ -74,6 +74,9 @@ final class WindowPane extends StackPane {
     /// The outer pane that receives move and resize pointer events, including the shadow insets.
     private final StackPane interactionPane;
 
+    /// The pane spanning the window content and hosting dialogs above it.
+    private final StackPane dialogContainer = new StackPane();
+
     /// Tracks the stage that currently contains this pane without retaining a fixed stage.
     private final NodeWindowProperty<Stage> stage = NodeWindowProperty.newStageProperty(this);
 
@@ -123,8 +126,8 @@ final class WindowPane extends StackPane {
 
     /// Creates and binds the non-shadow portion of a custom window.
     ///
-    /// The constructor registers this pane as the snackbar container and assigns the internal
-    /// wrapper used as the decorator's dialog container.
+    /// The constructor registers this pane as the snackbar container and constructs the pane
+    /// exposed by [#getDialogContainer()] for dialog presentation.
     ///
     /// @param decorator the decorator represented by this window
     /// @param interactionPane the outer pane that receives move and resize pointer events
@@ -159,8 +162,7 @@ final class WindowPane extends StackPane {
 
         decorator.getSnackbar().registerSnackbarContainer(this);
 
-        StackPane wrapper = new StackPane();
-        wrapper.backgroundProperty().bind(Bindings.createObjectBinding(
+        dialogContainer.backgroundProperty().bind(Bindings.createObjectBinding(
                 () -> Themes.windowTransparentProperty().get()
                         ? null
                         : new Background(new BackgroundFill(
@@ -186,9 +188,8 @@ final class WindowPane extends StackPane {
 
         BorderPane frame = new BorderPane();
         frame.getStyleClass().add("jfx-decorator");
-        wrapper.getChildren().setAll(backgroundNode, frame);
-        decorator.setDrawerWrapper(wrapper);
-        getChildren().add(wrapper);
+        dialogContainer.getChildren().setAll(backgroundNode, frame);
+        getChildren().add(dialogContainer);
 
         // The center stacks regular page content below transient welcome and hint content.
         StackPane container = new StackPane();
@@ -212,9 +213,9 @@ final class WindowPane extends StackPane {
         titleContainer.setPickOnBounds(false);
         titleContainer.getStyleClass().add("jfx-tool-bar");
         backgroundNode.maxHeightProperty().bind(Bindings.createDoubleBinding(
-                () -> Math.max(0.0, wrapper.getHeight()
+                () -> Math.max(0.0, dialogContainer.getHeight()
                         - (decorator.isTitleTransparent() ? 0.0 : titleContainer.getHeight())),
-                wrapper.heightProperty(),
+                dialogContainer.heightProperty(),
                 decorator.titleTransparentProperty(),
                 titleContainer.heightProperty()));
 
@@ -299,6 +300,13 @@ final class WindowPane extends StackPane {
         AnchorPane.setRightAnchor(buttonsContainer, 0.0);
         buttonsContainerPlaceHolder.widthProperty().bind(buttonsContainer.widthProperty());
         getChildren().add(buttonLayer);
+    }
+
+    /// Returns the pane spanning the window content and hosting dialogs above it.
+    ///
+    /// @return the dialog container
+    StackPane getDialogContainer() {
+        return dialogContainer;
     }
 
     /// Transfers window-state listeners between the previous and current stages.

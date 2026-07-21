@@ -18,7 +18,6 @@
 package org.jackhuang.hmcl.ui;
 
 import com.jfoenix.controls.JFXDialog;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -49,17 +48,15 @@ public final class DialogUtils {
 
     public static final String PROPERTY_DIALOG_SHOW_LATER = DialogUtils.class.getName() + ".dialog.showLater";
 
+    /// Shows content in the dialog layer of a decorator.
+    ///
+    /// @param decorator the decorator whose dialog layer receives the content
+    /// @param content the content to show
     public static void show(Decorator decorator, Node content) {
-        if (decorator.getDrawerWrapper() == null) {
-            Platform.runLater(() -> show(decorator, content));
-            return;
-        }
-
-        show(decorator.getDrawerWrapper(), content, (dialog) -> {
+        show(decorator.getDialogContainer(), content, dialog -> {
             JFXDialogPane pane = (JFXDialogPane) dialog.getContent();
             decorator.capableDraggingWindow(dialog);
             decorator.forbidDraggingWindow(pane);
-            dialog.setDialogContainer(decorator.getDrawerWrapper());
         });
     }
 
@@ -125,12 +122,12 @@ public final class DialogUtils {
         }
     }
 
+    /// Schedules content after dialogs already queued for a decorator.
+    ///
+    /// @param decorator the decorator whose dialog layer receives the content
+    /// @param content the content to show
     public static void showLater(Decorator decorator, Node content) {
-        if (decorator.getDrawerWrapper() == null) {
-            Platform.runLater(() -> showLater(decorator, content));
-            return;
-        }
-        showLater(decorator.getDrawerWrapper(), () -> show(decorator, content));
+        showLater(decorator.getDialogContainer(), () -> show(decorator, content));
     }
 
     @SuppressWarnings("unchecked")

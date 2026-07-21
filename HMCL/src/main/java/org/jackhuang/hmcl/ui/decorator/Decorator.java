@@ -112,8 +112,8 @@ public class Decorator extends StackPane {
     /// The direction used for the next navigation-bar transition.
     private Navigation.NavigationDirection navigationDirection = Navigation.NavigationDirection.START;
 
-    /// The pane used as the dialog container after the window content is initialized.
-    private @Nullable StackPane drawerWrapper;
+    /// The pane spanning the window content and hosting dialogs above it.
+    private final StackPane dialogContainer;
 
     /// The snackbar displayed over this decorator.
     private final JFXSnackbar snackbar = new JFXSnackbar();
@@ -178,6 +178,23 @@ public class Decorator extends StackPane {
 
         contentBackgroundProperty().bind(Themes.backgroundProperty());
 
+        getStyleClass().add("window");
+
+        StackPane shadowContainer = new StackPane();
+        shadowContainer.getStyleClass().add("body");
+        shadowContainer.setEffect(new DropShadow(
+                BlurType.ONE_PASS_BOX,
+                Color.rgb(0, 0, 0, 0.4),
+                10,
+                0.3,
+                0.0,
+                0.0));
+
+        WindowPane windowPane = new WindowPane(this, this);
+        dialogContainer = windowPane.getDialogContainer();
+        shadowContainer.getChildren().setAll(windowPane);
+        getChildren().setAll(shadowContainer);
+
         // Pass key events to the current dialog or page.
         addEventFilter(KeyEvent.ANY, event -> {
             if (!(event.getTarget() instanceof Node target)) {
@@ -185,11 +202,8 @@ public class Decorator extends StackPane {
             }
 
             Node newTarget;
-            @Nullable JFXDialogPane currentDialogPane = null;
-            if (getDrawerWrapper() != null) {
-                currentDialogPane = (JFXDialogPane) getDrawerWrapper().getProperties()
-                        .get(DialogUtils.PROPERTY_DIALOG_PANE_INSTANCE);
-            }
+            @Nullable JFXDialogPane currentDialogPane = (JFXDialogPane) dialogContainer.getProperties()
+                    .get(DialogUtils.PROPERTY_DIALOG_PANE_INSTANCE);
 
             if (currentDialogPane != null && currentDialogPane.peek().isPresent()) {
                 newTarget = currentDialogPane.peek().get();
@@ -230,22 +244,6 @@ public class Decorator extends StackPane {
                 event.consume();
             }
         });
-
-        getStyleClass().add("window");
-
-        StackPane shadowContainer = new StackPane();
-        shadowContainer.getStyleClass().add("body");
-        shadowContainer.setEffect(new DropShadow(
-                BlurType.ONE_PASS_BOX,
-                Color.rgb(0, 0, 0, 0.4),
-                10,
-                0.3,
-                0.0,
-                0.0));
-
-        WindowPane windowPane = new WindowPane(this, this);
-        shadowContainer.getChildren().setAll(windowPane);
-        getChildren().setAll(shadowContainer);
     }
 
     /// Returns the stage initially configured by this decorator.
@@ -255,18 +253,11 @@ public class Decorator extends StackPane {
         return primaryStage;
     }
 
-    /// Returns the pane used as the dialog container.
+    /// Returns the pane spanning the window content and hosting dialogs above it.
     ///
-    /// @return the dialog container, or `null` while the window content is being initialized
-    public @Nullable StackPane getDrawerWrapper() {
-        return drawerWrapper;
-    }
-
-    /// Sets the pane used as the dialog container.
-    ///
-    /// @param drawerWrapper the dialog container created by the window content
-    public void setDrawerWrapper(StackPane drawerWrapper) {
-        this.drawerWrapper = drawerWrapper;
+    /// @return the dialog container
+    public StackPane getDialogContainer() {
+        return dialogContainer;
     }
 
     /// Returns the mutable list displayed in the primary content layer.
