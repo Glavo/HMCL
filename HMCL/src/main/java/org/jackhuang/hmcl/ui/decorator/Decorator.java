@@ -30,8 +30,6 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Control;
-import javafx.scene.control.SkinBase;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.*;
@@ -65,14 +63,14 @@ import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
 
 /// Provides the launcher window content, navigation, dialogs, and custom window decoration.
 @NotNullByDefault
-public class Decorator extends Control {
+public class Decorator extends StackPane {
     /// The nodes displayed in the primary page-content layer.
     private final ListProperty<Node> content = new SimpleListProperty<>(FXCollections.observableArrayList());
 
     /// The nodes displayed in the floating overlay layer.
     private final ListProperty<Node> container = new SimpleListProperty<>(FXCollections.observableArrayList());
 
-    /// The launcher background and opacity rendered by this decorator's skin.
+    /// The launcher background and opacity rendered behind this decorator's content.
     private final ObjectProperty<@Nullable LauncherBackground> contentBackground = new SimpleObjectProperty<>();
 
     /// The state currently rendered by the navigation bar.
@@ -114,7 +112,7 @@ public class Decorator extends Control {
     /// The direction used for the next navigation-bar transition.
     private Navigation.NavigationDirection navigationDirection = Navigation.NavigationDirection.START;
 
-    /// The pane used as the dialog container after the skin creates it.
+    /// The pane used as the dialog container after the window content is initialized.
     private @Nullable StackPane drawerWrapper;
 
     /// The snackbar displayed over this decorator.
@@ -232,6 +230,22 @@ public class Decorator extends Control {
                 event.consume();
             }
         });
+
+        getStyleClass().add("window");
+
+        StackPane shadowContainer = new StackPane();
+        shadowContainer.getStyleClass().add("body");
+        shadowContainer.setEffect(new DropShadow(
+                BlurType.ONE_PASS_BOX,
+                Color.rgb(0, 0, 0, 0.4),
+                10,
+                0.3,
+                0.0,
+                0.0));
+
+        WindowPane windowPane = new WindowPane(this, this);
+        shadowContainer.getChildren().setAll(windowPane);
+        getChildren().setAll(shadowContainer);
     }
 
     /// Returns the stage initially configured by this decorator.
@@ -241,16 +255,16 @@ public class Decorator extends Control {
         return primaryStage;
     }
 
-    /// Returns the pane used as the dialog container after skin creation.
+    /// Returns the pane used as the dialog container.
     ///
-    /// @return the dialog container, or `null` before the skin creates it
+    /// @return the dialog container, or `null` while the window content is being initialized
     public @Nullable StackPane getDrawerWrapper() {
         return drawerWrapper;
     }
 
     /// Sets the pane used as the dialog container.
     ///
-    /// @param drawerWrapper the dialog container created by the skin
+    /// @param drawerWrapper the dialog container created by the window content
     public void setDrawerWrapper(StackPane drawerWrapper) {
         this.drawerWrapper = drawerWrapper;
     }
@@ -325,7 +339,7 @@ public class Decorator extends Control {
         return contentBackground.get();
     }
 
-    /// Returns the launcher background property rendered by this decorator's skin.
+    /// Returns the launcher background property rendered behind this decorator's content.
     ///
     /// @return the launcher background property
     public ObjectProperty<@Nullable LauncherBackground> contentBackgroundProperty() {
@@ -596,14 +610,6 @@ public class Decorator extends Control {
                 url -> Controllers.dialog(new AddAuthlibInjectorServerPane(url))));
     }
 
-    /// Creates the default skin containing the window pane and its drop shadow.
-    ///
-    /// @return a new skin for this decorator
-    @Override
-    protected SkinBase<?> createDefaultSkin() {
-        return new Skin(this);
-    }
-
     /// Iconifies the configured stage, playing the minimize animation when enabled.
     public void minimize() {
         if (AnimationUtils.playWindowAnimation() && OperatingSystem.CURRENT_OS != OperatingSystem.MACOS) {
@@ -689,32 +695,4 @@ public class Decorator extends Control {
         this.navigationDirection = navigationDirection;
     }
 
-    /// Provides the outer spacing and drop shadow for a decorator.
-    private static final class Skin extends SkinBase<Decorator> {
-        /// Creates a skin that wraps the window pane in its drop shadow.
-        ///
-        /// @param control the decorator represented by this skin
-        private Skin(Decorator control) {
-            super(control);
-
-            StackPane root = new StackPane();
-            root.getStyleClass().add("window");
-
-            StackPane shadowContainer = new StackPane();
-            shadowContainer.getStyleClass().add("body");
-            shadowContainer.setEffect(new DropShadow(
-                    BlurType.ONE_PASS_BOX,
-                    Color.rgb(0, 0, 0, 0.4),
-                    10,
-                    0.3,
-                    0.0,
-                    0.0));
-
-            WindowPane windowPane = new WindowPane(control, root);
-            shadowContainer.getChildren().setAll(windowPane);
-            root.getChildren().setAll(shadowContainer);
-
-            getChildren().add(root);
-        }
-    }
 }
