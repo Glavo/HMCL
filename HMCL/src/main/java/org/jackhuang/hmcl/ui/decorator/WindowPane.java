@@ -23,7 +23,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
-import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -114,7 +113,7 @@ final class WindowPane extends StackPane {
         dialogContainer.getChildren().setAll(backgroundNode, frame);
         getChildren().add(dialogContainer);
 
-        // The center stacks regular page content below transient welcome and hint content.
+        // The center clips regular page content to the window bounds.
         StackPane container = new StackPane();
         FXUtils.setOverflowHidden(container);
 
@@ -122,13 +121,6 @@ final class WindowPane extends StackPane {
         contentPlaceHolder.getStyleClass().add("jfx-decorator-content-container");
         Bindings.bindContent(contentPlaceHolder.getChildren(), decorator.contentProperty());
         container.getChildren().add(contentPlaceHolder);
-
-        StackPane floatLayer = new StackPane();
-        Bindings.bindContent(floatLayer.getChildren(), decorator.containerProperty());
-        ListChangeListener<Node> containerListener = change -> updateFloatLayer(floatLayer);
-        decorator.containerProperty().addListener(containerListener);
-        updateFloatLayer(floatLayer);
-        container.getChildren().add(floatLayer);
 
         frame.setCenter(container);
 
@@ -244,15 +236,6 @@ final class WindowPane extends StackPane {
     /// @return the title container's minimum height
     double getTitleContainerMinHeight() {
         return titleContainer.getMinHeight();
-    }
-
-    /// Updates whether the floating layer participates in layout visibility and mouse picking.
-    ///
-    /// @param floatLayer the floating layer bound to the decorator's transient containers
-    private void updateFloatLayer(StackPane floatLayer) {
-        boolean empty = decorator.getContainer().isEmpty();
-        floatLayer.setMouseTransparent(empty);
-        floatLayer.setVisible(!empty);
     }
 
     /// Creates the navigation bar for the current decorator state.

@@ -70,9 +70,6 @@ public class Decorator extends StackPane {
     /// The nodes displayed in the primary page-content layer.
     private final ListProperty<Node> content = new SimpleListProperty<>(FXCollections.observableArrayList());
 
-    /// The nodes displayed in the floating overlay layer.
-    private final ListProperty<Node> container = new SimpleListProperty<>(FXCollections.observableArrayList());
-
     /// The launcher background and opacity rendered behind this decorator's content.
     private final ObjectProperty<@Nullable LauncherBackground> contentBackground = new SimpleObjectProperty<>();
 
@@ -320,27 +317,6 @@ public class Decorator extends StackPane {
     /// @param state the new navigation state, or `null` to clear it
     public void setState(DecoratorPage.@Nullable State state) {
         this.state.set(state);
-    }
-
-    /// Returns the mutable list displayed in the floating overlay layer.
-    ///
-    /// @return the floating overlay list
-    public ObservableList<Node> getContainer() {
-        return container.get();
-    }
-
-    /// Returns the floating overlay list property.
-    ///
-    /// @return the floating overlay list property
-    public ListProperty<Node> containerProperty() {
-        return container;
-    }
-
-    /// Replaces the list displayed in the floating overlay layer.
-    ///
-    /// @param container the new floating overlay list
-    public void setContainer(ObservableList<Node> container) {
-        this.container.set(container);
     }
 
     /// Returns the launcher background rendered behind the content.
