@@ -25,6 +25,7 @@ import org.jackhuang.hmcl.EntryPoint;
 import org.jackhuang.hmcl.Main;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.java.JavaRuntime;
+import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -44,10 +45,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.jackhuang.hmcl.ui.FXUtils.checkFxUserThread;
 import static org.jackhuang.hmcl.util.Lang.thread;
@@ -128,22 +129,20 @@ public final class UpdateHandler {
                             throw new IOException("Current JAR is not verified");
                         }
 
-                        CompletableFuture<Void> future = new CompletableFuture<>();
-
+                        var latch = new CountDownLatch(1);
                         Platform.runLater(() -> {
                             try {
-                                Controllers.saveWindowStates();
+                                SettingsManager.savePendingChanges();
                             } finally {
-                                future.complete(null);
+                                latch.countDown();
                             }
                         });
 
                         try {
-                            future.get();
-                        } catch (ExecutionException | InterruptedException ignored) {
+                            latch.await();
+                        } catch (InterruptedException ignored) {
                             // Ignore
                         }
-
 
                         try {
                             FileSaver.waitForAllSaves();
@@ -223,11 +222,33 @@ public final class UpdateHandler {
         commandline.add("-jar");
         commandline.add(jar.toAbsolutePath().toString());
         commandline.addAll(Arrays.asList(appArgs));
-        LOG.info("Starting process: " + commandline);
+        LOG.info("Starting process: " + maskCommandline(commandline));
         new ProcessBuilder(commandline)
                 .directory(Paths.get("").toAbsolutePath().toFile())
                 .inheritIO()
                 .start();
+    }
+
+    private static String maskCommandline(List<String> commandline) {
+        return commandline.stream().map(str -> {
+            if (str.startsWith("-D")) {
+                int eqIdx = str.indexOf('=');
+                if (eqIdx != -1) {
+                    String key = str.substring(2, eqIdx);
+                    String value = str.substring(eqIdx + 1);
+                    if (key.contains("http.proxy") ||
+                            key.startsWith("https.proxy") ||
+                            key.startsWith("socksProxy") ||
+                            key.equals("hmcl.microsoft.auth.id") ||
+                            key.equals("hmcl.curseforge.apikey")
+                    ) {
+                        return "-D" + key + "=" + (value.isEmpty() ? "" : value.charAt(0) + "*".repeat(value.length() - 1));
+                    }
+                }
+            }
+
+            return str;
+        }).collect(Collectors.joining(" "));
     }
 
     private static Optional<Path> tryRename(Path path, String newVersion) {
