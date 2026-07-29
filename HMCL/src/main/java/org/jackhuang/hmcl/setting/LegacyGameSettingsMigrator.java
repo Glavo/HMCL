@@ -126,18 +126,19 @@ public final class LegacyGameSettingsMigrator {
 
     /// Migrates a legacy per-version game setting file into an instance setting.
     ///
+    /// @param instance the instance whose legacy setting should be migrated
     /// @param parent the migrated parent preset ID for the profile
     /// @return the migrated instance setting, or `null` when no legacy file can be migrated
     public static @Nullable InstanceMigrationResult migrateInstanceGameSettings(
-            HMCLGameRepository repository,
-            GameInstanceID instanceId,
+            HMCLGameInstance instance,
             @Nullable GameSettingsPresetID parent) {
-        Path instanceRoot = repository.getInstanceRoot(instanceId);
+        HMCLGameRepository repository = instance.getRepository();
+        Path instanceRoot = instance.getInstanceRoot();
         Path file = instanceRoot.resolve(LEGACY_INSTANCE_SETTINGS_FILENAME);
         if (!Files.exists(file)) {
             return null;
         }
-        Path receiptLocation = repository.getInstanceStateDirectory(instanceId)
+        Path receiptLocation = instance.getStateDirectory()
                 .resolve(LEGACY_INSTANCE_SETTINGS_MIGRATION_RECEIPT_FILENAME);
         if (MigrationReceipt.matches(receiptLocation, file)) {
             LOG.info("Skipping already migrated legacy version setting " + file);

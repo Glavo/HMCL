@@ -53,7 +53,6 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
 
     private final DefaultDependencyManager dependency;
     private final DefaultGameRepository repository;
-    private final ModManager modManager;
     private final GameInstanceID instanceId;
     private final Path configurationFile;
     private ModpackConfiguration<McbbsModpackManifest> configuration;
@@ -71,7 +70,6 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
     public McbbsModpackCompletionTask(DefaultDependencyManager dependencyManager, GameInstanceID instanceId, ModpackConfiguration<McbbsModpackManifest> configuration) {
         this.dependency = dependencyManager;
         this.repository = dependencyManager.getGameRepository();
-        this.modManager = repository.getModManager(instanceId);
         this.instanceId = instanceId;
         this.configurationFile = repository.getModpackConfiguration(instanceId);
         this.configuration = configuration;
@@ -110,7 +108,7 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
                     throw new IOException("Unable to parse server manifest.json from " + manifest.getFileApi(), e);
                 }
 
-                Path rootPath = repository.getInstanceRoot(instanceId);
+                Path rootPath = repository.getLayout().getInstanceRoot(instanceId);
                 Files.createDirectories(rootPath);
 
                 Map<McbbsModpackManifest.File, McbbsModpackManifest.File> localFiles = manifest.getFiles().stream().collect(Collectors.toMap(Function.identity(), Function.identity()));
@@ -245,8 +243,11 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
                             if (file instanceof McbbsModpackManifest.CurseFile) {
                                 McbbsModpackManifest.CurseFile curseFile = (McbbsModpackManifest.CurseFile) file;
                                 if (StringUtils.isNotBlank(curseFile.getFileName())) {
-                                    if (!modManager.hasSimpleMod(curseFile.getFileName())) {
-                                        var task = new FileDownloadTask(curseFile.getUrl(), modManager.getSimpleModPath(curseFile.getFileName()));
+                                    if (!getModManager().hasSimpleMod(curseFile.getFileName())) {
+                                        var task = new FileDownloadTask(
+                                                curseFile.getUrl(),
+                                                getModManager().getSimpleModPath(
+                                                        curseFile.getFileName()));
                                         task.setCacheRepository(dependency.getCacheRepository());
                                         task.setCaching(true);
                                         dependencies.add(task.withCounter("hmcl.modpack.download"));
@@ -274,11 +275,12 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
     @Nullable
     private Path getFilePath(McbbsModpackManifest.File file) {
         if (file instanceof McbbsModpackManifest.AddonFile) {
-            return modManager.getRepository().getRunDirectory(modManager.getInstanceId()).resolve(((McbbsModpackManifest.AddonFile) file).getPath());
+            return getModManager().getInstance().getRunDirectory()
+                    .resolve(((McbbsModpackManifest.AddonFile) file).getPath());
         } else if (file instanceof McbbsModpackManifest.CurseFile) {
             String fileName = ((McbbsModpackManifest.CurseFile) file).getFileName();
             if (fileName == null) return null;
-            return modManager.getSimpleModPath(fileName);
+            return getModManager().getSimpleModPath(fileName);
         } else {
             throw new IllegalArgumentException();
         }
@@ -297,7 +299,7 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
             McbbsModpackManifest.AddonFile addonFile = (McbbsModpackManifest.AddonFile) file;
             return new FileDownloadTask(
                     remoteManifest.getFileApi() + "/overrides/" + addonFile.getPath(),
-                    modManager.getSimpleModPath(addonFile.getPath()),
+                    getModManager().getSimpleModPath(addonFile.getPath()),
                     addonFile.getHash() != null ? new FileDownloadTask.IntegrityCheck("SHA-1", addonFile.getHash()) : null);
         } else if (file instanceof McbbsModpackManifest.CurseFile) {
             // we download it later.
@@ -305,6 +307,13 @@ public class McbbsModpackCompletionTask extends CompletableFutureTask<Void> {
         } else {
             throw new IllegalArgumentException();
         }
+    }
+
+    /// Creates a manager from the instance available when asynchronous completion work runs.
+    ///
+    /// @return a mod manager for the completed instance
+    private ModManager getModManager() {
+        return new ModManager(repository.getInstance(instanceId).orElseThrow());
     }
 
     @NotNull

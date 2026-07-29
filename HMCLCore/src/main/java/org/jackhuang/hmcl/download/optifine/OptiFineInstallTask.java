@@ -130,7 +130,8 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
         List<Library> libraries = new ArrayList<>(4);
         libraries.add(optiFineLibrary);
 
-        Path optiFineInstallerLibraryPath = gameRepository.getLibraryFile(manifest, optiFineInstallerLibrary);
+        Path optiFineInstallerLibraryPath = gameRepository.getLayout()
+                .getLibraryFile(manifest.id(), optiFineInstallerLibrary);
         FileUtils.copyFile(dest, optiFineInstallerLibraryPath);
 
         try (FileSystem fs2 = CompressingUtils.createWritableZipFileSystem(optiFineInstallerLibraryPath)) {
@@ -140,14 +141,22 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
         // Install launch wrapper modified by OptiFine
         boolean hasLaunchWrapper = false;
         try (FileSystem fs = CompressingUtils.createReadOnlyZipFileSystem(dest)) {
-            Path optiFineLibraryPath = gameRepository.getLibraryFile(manifest, optiFineLibrary);
+            Path optiFineLibraryPath = gameRepository.getLayout()
+                    .getLibraryFile(manifest.id(), optiFineLibrary);
             if (Files.exists(fs.getPath("optifine/Patcher.class"))) {
+                GameInstanceManifest launchManifest =
+                        gameRepository.resolve(manifest).launchManifest();
+                GameInstanceID jarId = Objects.requireNonNullElse(
+                        launchManifest.jar(),
+                        launchManifest.id());
+                Path minecraftJar =
+                        gameRepository.getLayout().getInstanceJarFile(jarId);
                 String[] command = {
                         JavaRuntime.getDefault().getBinary().toString(),
                         "-cp",
                         dest.toString(),
                         "optifine.Patcher",
-                        gameRepository.getInstanceJar(manifest).toAbsolutePath().normalize().toString(),
+                        minecraftJar.toAbsolutePath().normalize().toString(),
                         dest.toString(),
                         optiFineLibraryPath.toString()
                 };
@@ -165,7 +174,8 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
             Path launchWrapper2 = fs.getPath("launchwrapper-2.0.jar");
             if (Files.exists(launchWrapper2)) {
                 Library launchWrapper = new Library(new Artifact("optifine", "launchwrapper", "2.0"));
-                Path launchWrapperFile = gameRepository.getLibraryFile(manifest, launchWrapper);
+                Path launchWrapperFile = gameRepository.getLayout()
+                        .getLibraryFile(manifest.id(), launchWrapper);
                 Files.createDirectories(launchWrapperFile.toAbsolutePath().getParent());
                 FileUtils.copyFile(launchWrapper2, launchWrapperFile);
                 hasLaunchWrapper = true;
@@ -180,7 +190,8 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
                 Library launchWrapper = new Library(new Artifact("optifine", "launchwrapper-of", launchWrapperVersion));
 
                 if (Files.exists(launchWrapperJar)) {
-                    Path launchWrapperFile = gameRepository.getLibraryFile(manifest, launchWrapper);
+                    Path launchWrapperFile = gameRepository.getLayout()
+                            .getLibraryFile(manifest.id(), launchWrapper);
                     Files.createDirectories(launchWrapperFile.toAbsolutePath().getParent());
                     FileUtils.copyFile(launchWrapperJar, launchWrapperFile);
 

@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.modpack.server;
 
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
+import org.jackhuang.hmcl.game.GameInstance;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.modpack.ModAdviser;
 import org.jackhuang.hmcl.modpack.Modpack;
@@ -85,9 +86,11 @@ public class ServerModpackExportTask extends Task<Void> {
                 }
             });
 
-            String gameVersion = repository.getGameVersion(instanceId)
+            GameInstance instance = repository.getInstance(instanceId).orElseThrow();
+            String gameVersion = repository.getGameVersion(instance.getManifest())
                     .orElseThrow(() -> new IOException("Cannot parse the version of " + instanceId));
-            LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(repository.getResolvedInstanceManifest(instanceId), gameVersion);
+            LibraryAnalyzer analyzer =
+                    LibraryAnalyzer.analyze(instance.getResolvedManifest(), gameVersion);
             List<ServerModpackManifest.Addon> addons = new ArrayList<>();
             addons.add(new ServerModpackManifest.Addon(MINECRAFT.getPatchId(), gameVersion));
             analyzer.getVersion(FORGE).ifPresent(forgeVersion ->

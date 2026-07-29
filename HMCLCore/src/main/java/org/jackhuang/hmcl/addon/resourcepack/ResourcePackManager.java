@@ -19,10 +19,10 @@ package org.jackhuang.hmcl.addon.resourcepack;
 
 import com.google.gson.annotations.SerializedName;
 import kala.encdet.EncodingDetector;
-import org.jackhuang.hmcl.game.GameInstanceID;
-import org.jackhuang.hmcl.game.GameRepository;
 import org.jackhuang.hmcl.addon.LocalAddonManager;
 import org.jackhuang.hmcl.addon.meta.PackMcMeta;
+import org.jackhuang.hmcl.game.GameInstance;
+import org.jackhuang.hmcl.game.GameVersion;
 import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonSerializable;
@@ -222,10 +222,13 @@ public final class ResourcePackManager extends LocalAddonManager<ResourcePackFil
 
     private boolean loaded = false;
 
-    public ResourcePackManager(GameRepository repository, GameInstanceID instanceId) {
-        super(repository, instanceId);
-        this.resourcePackDirectory = this.repository.getResourcePackDirectory(this.instanceId);
-        this.optionsFile = repository.getRunDirectory(instanceId).resolve("options.txt");
+    /// Creates a resource-pack manager for an instance.
+    ///
+    /// @param instance the instance whose resource packs and options are managed
+    public ResourcePackManager(GameInstance instance) {
+        super(instance);
+        this.resourcePackDirectory = instance.getResourcePackDirectory();
+        this.optionsFile = instance.getRunDirectory().resolve("options.txt");
     }
 
     private @Nullable Charset optionsFileEncoding;
@@ -279,7 +282,8 @@ public final class ResourcePackManager extends LocalAddonManager<ResourcePackFil
             lock.lock();
             try {
                 if (minecraftVersion == null) {
-                    minecraftVersion = GameVersionNumber.asGameVersion(repository.getGameVersion(instanceId));
+                    minecraftVersion = GameVersionNumber.asGameVersion(
+                            GameVersion.minecraftVersion(instance.getInstanceJar()));
                     supportsNewOptionsFormat = isMcVersionSupportsNewOptionsFormat(minecraftVersion);
                 }
             } finally {
@@ -295,7 +299,9 @@ public final class ResourcePackManager extends LocalAddonManager<ResourcePackFil
             lock.lock();
             try {
                 if (requiredVersion == null)
-                    requiredVersion = getPackVersion(getMinecraftVersion(), repository.getInstanceJar(instanceId));
+                    requiredVersion = getPackVersion(
+                            getMinecraftVersion(),
+                            instance.getInstanceJar());
             } finally {
                 lock.unlock();
             }

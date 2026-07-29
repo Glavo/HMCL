@@ -85,6 +85,8 @@ public final class LauncherHelper {
 
     private final HMCLGameRepository repository;
     private Account account;
+    /// Stable instance being launched.
+    private final HMCLGameInstance instance;
     private final GameInstanceID selectedInstanceId;
     private Path scriptFile;
     private final GameSettings.Effective setting;
@@ -97,7 +99,8 @@ public final class LauncherHelper {
         this.repository = Objects.requireNonNull(repository);
         this.account = Objects.requireNonNull(account);
         this.selectedInstanceId = selectedInstanceId;
-        this.setting = repository.getEffectiveGameSettings(selectedInstanceId);
+        this.instance = repository.getInstance(selectedInstanceId).orElseThrow();
+        this.setting = instance.getEffectiveGameSettings();
         this.launcherVisibility = setting.getInheritable(GameSettings::launcherVisibilityProperty);
         this.showLogs = setting.getInheritable(GameSettings::showLogsProperty);
         this.launchingStepsPane.setTitle(i18n("instance.launch"));
@@ -149,9 +152,10 @@ public final class LauncherHelper {
         PROCESSES.removeIf(it -> it.get() == null);
 
         DefaultDependencyManager dependencyManager = repository.getDependency();
-        AtomicReference<GameInstanceManifest> version = new AtomicReference<>(MaintainTask.maintain(repository, repository.getResolvedInstanceManifest(selectedInstanceId).launchManifest()));
+        AtomicReference<GameInstanceManifest> version = new AtomicReference<>(
+                MaintainTask.maintain(repository, instance.getLaunchManifest()));
         Optional<String> gameVersion = repository.getGameVersion(version.get());
-        boolean integrityCheck = repository.unmarkInstanceLaunchedAbnormally(selectedInstanceId);
+        boolean integrityCheck = instance.unmarkLaunchedAbnormally();
         CountDownLatch launchingLatch = new CountDownLatch(1);
         List<String> javaAgents = new ArrayList<>(0);
         List<String> javaArguments = new ArrayList<>(0);
@@ -168,7 +172,9 @@ public final class LauncherHelper {
                             dependencyManager.checkGameCompletionAsync(version.get(), integrityCheck),
                             Task.composeAsync(() -> {
                                 try {
-                                    ModpackConfiguration<?> configuration = ModpackHelper.readModpackConfiguration(repository.getModpackConfiguration(selectedInstanceId));
+                                    ModpackConfiguration<?> configuration =
+                                            ModpackHelper.readModpackConfiguration(
+                                                    instance.getModpackConfiguration());
                                     ModpackProvider provider = ModpackHelper.getProviderByType(configuration.getType());
                                     if (provider == null) return null;
                                     else return provider.createCompletionTask(dependencyManager, selectedInstanceId);
@@ -185,7 +191,9 @@ public final class LauncherHelper {
                                 Library lib = NativePatcher.getWindowsMesaLoader(java, renderer, OperatingSystem.SYSTEM_VERSION);
                                 if (lib == null)
                                     return null;
-                                Path file = dependencyManager.getGameRepository().getLibraryFile(version.get(), lib);
+                                Path file = dependencyManager.getGameRepository()
+                                        .getLayout()
+                                        .getLibraryFile(version.get().id(), lib);
                                 if (file.toAbsolutePath().toString().indexOf('=') >= 0) {
                                     LOG.warning("Invalid character '=' in the libraries directory path, unable to attach software renderer loader");
                                     return null;
@@ -234,7 +242,12 @@ public final class LauncherHelper {
                 .thenComposeAsync(() -> logIn(account).withStage("launch.state.logging_in"))
                 .thenComposeAsync(authInfo -> Task.supplyAsync(() -> {
                     LaunchOptions.Builder launchOptionsBuilder = repository.getLaunchOptions(
-                            selectedInstanceId, javaVersionRef.get(), repository.getBaseDirectory(), javaAgents, javaArguments, scriptFile != null);
+                            selectedInstanceId,
+                            javaVersionRef.get(),
+                            repository.getLayout().getBaseDirectory(),
+                            javaAgents,
+                            javaArguments,
+                            scriptFile != null);
                     if (disableOfflineSkin) {
                         launchOptionsBuilder.setDaemon(false);
                     }
@@ -244,7 +257,8 @@ public final class LauncherHelper {
 
                     LaunchOptions launchOptions = launchOptionsBuilder.create();
 
-                    LOG.info("Here's the structure of game mod directory:\n" + FileUtils.printFileStructure(repository.getModsDirectory(selectedInstanceId), 10));
+                    LOG.info("Here's the structure of game mod directory:\n"
+                            + FileUtils.printFileStructure(instance.getModsDirectory(), 10));
 
                     return new HMCLGameLauncher(
                             repository,

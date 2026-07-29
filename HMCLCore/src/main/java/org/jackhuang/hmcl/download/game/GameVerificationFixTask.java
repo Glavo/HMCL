@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.download.game;
 
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
+import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
@@ -32,6 +33,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Remove class digital verification file in game jar
@@ -58,7 +60,13 @@ public final class GameVerificationFixTask extends Task<Void> {
 
     @Override
     public void execute() throws IOException {
-        Path jar = dependencyManager.getGameRepository().getInstanceJar(manifest);
+        GameInstanceManifest launchManifest =
+                dependencyManager.getGameRepository().resolve(manifest).launchManifest();
+        GameInstanceID jarId =
+                Objects.requireNonNullElse(launchManifest.jar(), launchManifest.id());
+        Path jar = dependencyManager.getGameRepository()
+                .getLayout()
+                .getInstanceJarFile(jarId);
         LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(manifest, gameVersion);
 
         if (Files.exists(jar) && GameVersionNumber.compare(gameVersion, "1.6") < 0 && analyzer.has(LibraryAnalyzer.LibraryType.FORGE)) {

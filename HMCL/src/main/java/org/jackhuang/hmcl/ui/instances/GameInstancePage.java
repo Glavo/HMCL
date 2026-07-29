@@ -30,6 +30,7 @@ import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.EventPriority;
 import org.jackhuang.hmcl.event.RefreshedGameInstancesEvent;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.setting.GameSettings;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -48,6 +49,7 @@ import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -169,7 +171,8 @@ public class GameInstancePage extends DecoratorAnimatedPage implements Decorator
             worldListTab.getNode().loadInstance(repository, instanceId);
         if (schematicsTab.isInitialized())
             schematicsTab.getNode().loadInstance(repository, instanceId);
-        currentInstanceUpgradable.set(repository.isModpack(instanceId));
+        currentInstanceUpgradable.set(
+                repository.getInstance(instanceId).orElseThrow().isModpack());
     }
 
     private void onNavigated(Navigator.NavigationEvent event) {
@@ -188,7 +191,7 @@ public class GameInstancePage extends DecoratorAnimatedPage implements Decorator
     }
 
     private void onBrowse(String sub) {
-        FXUtils.openFolder(getRepository().getRunDirectory(getInstanceId()).resolve(sub));
+        FXUtils.openFolder(Objects.requireNonNull(getInstance()).getRunDirectory().resolve(sub));
     }
 
     private void redownloadAssetIndex() {
@@ -196,7 +199,7 @@ public class GameInstancePage extends DecoratorAnimatedPage implements Decorator
     }
 
     private void clearLibraries() {
-        var libraries = getRepository().getBaseDirectory().resolve("libraries");
+        var libraries = getRepository().getLayout().getLibrariesDirectory();
         Task.runAsync(Schedulers.io(), () -> {
             FileUtils.deleteDirectoryQuietly(libraries);
         }).whenComplete(Schedulers.javafx(), (exception) -> {
@@ -207,11 +210,12 @@ public class GameInstancePage extends DecoratorAnimatedPage implements Decorator
     }
 
     private void clearAssets() {
-        Path assetsDir = getRepository().getBaseDirectory().resolve("assets");
+        Path assetsDir = getRepository().getLayout().getAssetDirectory();
 
         HMCLGameRepository.InstanceReference currentInstanceReference = instanceReference.get();
         Path resourcesDir = currentInstanceReference != null
-                ? getRepository().getRunDirectory(currentInstanceReference.instanceId()).resolve("resources")
+                && currentInstanceReference.instance() != null
+                ? currentInstanceReference.instance().getRunDirectory().resolve("resources")
                 : null;
 
         Task.runAsync(Schedulers.io(), () -> {
@@ -261,6 +265,15 @@ public class GameInstancePage extends DecoratorAnimatedPage implements Decorator
 
     public HMCLGameRepository getRepository() {
         return Optional.ofNullable(instanceReference.get()).map(HMCLGameRepository.InstanceReference::repository).orElse(null);
+    }
+
+    /// Returns the stable instance currently displayed by this page.
+    ///
+    /// @return the displayed instance, or `null` when the page is detached
+    public @Nullable HMCLGameInstance getInstance() {
+        return Optional.ofNullable(instanceReference.get())
+                .map(HMCLGameRepository.InstanceReference::instance)
+                .orElse(null);
     }
 
     public @Nullable GameInstanceID getInstanceId() {

@@ -50,6 +50,9 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
  */
 public class DefaultLauncher extends Launcher {
 
+    /// Immutable or stable instance associated with the launch manifest.
+    private final GameInstance instance;
+
     private final LibraryAnalyzer analyzer;
 
     public DefaultLauncher(GameRepository repository, GameInstanceManifest manifest, AuthInfo authInfo, LaunchOptions options) {
@@ -63,6 +66,8 @@ public class DefaultLauncher extends Launcher {
     public DefaultLauncher(GameRepository repository, GameInstanceManifest manifest, AuthInfo authInfo, LaunchOptions options, ProcessListener listener, boolean daemon) {
         super(repository, manifest, authInfo, options, listener, daemon);
 
+        this.instance = repository.getInstance(manifest.id())
+                .orElseThrow(() -> new NoSuchGameInstanceException(manifest.id()));
         this.analyzer = LibraryAnalyzer.analyze(manifest, repository.getGameVersion(manifest).orElse(null));
     }
 
@@ -158,11 +163,15 @@ public class DefaultLauncher extends Launcher {
         if (!options.isNoGeneratedJVMArgs()) {
             appendJvmArgs(res);
 
-            res.addDefault("-Dminecraft.client.jar=", FileUtils.getAbsolutePath(repository.getInstanceJar(manifest)));
+            res.addDefault(
+                    "-Dminecraft.client.jar=",
+                    FileUtils.getAbsolutePath(instance.getInstanceJar()));
 
             if (OperatingSystem.CURRENT_OS == OperatingSystem.MACOS) {
                 res.addDefault("-Xdock:name=", "Minecraft " + manifest.id());
-                repository.getAssetObject(manifest.id(), manifest.getAssetIndex().getId(), "icons/minecraft.icns")
+                repository.getAssetObject(
+                                manifest.getAssetIndex().getId(),
+                                "icons/minecraft.icns")
                         .ifPresent(minecraftIcns -> {
                             res.addDefault("-Xdock:icon=", FileUtils.getAbsolutePath(minecraftIcns));
                         });
@@ -281,19 +290,20 @@ public class DefaultLauncher extends Launcher {
             }
         }
 
-        Set<String> classpath = repository.getClasspath(manifest);
+        Set<String> classpath = new LinkedHashSet<>(repository.getClasspath(manifest));
 
         if (analyzer.has(LibraryAnalyzer.LibraryType.CLEANROOM)) {
             classpath.removeIf(c -> c.contains("2.9.4-nightly-20150209"));
         }
 
-        Path jar = repository.getInstanceJar(manifest);
+        Path jar = instance.getInstanceJar();
         if (!Files.isRegularFile(jar))
             throw new IOException("Minecraft jar does not exist");
         classpath.add(FileUtils.getAbsolutePath(jar.toAbsolutePath()));
 
         // Provided Minecraft arguments
-        Path gameAssets = repository.getActualAssetDirectory(manifest.id(), manifest.getAssetIndex().getId());
+        Path gameAssets =
+                repository.getActualAssetDirectory(instance, manifest.getAssetIndex().getId());
         Map<String, String> configuration = getConfigurations();
         configuration.put("${classpath}", String.join(File.pathSeparator, classpath));
         configuration.put("${game_assets}", FileUtils.getAbsolutePath(gameAssets));
@@ -463,7 +473,9 @@ public class DefaultLauncher extends Launcher {
             FileUtils.cleanDirectoryQuietly(destination);
             for (Library library : manifest.getLibraries())
                 if (library.isNative())
-                    new Unzipper(repository.getLibraryFile(manifest, library), destination)
+                    new Unzipper(
+                            repository.getLayout().getLibraryFile(manifest.id(), library),
+                            destination)
                             .setFilter((zipEntry, destFile, relativePath) -> {
                                 if (!zipEntry.isDirectory() && !zipEntry.isUnixSymlink()
                                         && Files.isRegularFile(destFile)
@@ -494,7 +506,7 @@ public class DefaultLauncher extends Launcher {
     }
 
     public Path getLog4jConfigurationFile() {
-        return repository.getInstanceRoot(manifest.id()).resolve("log4j2.xml");
+        return instance.getInstanceRoot().resolve("log4j2.xml");
     }
 
     public void extractLog4jConfigurationFile() throws IOException {
@@ -537,26 +549,28 @@ public class DefaultLauncher extends Launcher {
                 pair("${user_properties}", authInfo.getUserProperties()),
                 pair("${resolution_width}", options.getWidth().toString()),
                 pair("${resolution_height}", options.getHeight().toString()),
-                pair("${library_directory}", FileUtils.getAbsolutePath(repository.getLibrariesDirectory(manifest))),
+                pair("${library_directory}", FileUtils.getAbsolutePath(
+                        repository.getLayout().getLibrariesDirectory())),
                 pair("${classpath_separator}", File.pathSeparator),
-                pair("${primary_jar}", FileUtils.getAbsolutePath(repository.getInstanceJar(manifest))),
+                pair("${primary_jar}", FileUtils.getAbsolutePath(instance.getInstanceJar())),
                 pair("${language}", Locale.getDefault().toLanguageTag()),
 
                 // defined by HMCL
                 // libraries_directory stands for historical reasons here. We don't know the official launcher
                 // had already defined "library_directory" as the placeholder for path to ".minecraft/libraries"
                 // when we propose this placeholder.
-                pair("${libraries_directory}", FileUtils.getAbsolutePath(repository.getLibrariesDirectory(manifest))),
+                pair("${libraries_directory}", FileUtils.getAbsolutePath(
+                        repository.getLayout().getLibrariesDirectory())),
                 // file_separator is used in -DignoreList
                 pair("${file_separator}", File.separator),
-                pair("${primary_jar_name}", FileUtils.getName(repository.getInstanceJar(manifest)))
+                pair("${primary_jar_name}", FileUtils.getName(instance.getInstanceJar()))
         );
     }
 
     /// Returns the native library directory selected by the launch options.
     private Path getNativeFolder() {
         if (StringUtils.isBlank(options.getNativesDir())) {
-            return repository.getNativeDirectory(manifest.id(), options.getJava().getPlatform());
+            return instance.getNativeDirectory(options.getJava().getPlatform());
         }
 
         return Path.of(options.getNativesDir());
@@ -622,7 +636,7 @@ public class DefaultLauncher extends Launcher {
         Map<String, String> env = new LinkedHashMap<>();
         env.put("INST_NAME", versionName);
         env.put("INST_ID", versionName);
-        env.put("INST_DIR", FileUtils.getAbsolutePath(repository.getInstanceRoot(manifest.id())));
+        env.put("INST_DIR", FileUtils.getAbsolutePath(instance.getInstanceRoot()));
         env.put("INST_MC_DIR", FileUtils.getAbsolutePath(repository.getRunDirectory(manifest.id())));
         env.put("INST_JAVA", options.getJava().getBinary().toString());
 

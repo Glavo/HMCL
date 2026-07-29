@@ -43,7 +43,6 @@ public class ModrinthCompletionTask extends Task<Void> {
 
     private final DefaultDependencyManager dependency;
     private final DefaultGameRepository repository;
-    private final ModManager modManager;
     private final GameInstanceID instanceId;
     private ModrinthManifest manifest;
     private final List<Task<?>> dependencies = new ArrayList<>();
@@ -72,13 +71,14 @@ public class ModrinthCompletionTask extends Task<Void> {
     public ModrinthCompletionTask(DefaultDependencyManager dependencyManager, GameInstanceID instanceId, ModrinthManifest manifest) {
         this.dependency = dependencyManager;
         this.repository = dependencyManager.getGameRepository();
-        this.modManager = repository.getModManager(instanceId);
         this.instanceId = instanceId;
         this.manifest = manifest;
 
         if (manifest == null)
             try {
-                Path manifestFile = repository.getInstanceRoot(instanceId).resolve("modrinth.index.json");
+                Path manifestFile = repository.getLayout()
+                        .getInstanceRoot(instanceId)
+                        .resolve("modrinth.index.json");
                 if (Files.exists(manifestFile))
                     this.manifest = JsonUtils.fromJsonFile(manifestFile, ModrinthManifest.class);
             } catch (Exception e) {
@@ -103,6 +103,8 @@ public class ModrinthCompletionTask extends Task<Void> {
         if (manifest == null)
             return;
 
+        ModManager modManager =
+                new ModManager(repository.getInstance(instanceId).orElseThrow());
         Path runDirectory = FileUtils.toAbsolute(repository.getRunDirectory(instanceId));
         Path modsDirectory = runDirectory.resolve("mods");
 
@@ -118,7 +120,8 @@ public class ModrinthCompletionTask extends Task<Void> {
 
             if (Files.exists(filePath))
                 continue;
-            if (modsDirectory.equals(filePath.getParent()) && this.modManager.hasSimpleMod(FileUtils.getName(filePath)))
+            if (modsDirectory.equals(filePath.getParent())
+                    && modManager.hasSimpleMod(FileUtils.getName(filePath)))
                 continue;
 
             var task = new FileDownloadTask(

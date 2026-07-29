@@ -33,7 +33,7 @@ public class GameListItem extends GameItem {
 
     public GameListItem(HMCLGameRepository repository, GameInstanceID instanceId) {
         super(repository, instanceId);
-        this.isModpack = repository.isModpack(instanceId);
+        this.isModpack = instance.isModpack();
         selected.bind(Bindings.createBooleanBinding(
                 () -> {
                     if (repository.getGameDirectory() != GameDirectoryManager.getSelectedGameDirectory()) return false;

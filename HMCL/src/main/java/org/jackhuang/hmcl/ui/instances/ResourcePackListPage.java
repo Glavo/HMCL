@@ -44,6 +44,7 @@ import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.addon.resourcepack.ResourcePackFile;
 import org.jackhuang.hmcl.addon.resourcepack.ResourcePackManager;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.setting.DownloadProviders;
 import org.jackhuang.hmcl.setting.SettingsManager;
@@ -92,6 +93,7 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
 
     private HMCLGameRepository repository;
     private GameInstanceID instanceId;
+    private @Nullable HMCLGameInstance instance;
 
     private Path resourcePackDirectory;
     private ResourcePackManager resourcePackManager;
@@ -111,7 +113,10 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
     public void loadInstance(HMCLGameRepository repository, @Nullable GameInstanceID instanceId) {
         this.repository = repository;
         this.instanceId = instanceId;
-        this.resourcePackManager = new ResourcePackManager(repository, instanceId);
+        HMCLGameInstance loadedInstance =
+                repository.getInstance(instanceId).orElseThrow();
+        this.instance = loadedInstance;
+        this.resourcePackManager = new ResourcePackManager(loadedInstance);
         this.resourcePackDirectory = this.resourcePackManager.getDirectory();
 
         refresh();
@@ -234,7 +239,8 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
     public void checkUpdates(Collection<ResourcePackFile> resourcePacks) {
         Runnable action = () -> Controllers.taskDialog(Task
                         .composeAsync(() -> {
-                            Optional<String> gameVersion = repository.getGameVersion(instanceId);
+                            Optional<String> gameVersion = repository.getGameVersion(
+                                    Objects.requireNonNull(instance).getManifest());
                             return gameVersion.map(g -> new AddonCheckUpdatesTask<>(DownloadProviders.getDownloadProvider(), g, resourcePacks)).orElse(null);
                         })
                         .whenComplete(Schedulers.javafx(), (result, exception) -> {
@@ -249,7 +255,7 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
                         .withStagesHints("update.checking"),
                 i18n("addon.check_update"), TaskCancellationAction.NORMAL);
 
-        if (repository.isModpack(instanceId)) {
+        if (Objects.requireNonNull(instance).isModpack()) {
             Controllers.confirm(
                     i18n("resourcepack.update_in_modpack.warning"), null,
                     MessageDialogPane.MessageType.WARNING,

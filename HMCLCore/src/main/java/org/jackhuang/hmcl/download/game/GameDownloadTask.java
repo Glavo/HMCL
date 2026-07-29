@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.download.game;
 
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
+import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.task.FileDownloadTask;
 import org.jackhuang.hmcl.task.Task;
@@ -27,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Task to download Minecraft jar
@@ -53,7 +55,11 @@ public final class GameDownloadTask extends Task<Void> {
 
     @Override
     public void execute() {
-        Path jar = dependencyManager.getGameRepository().getInstanceJar(manifest);
+        GameInstanceID jarId =
+                Objects.requireNonNullElse(manifest.jar(), manifest.id());
+        Path jar = dependencyManager.getGameRepository()
+                .getLayout()
+                .getInstanceJarFile(jarId);
 
         var task = new FileDownloadTask(
                 dependencyManager.getDownloadProvider().injectURLWithCandidates(manifest.getDownloadInfo().getUrl()),

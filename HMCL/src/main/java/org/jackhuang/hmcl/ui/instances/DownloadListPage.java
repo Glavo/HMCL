@@ -167,10 +167,12 @@ public class DownloadListPage extends Control implements DecoratorPage, GameInst
         int currentSearchID = searchID = searchID + 1;
         Task.supplyAsync(() -> {
             HMCLGameRepository.InstanceReference instanceReference = this.instanceReference.get();
-            if (instanceReference.instanceId() == null) {
+            if (instanceReference.instance() == null) {
                 return userGameVersion;
             } else {
-                return instanceReference.repository().getGameVersion(instanceReference.instanceId()).orElse("");
+                return instanceReference.repository()
+                        .getGameVersion(instanceReference.instance().getManifest())
+                        .orElse("");
             }
         }).thenApplyAsync(
                 gameVersion -> repository.search(downloadProvider, gameVersion, category, pageOffset, 50, searchFilter, sort, RemoteAddonRepository.SortOrder.DESC)

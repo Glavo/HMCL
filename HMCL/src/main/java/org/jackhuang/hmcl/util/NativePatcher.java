@@ -172,7 +172,8 @@ public final class NativePatcher {
         }
 
         if (lwjglVersionChanged) {
-            ModManager modManager = repository.getModManager(manifest.id());
+            ModManager modManager = new ModManager(
+                    repository.getInstance(manifest.id()).orElseThrow());
             try {
                 for (LocalModFile mod : modManager.getLocalFiles()) {
                     if ("sodium".equals(mod.getId())) {

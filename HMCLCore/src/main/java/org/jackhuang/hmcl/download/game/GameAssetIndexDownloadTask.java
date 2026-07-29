@@ -70,7 +70,9 @@ public final class GameAssetIndexDownloadTask extends Task<Void> {
     @Override
     public void execute() {
         AssetIndexInfo assetIndexInfo = manifest.getAssetIndex();
-        Path assetIndexFile = dependencyManager.getGameRepository().getIndexFile(manifest.id(), assetIndexInfo.getId());
+        Path assetIndexFile = dependencyManager.getGameRepository()
+                .getLayout()
+                .getAssetIndexFile(assetIndexInfo.getId());
         boolean verifyHashCode = StringUtils.isNotBlank(assetIndexInfo.getSha1()) && assetIndexInfo.getUrl().contains(assetIndexInfo.getSha1());
 
         if (Files.exists(assetIndexFile) && !forceDownloading) {

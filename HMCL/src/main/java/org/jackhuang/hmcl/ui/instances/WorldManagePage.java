@@ -25,6 +25,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.game.World;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -72,7 +73,8 @@ public final class WorldManagePage extends DecoratorAnimatedPage implements Deco
 
     public WorldManagePage(World world, HMCLGameRepository repository, GameInstanceID instanceId) {
         this.world = world;
-        this.backupsDir = repository.getBackupsDirectory(instanceId);
+        HMCLGameInstance instance = repository.getInstance(instanceId).orElseThrow();
+        this.backupsDir = instance.getBackupsDirectory();
         this.repository = repository;
         this.instanceId = instanceId;
 
@@ -91,7 +93,8 @@ public final class WorldManagePage extends DecoratorAnimatedPage implements Deco
 
         this.state = new SimpleObjectProperty<>(new State(i18n("world.manage.title", StringUtils.parseColorEscapes(world.getWorldName())), null, true, true, true));
 
-        Optional<String> gameVersion = repository.getGameVersion(instanceId);
+        Optional<String> gameVersion =
+                repository.getGameVersion(instance.getManifest());
         supportQuickPlay = World.supportQuickPlay(GameVersionNumber.asGameVersion(gameVersion));
 
         this.addEventHandler(Navigator.NavigationEvent.EXITED, this::onExited);

@@ -71,7 +71,8 @@ public class GameAdvancedListItem extends AdvancedListItem {
             if (repository.hasInstance(instanceId)) {
                 setTitle(i18n("instance.manage.manage"));
                 setSubtitle(instanceId.toString());
-                imageContainer.setImage(repository.getInstanceIconImage(instanceId));
+                imageContainer.setImage(
+                        repository.getInstance(instanceId).orElseThrow().getIconImage());
                 return;
             }
         }

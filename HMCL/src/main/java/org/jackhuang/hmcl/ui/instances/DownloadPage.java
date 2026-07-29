@@ -33,6 +33,7 @@ import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.addon.mod.ModLoaderType;
 import org.jackhuang.hmcl.addon.RemoteAddon;
@@ -268,9 +269,11 @@ public class DownloadPage extends Control implements DecoratorPage {
                 FXUtils.onChangeAndOperate(control.loaded, loaded -> {
                     if (control.versions == null) return;
 
-                    if (control.instanceReference.repository() != null && control.instanceReference.instanceId() != null) {
+                    HMCLGameInstance instance = control.instanceReference.instance();
+                    if (instance != null) {
                         HMCLGameRepository repository = control.instanceReference.repository();
-                        GameInstanceManifest.Resolved resolvedManifest = repository.getResolvedInstanceManifest(control.instanceReference.instanceId());
+                        GameInstanceManifest.Resolved resolvedManifest =
+                                instance.getResolvedManifest();
                         String gameVersion = repository.getGameVersion(resolvedManifest.unresolved()).orElse(null);
 
                         if (gameVersion != null && control.versions.containsKey(gameVersion)) {

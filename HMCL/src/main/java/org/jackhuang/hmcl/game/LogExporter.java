@@ -43,8 +43,9 @@ public final class LogExporter {
     public static CompletableFuture<Void> exportLogs(
             Path zipFile, DefaultGameRepository repository, GameInstanceID instanceId, String logs, String launchScript,
             PathMatcher logMatcher) {
-        Path runDirectory = repository.getRunDirectory(instanceId);
-        Path baseDirectory = repository.getBaseDirectory();
+        GameInstance initialInstance = repository.getInstance(instanceId).orElseThrow();
+        Path runDirectory = initialInstance.getRunDirectory();
+        Path baseDirectory = repository.getLayout().getBaseDirectory();
         List<GameInstanceID> instances = new ArrayList<>();
 
         GameInstanceID currentInstanceId = instanceId;
@@ -52,7 +53,9 @@ public final class LogExporter {
         while (true) {
             if (resolvedSoFar.contains(currentInstanceId)) break;
             resolvedSoFar.add(currentInstanceId);
-            GameInstanceManifest currentVersion = repository.getInstanceManifest(currentInstanceId);
+            GameInstanceManifest currentVersion = repository.getInstance(currentInstanceId)
+                    .orElseThrow()
+                    .getManifest();
             instances.add(currentInstanceId);
 
             if (currentVersion.inheritsFrom() != null) {
@@ -74,7 +77,7 @@ public final class LogExporter {
                 zipper.putTextFile(Logger.filterForbiddenToken(launchScript), OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS ? "launch.bat" : "launch.sh");
 
                 for (GameInstanceID id : instances) {
-                    Path instanceJson = repository.getInstanceJson(id);
+                    Path instanceJson = repository.getLayout().getInstanceJson(id);
                     if (Files.exists(instanceJson)) {
                         zipper.putFile(instanceJson, id + ".json");
                     }

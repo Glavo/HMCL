@@ -27,6 +27,7 @@ import java.util.*;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
+import org.jackhuang.hmcl.game.GameInstance;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.modpack.ModAdviser;
 import org.jackhuang.hmcl.modpack.Modpack;
@@ -36,6 +37,7 @@ import org.jackhuang.hmcl.util.DigestUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.Zipper;
 import org.jackhuang.hmcl.addon.mod.LocalModFile;
+import org.jackhuang.hmcl.addon.mod.ModManager;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.repository.CurseForgeRemoteAddonRepository;
 
@@ -47,12 +49,15 @@ public class ModrinthModpackExportTask extends Task<Void> {
     private final GameInstanceID instanceId;
     private final ModpackExportInfo info;
     private final Path modpackFile;
+    /// Mod manager bound to the exported instance.
+    private final ModManager modManager;
 
     public ModrinthModpackExportTask(DefaultGameRepository repository, GameInstanceID instanceId, ModpackExportInfo info, Path modpackFile) {
         this.repository = repository;
         this.instanceId = instanceId;
         this.info = info.validate();
         this.modpackFile = modpackFile;
+        this.modManager = new ModManager(repository.getInstance(instanceId).orElseThrow());
 
         onDone().register(event -> {
             if (event.isFailed()) {
@@ -70,9 +75,9 @@ public class ModrinthModpackExportTask extends Task<Void> {
             return null;
         }
 
-        boolean isDisabled = repository.getModManager(instanceId).isDisabled(file);
+        boolean isDisabled = modManager.isDisabled(file);
         if (isDisabled) {
-            relativePath = repository.getModManager(instanceId).enableMod(Paths.get(relativePath)).toString();
+            relativePath = modManager.enableMod(Paths.get(relativePath)).toString();
         }
 
         LocalModFile localModFile = null;
@@ -171,9 +176,11 @@ public class ModrinthModpackExportTask extends Task<Void> {
                 return Modpack.acceptFile(path, blackList, info.getWhitelist());
             });
 
-            String gameVersion = repository.getGameVersion(instanceId)
+            GameInstance instance = repository.getInstance(instanceId).orElseThrow();
+            String gameVersion = repository.getGameVersion(instance.getManifest())
                     .orElseThrow(() -> new IOException("Cannot parse the version of " + instanceId));
-            LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(repository.getResolvedInstanceManifest(instanceId), gameVersion);
+            LibraryAnalyzer analyzer =
+                    LibraryAnalyzer.analyze(instance.getResolvedManifest(), gameVersion);
 
             Map<String, String> dependencies = new HashMap<>();
             dependencies.put("minecraft", gameVersion);

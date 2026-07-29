@@ -30,6 +30,7 @@ import org.jackhuang.hmcl.download.game.GameDownloadTask;
 import org.jackhuang.hmcl.download.game.GameLibrariesTask;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.game.LauncherHelper;
 import org.jackhuang.hmcl.game.QuickPlayOption;
@@ -120,8 +121,9 @@ public final class Instances {
     }
 
     public static void deleteInstance(HMCLGameRepository repository, GameInstanceID instanceId) {
-        boolean isIndependent = repository.getRunDirectory(instanceId).toAbsolutePath().normalize()
-                .equals(repository.getInstanceRoot(instanceId).toAbsolutePath().normalize());
+        HMCLGameInstance instance = repository.getInstance(instanceId).orElseThrow();
+        boolean isIndependent = instance.getRunDirectory().toAbsolutePath().normalize()
+                .equals(instance.getInstanceRoot().toAbsolutePath().normalize());
         String message = isIndependent ? i18n("instance.manage.remove.confirm.independent", instanceId) :
                 i18n("instance.manage.remove.confirm.trash", instanceId, instanceId + "_removed");
 
@@ -168,7 +170,8 @@ public final class Instances {
     }
 
     public static void openFolder(HMCLGameRepository repository, GameInstanceID instanceId) {
-        FXUtils.openFolder(repository.getRunDirectory(instanceId));
+        FXUtils.openFolder(
+                repository.getInstance(instanceId).orElseThrow().getRunDirectory());
     }
 
     public static void installFromJson(HMCLGameRepository repository, Path file) {
@@ -243,7 +246,9 @@ public final class Instances {
     }
 
     public static void updateGameAssets(HMCLGameRepository repository, GameInstanceID instanceId) {
-        TaskExecutor executor = new GameAssetDownloadTask(repository.getDependency(), repository.getInstanceManifest(instanceId), GameAssetDownloadTask.DOWNLOAD_INDEX_FORCIBLY, true)
+        GameInstanceManifest manifest =
+                repository.getInstance(instanceId).orElseThrow().getManifest();
+        TaskExecutor executor = new GameAssetDownloadTask(repository.getDependency(), manifest, GameAssetDownloadTask.DOWNLOAD_INDEX_FORCIBLY, true)
                 .executor();
         Controllers.taskDialog(executor, i18n("instance.manage.redownload_assets_index"), TaskCancellationAction.NO_CANCEL);
         executor.start();
@@ -262,9 +267,11 @@ public final class Instances {
         if (!checkVersionForLaunching(repository, instanceId))
             return;
         ensureSelectedAccount(account -> {
+            Path runDirectory =
+                    repository.getInstance(instanceId).orElseThrow().getRunDirectory();
             FileChooser chooser = new FileChooser();
-            if (Files.isDirectory(repository.getRunDirectory(instanceId)))
-                chooser.setInitialDirectory(repository.getRunDirectory(instanceId).toFile());
+            if (Files.isDirectory(runDirectory))
+                chooser.setInitialDirectory(runDirectory.toFile());
             chooser.setTitle(i18n("instance.launch_script.save"));
             if (OperatingSystem.CURRENT_OS == OperatingSystem.MACOS) {
                 chooser.getExtensionFilters().add(

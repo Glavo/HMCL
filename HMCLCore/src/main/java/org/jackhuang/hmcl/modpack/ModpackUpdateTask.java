@@ -39,7 +39,7 @@ public class ModpackUpdateTask extends Task<Void> {
         this.id = instanceId;
         this.updateTask = updateTask;
 
-        Path backup = repository.getBaseDirectory().resolve("backup");
+        Path backup = repository.getLayout().getBaseDirectory().resolve("backup");
         while (true) {
             int num = (int)(Math.random() * 10000000);
             if (!Files.exists(backup.resolve(instanceId + "-" + num))) {
@@ -56,7 +56,7 @@ public class ModpackUpdateTask extends Task<Void> {
 
     @Override
     public void execute() throws Exception {
-        FileUtils.copyDirectory(repository.getInstanceRoot(id), backupFolder);
+        FileUtils.copyDirectory(repository.getLayout().getInstanceRoot(id), backupFolder);
     }
 
     @Override
@@ -72,7 +72,7 @@ public class ModpackUpdateTask extends Task<Void> {
             // Restore backup
             repository.removeInstanceFromDisk(id);
 
-            FileUtils.copyDirectory(backupFolder, repository.getInstanceRoot(id));
+            FileUtils.copyDirectory(backupFolder, repository.getLayout().getInstanceRoot(id));
 
             repository.refreshAsync().start();
         }

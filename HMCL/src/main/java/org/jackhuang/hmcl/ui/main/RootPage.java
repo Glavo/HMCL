@@ -23,6 +23,7 @@ import javafx.scene.layout.Region;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.RefreshedGameInstancesEvent;
+import org.jackhuang.hmcl.game.GameInstance;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
@@ -125,7 +126,8 @@ public class RootPage extends DecoratorAnimatedPage implements DecoratorPage {
 
             GameDirectoryManager.registerVersionsListener(repository -> {
                 GameDirectory gameDirectory = repository.getGameDirectory();
-                List<GameInstanceManifest> children = repository.getInstanceManifests().parallelStream()
+                List<GameInstanceManifest> children = repository.getInstances().parallelStream()
+                        .map(GameInstance::getManifest)
                         .filter(version -> !version.isHidden())
                         .sorted(Comparator
                                 .comparing((GameInstanceManifest manifest) -> Lang.requireNonNullElse(manifest.releaseTime(), Instant.EPOCH))

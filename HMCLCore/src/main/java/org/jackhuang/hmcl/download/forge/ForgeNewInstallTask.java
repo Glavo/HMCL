@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.game.Artifact;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
 import org.jackhuang.hmcl.game.DownloadInfo;
 import org.jackhuang.hmcl.game.DownloadType;
+import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.game.Library;
@@ -116,7 +117,7 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
                 return;
             }
 
-            Path jar = gameRepository.getArtifactFile(manifest, processor.getJar());
+            Path jar = gameRepository.getArtifactFile(processor.getJar());
             if (!Files.isRegularFile(jar))
                 throw new FileNotFoundException("Game processor file not found, should be downloaded in preprocess");
 
@@ -134,7 +135,7 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
 
             List<String> classpath = new ArrayList<>(processor.getClasspath().size() + 1);
             for (Artifact artifact : processor.getClasspath()) {
-                Path file = gameRepository.getArtifactFile(manifest, artifact);
+                Path file = gameRepository.getArtifactFile(artifact);
                 if (!Files.isRegularFile(file))
                     throw new Exception("Game processor dependency missing");
                 classpath.add(file.toString());
@@ -268,7 +269,10 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
         else if (StringUtils.isSurrounded(literal, "'", "'"))
             return StringUtils.removeSurrounding(literal, "'");
         else if (StringUtils.isSurrounded(literal, "[", "]"))
-            return gameRepository.getArtifactFile(manifest, Artifact.fromDescriptor(StringUtils.removeSurrounding(literal, "[", "]"))).toString();
+            return gameRepository
+                    .getArtifactFile(Artifact.fromDescriptor(
+                            StringUtils.removeSurrounding(literal, "[", "]")))
+                    .toString();
         else
             return plainConverter.apply(replaceTokens(var, literal));
     }
@@ -302,7 +306,7 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
             for (Library library : profile.getLibraries()) {
                 Path file = fs.getPath("maven").resolve(library.getPath());
                 if (Files.exists(file)) {
-                    Path dest = gameRepository.getLibraryFile(manifest, library);
+                    Path dest = gameRepository.getLayout().getLibraryFile(manifest.id(), library);
                     FileUtils.copyFile(file, dest);
                 }
             }
@@ -310,7 +314,8 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
             if (profile.getPath().isPresent()) {
                 Path mainJar = profile.getPath().get().getPath(fs.getPath("maven"));
                 if (Files.exists(mainJar)) {
-                    Path dest = gameRepository.getArtifactFile(manifest, profile.getPath().get());
+                    Path dest =
+                            gameRepository.getArtifactFile(profile.getPath().get());
                     FileUtils.copyFile(mainJar, dest);
                 }
             }
@@ -408,12 +413,21 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
             throw new ArtifactMalformedException("Malformed forge installer file", ex);
         }
 
+        GameInstanceManifest launchManifest =
+                gameRepository.resolve(manifest).launchManifest();
+        GameInstanceID jarId =
+                Objects.requireNonNullElse(launchManifest.jar(), launchManifest.id());
+        Path minecraftJar =
+                gameRepository.getLayout().getInstanceJarFile(jarId);
+
         vars.put("SIDE", "client");
-        vars.put("MINECRAFT_JAR", FileUtils.getAbsolutePath(gameRepository.getInstanceJar(manifest)));
-        vars.put("MINECRAFT_VERSION", FileUtils.getAbsolutePath(gameRepository.getInstanceJar(manifest)));
-        vars.put("ROOT", FileUtils.getAbsolutePath(gameRepository.getBaseDirectory()));
+        vars.put("MINECRAFT_JAR", FileUtils.getAbsolutePath(minecraftJar));
+        vars.put("MINECRAFT_VERSION", FileUtils.getAbsolutePath(minecraftJar));
+        vars.put("ROOT", FileUtils.getAbsolutePath(
+                gameRepository.getLayout().getBaseDirectory()));
         vars.put("INSTALLER", installer.toAbsolutePath().toString());
-        vars.put("LIBRARY_DIR", FileUtils.getAbsolutePath(gameRepository.getLibrariesDirectory(manifest)));
+        vars.put("LIBRARY_DIR", FileUtils.getAbsolutePath(
+                gameRepository.getLayout().getLibrariesDirectory()));
 
         updateProgress(0, processors.size());
 

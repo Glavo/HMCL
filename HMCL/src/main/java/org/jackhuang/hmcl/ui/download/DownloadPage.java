@@ -26,6 +26,7 @@ import org.jackhuang.hmcl.addon.repository.CurseForgeRemoteAddonRepository;
 import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.setting.DownloadProviders;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
@@ -324,7 +325,8 @@ public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage
             repository.applyDefaultIsolationSettingForNewInstance(instanceId, settings.isInstallingModdedVersion());
             return builder.buildAsync().whenComplete(any -> {
                 repository.refresh();
-                repository.applyDefaultIsolationSetting(instanceId);
+                repository.getInstance(instanceId)
+                        .ifPresent(HMCLGameInstance::applyDefaultIsolationSetting);
             }).thenRunAsync(Schedulers.javafx(), () -> repository.setSelectedInstance(instanceId));
         }
 

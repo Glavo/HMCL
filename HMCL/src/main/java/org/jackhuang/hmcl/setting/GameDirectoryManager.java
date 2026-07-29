@@ -212,6 +212,10 @@ public final class GameDirectoryManager {
         selectedGameDirectory.set(currentGameDirectory != null ? currentGameDirectory : mergedGameDirectories.get(0));
 
         EventBus.EVENT_BUS.channel(RefreshedGameInstancesEvent.class).registerWeak(event -> {
+            if (selectedRepository.get() != event.getSource()) {
+                return;
+            }
+
             runInFX(() -> {
                 @Nullable HMCLGameRepository repository = selectedRepository.get();
                 if (repository != null && repository == event.getSource()) {

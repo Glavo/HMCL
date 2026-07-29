@@ -24,6 +24,9 @@ import org.jenkinsci.constant_pool_scanner.ConstantPool;
 import org.jenkinsci.constant_pool_scanner.ConstantPoolScanner;
 import org.jenkinsci.constant_pool_scanner.ConstantType;
 import org.jenkinsci.constant_pool_scanner.StringConstant;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,17 +42,18 @@ import java.util.zip.ZipFile;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-/**
- * @author huangyuhui
- */
-final class GameVersion {
+/// Detects Minecraft version identifiers from client jar contents and known legacy hashes.
+@NotNullByDefault
+public final class GameVersion {
+    /// Prevents construction of this utility class.
     private GameVersion() {
     }
 
     // For Minecraft 1.0 rc versions and versions earlier than Alpha 1.0.6,
     // it is difficult to obtain the game version from the JAR.
     // For these versions, we get the version number based on their SHA-1 hash.
-    private static final Map<String, String> KNOWN_VERSIONS = Map.<String, String>ofEntries(
+    /// Legacy client-jar SHA-1 hashes mapped to canonical version identifiers.
+    private static final @Unmodifiable Map<String, String> KNOWN_VERSIONS = Map.<String, String>ofEntries(
             Map.entry("4df7880d26414b400640f0b8e54344df2b66c51a", "1.0.0-rc1"),
             Map.entry("9e04e60eef3fb4657b406dcb3ad5e3a675ecf6af", "1.0.0-rc2-1"),
             Map.entry("6a6b67d34149afc47cf9608b3967582639097df9", "1.0.0-rc2-2"),
@@ -136,10 +140,14 @@ final class GameVersion {
             Map.entry("393e8d4b4d708587e2accd7c5221db65365e1075", "rd-132211")
     );
 
+    /// Reads a Minecraft version ID from a jar's `version.json` entry.
+    ///
+    /// @param versionJson the entry contents
+    /// @return the normalized ID, or empty if the entry is malformed or has no ID
     private static Optional<String> getVersionFromJson(InputStream versionJson) {
         try {
             Map<?, ?> version = JsonUtils.fromNonNullJsonFully(versionJson, Map.class);
-            String id = (String) version.get("id");
+            @Nullable String id = (String) version.get("id");
             if (id != null && id.contains(" / "))
                 id = id.substring(0, id.indexOf(" / "));
             return Optional.ofNullable(id);
@@ -149,7 +157,13 @@ final class GameVersion {
         }
     }
 
-    private static Optional<String> getVersionOfClassMinecraft(InputStream bytecode) throws IOException {
+    /// Reads the embedded version text from the legacy client main class.
+    ///
+    /// @param bytecode the class-file contents
+    /// @return the embedded version, or empty if no matching constant exists
+    /// @throws IOException if the class constant pool cannot be read
+    private static Optional<String> getVersionOfClassMinecraft(InputStream bytecode)
+            throws IOException {
         final String constantPrefix = "Minecraft Minecraft ";
         ConstantPool pool = ConstantPoolScanner.parse(bytecode, ConstantType.STRING);
         for (StringConstant constant : pool.list(StringConstant.class)) {
@@ -161,12 +175,19 @@ final class GameVersion {
         return Optional.empty();
     }
 
-    private static Optional<String> getVersionFromClassMinecraftServer(InputStream bytecode) throws IOException {
+    /// Reads the embedded version text from a legacy integrated-server class.
+    ///
+    /// @param bytecode the class-file contents
+    /// @return the embedded version, or empty if no plausible version constant exists
+    /// @throws IOException if the class constant pool cannot be read
+    private static Optional<String> getVersionFromClassMinecraftServer(InputStream bytecode)
+            throws IOException {
         ConstantPool pool = ConstantPoolScanner.parse(bytecode, ConstantType.STRING);
 
-        List<String> list = StreamSupport.stream(pool.list(StringConstant.class).spliterator(), false)
-                .map(StringConstant::get)
-                .toList();
+        @Unmodifiable List<String> list =
+                StreamSupport.stream(pool.list(StringConstant.class).spliterator(), false)
+                        .map(StringConstant::get)
+                        .toList();
 
         int idx = -1;
 
@@ -184,19 +205,27 @@ final class GameVersion {
         return Optional.empty();
     }
 
-    public static Optional<String> minecraftVersion(Path file) {
+    /// Detects the Minecraft version represented by a client jar.
+    ///
+    /// Detection checks `version.json`, legacy class constants, and finally known SHA-1 hashes.
+    /// Missing, unreadable, and unrecognized files produce an empty result.
+    ///
+    /// @param file the client jar
+    /// @return the detected version identifier, or empty when it cannot be determined
+    public static Optional<String> minecraftVersion(@Nullable Path file) {
         if (file == null || !Files.isRegularFile(file))
             return Optional.empty();
 
         try (var gameJar = new ZipFile(file.toFile())) {
-            ZipEntry versionJson = gameJar.getEntry("version.json");
+            @Nullable ZipEntry versionJson = gameJar.getEntry("version.json");
             if (versionJson != null) {
                 Optional<String> result = getVersionFromJson(gameJar.getInputStream(versionJson));
                 if (result.isPresent())
                     return result;
             }
 
-            ZipEntry minecraft = gameJar.getEntry("net/minecraft/client/Minecraft.class");
+            @Nullable ZipEntry minecraft =
+                    gameJar.getEntry("net/minecraft/client/Minecraft.class");
             if (minecraft != null) {
                 try (InputStream is = gameJar.getInputStream(minecraft)) {
                     Optional<String> result = getVersionOfClassMinecraft(is);
@@ -216,7 +245,8 @@ final class GameVersion {
                 }
             }
 
-            ZipEntry minecraftServer = gameJar.getEntry("net/minecraft/server/MinecraftServer.class");
+            @Nullable ZipEntry minecraftServer =
+                    gameJar.getEntry("net/minecraft/server/MinecraftServer.class");
             if (minecraftServer != null) {
                 try (InputStream is = gameJar.getInputStream(minecraftServer)) {
                     return getVersionFromClassMinecraftServer(is);

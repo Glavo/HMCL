@@ -22,7 +22,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.event.Event;
-import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.setting.GameSettings;
 import org.jackhuang.hmcl.setting.GameInstanceIconType;
@@ -31,6 +31,8 @@ import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.DialogPane;
 import org.jackhuang.hmcl.ui.construct.RipplerContainer;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -38,17 +40,30 @@ import java.nio.file.Path;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
-public class GameInstanceIconDialog extends DialogPane {
-    private final HMCLGameRepository repository;
-    private final GameInstanceID instanceId;
-    private final Runnable onFinish;
-    private final GameSettings.Instance setting;
+/// Selects a built-in or custom icon for one stable game instance.
+@NotNullByDefault
+public final class GameInstanceIconDialog extends DialogPane {
+    /// The instance whose icon is edited.
+    private final HMCLGameInstance instance;
 
-    public GameInstanceIconDialog(HMCLGameRepository repository, GameInstanceID instanceId, Runnable onFinish) {
-        this.repository = repository;
-        this.instanceId = instanceId;
+    /// The repository that publishes icon-change events.
+    private final HMCLGameRepository repository;
+
+    /// Callback invoked after the icon changes.
+    private final Runnable onFinish;
+
+    /// Mutable local settings used for built-in icon selection, or `null` when unavailable.
+    private final @Nullable GameSettings.Instance setting;
+
+    /// Creates an icon selector for an instance.
+    ///
+    /// @param instance the instance to edit
+    /// @param onFinish callback invoked after a successful selection
+    public GameInstanceIconDialog(HMCLGameInstance instance, Runnable onFinish) {
+        this.instance = instance;
+        this.repository = instance.getRepository();
         this.onFinish = onFinish;
-        this.setting = repository.getInstanceGameSettingsOrCreate(this.instanceId);
+        this.setting = instance.getOrCreateGameSettings();
 
         setTitle(i18n("settings.icon"));
         FlowPane pane = new FlowPane();
@@ -73,13 +88,14 @@ public class GameInstanceIconDialog extends DialogPane {
         );
     }
 
+    /// Prompts for and installs a custom image file.
     private void exploreIcon() {
         FileChooser chooser = new FileChooser();
         chooser.getExtensionFilters().add(FXUtils.getImageExtensionFilter());
         Path selectedFile = Controllers.showOpenDialog(chooser);
         if (selectedFile != null) {
             try {
-                repository.setInstanceIconFile(instanceId, selectedFile);
+                instance.setIconFile(selectedFile);
 
                 if (setting != null) {
                     setting.iconProperty().setValue(GameInstanceIconType.DEFAULT);
@@ -92,6 +108,9 @@ public class GameInstanceIconDialog extends DialogPane {
         }
     }
 
+    /// Creates the custom-image choice.
+    ///
+    /// @return the custom-image node
     private Node createCustomIcon() {
         Node shape = SVG.ADD_CIRCLE.createIcon(32);
         shape.setMouseTransparent(true);
@@ -102,6 +121,10 @@ public class GameInstanceIconDialog extends DialogPane {
         return container;
     }
 
+    /// Creates a built-in icon choice.
+    ///
+    /// @param type the built-in icon type
+    /// @return the icon choice node
     private Node createIcon(GameInstanceIconType type) {
         ImageView imageView = new ImageView(type.getIcon());
         imageView.setMouseTransparent(true);
@@ -117,6 +140,7 @@ public class GameInstanceIconDialog extends DialogPane {
         return container;
     }
 
+    /// Publishes the icon change and closes the dialog.
     @Override
     protected void onAccept() {
         repository.onInstanceIconChanged.fireEvent(new Event(this));

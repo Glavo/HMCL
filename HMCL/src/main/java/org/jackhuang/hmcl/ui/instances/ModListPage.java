@@ -23,6 +23,7 @@ import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.addon.mod.LocalModFile;
 import org.jackhuang.hmcl.addon.mod.ModLoaderType;
@@ -57,6 +58,7 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
     private ModManager modManager;
     private HMCLGameRepository repository;
     private GameInstanceID instanceId;
+    private @Nullable HMCLGameInstance instance;
     private String gameVersion;
 
     final EnumSet<ModLoaderType> supportedLoaders = EnumSet.noneOf(ModLoaderType.class);
@@ -88,10 +90,14 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
         this.repository = repository;
         this.instanceId = instanceId;
 
-        GameInstanceManifest resolved = repository.getResolvedInstanceManifest(instanceId).standaloneManifest();
+        HMCLGameInstance loadedInstance =
+                repository.getInstance(instanceId).orElseThrow();
+        this.instance = loadedInstance;
+        GameInstanceManifest resolved =
+                loadedInstance.getResolvedManifest().standaloneManifest();
         this.gameVersion = repository.getGameVersion(resolved).orElse(null);
 
-        loadMods(repository.getModManager(instanceId));
+        loadMods(new ModManager(loadedInstance));
     }
 
     private void loadMods(ModManager modManager) {
@@ -246,8 +252,12 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
 
         Runnable action = () -> Controllers.taskDialog(Task
                         .composeAsync(() -> {
-                            Optional<String> gameVersion = repository.getGameVersion(instanceId);
-                            return gameVersion.map(g -> new AddonCheckUpdatesTask<>(DownloadProviders.getDownloadProvider(), g, mods)).orElse(null);
+                            return Optional.ofNullable(gameVersion)
+                                    .map(g -> new AddonCheckUpdatesTask<>(
+                                            DownloadProviders.getDownloadProvider(),
+                                            g,
+                                            mods))
+                                    .orElse(null);
                         })
                         .whenComplete(Schedulers.javafx(), (result, exception) -> {
                             if (exception instanceof CancellationException) return;
@@ -262,7 +272,7 @@ public final class ModListPage extends ListPageBase<ModListPageSkin.ModInfoObjec
                         .withStagesHints("update.checking"),
                 i18n("addon.check_update"), TaskCancellationAction.NORMAL);
 
-        if (repository.isModpack(instanceId)) {
+        if (Objects.requireNonNull(instance).isModpack()) {
             Controllers.confirm(
                     i18n("mods.update_modpack_mod.warning"), null,
                     MessageDialogPane.MessageType.WARNING,

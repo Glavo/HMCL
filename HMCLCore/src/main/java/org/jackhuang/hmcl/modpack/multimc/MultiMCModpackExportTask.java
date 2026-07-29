@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.modpack.multimc;
 
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
+import org.jackhuang.hmcl.game.GameInstance;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.modpack.ModAdviser;
 import org.jackhuang.hmcl.modpack.Modpack;
@@ -79,9 +80,11 @@ public class MultiMCModpackExportTask extends Task<Void> {
         try (Zipper zip = new Zipper(output)) {
             zip.putDirectory(repository.getRunDirectory(instanceId), ".minecraft", path -> Modpack.acceptFile(path, blackList, whitelist));
 
-            String gameVersion = repository.getGameVersion(instanceId)
+            GameInstance instance = repository.getInstance(instanceId).orElseThrow();
+            String gameVersion = repository.getGameVersion(instance.getManifest())
                     .orElseThrow(() -> new IOException("Cannot parse the version of " + instanceId));
-            LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(repository.getResolvedInstanceManifest(instanceId), gameVersion);
+            LibraryAnalyzer analyzer =
+                    LibraryAnalyzer.analyze(instance.getResolvedManifest(), gameVersion);
             List<MultiMCManifest.MultiMCManifestComponent> components = new ArrayList<>();
             components.add(new MultiMCManifest.MultiMCManifestComponent(true, false, MultiMCComponents.getComponent(MINECRAFT), gameVersion));
 

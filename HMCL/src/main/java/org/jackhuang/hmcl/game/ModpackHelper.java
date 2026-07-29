@@ -161,7 +161,9 @@ public final class ModpackHelper {
 
         ExceptionalRunnable<?> success = () -> {
             repository.refresh();
-            GameSettings.Instance setting = repository.getInstanceGameSettingsOrCreate(instanceId);
+            HMCLGameInstance instance =
+                    repository.getInstance(instanceId).orElseThrow();
+            GameSettings.Instance setting = instance.getOrCreateGameSettings();
             repository.undoMark(instanceId);
             if (setting != null) {
                 setting.getOverrideProperties().add(GameSettings.PROPERTY_RUNNING_DIRECTORY);
@@ -205,7 +207,9 @@ public final class ModpackHelper {
 
         ExceptionalRunnable<?> success = () -> {
             repository.refresh();
-            GameSettings.Instance setting = repository.getInstanceGameSettingsOrCreate(instanceId);
+            HMCLGameInstance instance =
+                    repository.getInstance(instanceId).orElseThrow();
+            GameSettings.Instance setting = instance.getOrCreateGameSettings();
             repository.undoMark(instanceId);
             if (setting != null) {
                 setting.getOverrideProperties().add(GameSettings.PROPERTY_RUNNING_DIRECTORY);
@@ -335,23 +339,32 @@ public final class ModpackHelper {
 
     private static Task<Void> createMultiMCPostUpdateTask(HMCLGameRepository repository, MultiMCInstanceConfiguration manifest, GameInstanceID instanceId) {
         return Task.runAsync(Schedulers.javafx(), () -> {
-            GameSettings.Instance setting = Objects.requireNonNull(repository.getInstanceGameSettingsOrCreate(instanceId));
+            GameSettings.Instance setting = Objects.requireNonNull(
+                    repository.getInstance(instanceId)
+                            .orElseThrow()
+                            .getOrCreateGameSettings());
             ModpackHelper.applyCommandAndJvmSettings(manifest, setting);
         });
     }
 
     private static Task<Void> createMultiMCPostInstallTask(HMCLGameRepository repository, MultiMCInstanceConfiguration manifest, GameInstanceID instanceId) {
         return Task.runAsync(Schedulers.javafx(), () -> {
-            GameSettings.Instance setting = Objects.requireNonNull(repository.getInstanceGameSettingsOrCreate(instanceId));
+            GameSettings.Instance setting = Objects.requireNonNull(
+                    repository.getInstance(instanceId)
+                            .orElseThrow()
+                            .getOrCreateGameSettings());
             ModpackHelper.toGameSettings(manifest, setting);
         });
     }
 
     private static Task<Void> createMcbbsPostInstallTask(HMCLGameRepository repository, McbbsModpackManifest manifest, GameInstanceID instanceId) {
         return Task.runAsync(Schedulers.javafx(), () -> {
-            GameSettings.Effective effective = repository.getEffectiveGameSettings(instanceId);
+            HMCLGameInstance instance =
+                    repository.getInstance(instanceId).orElseThrow();
+            GameSettings.Effective effective = instance.getEffectiveGameSettings();
             if (manifest.getLaunchInfo().getMinMemory() > effective.getMaxMemory()) {
-                GameSettings.Instance setting = Objects.requireNonNull(repository.getInstanceGameSettingsOrCreate(instanceId));
+                GameSettings.Instance setting =
+                        Objects.requireNonNull(instance.getOrCreateGameSettings());
                 setting.getOverrideProperties().addAll(List.of(
                         GameSettings.PROPERTY_AUTO_MEMORY,
                         GameSettings.PROPERTY_MIN_MEMORY,

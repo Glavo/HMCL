@@ -26,6 +26,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.collections.ObservableList;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.util.FileSaver;
 import org.jackhuang.hmcl.util.PortablePath;
@@ -433,6 +434,55 @@ public final class GameDirectoriesTest {
         }
     }
 
+    /// Tests that refresh preserves HMCL identity and settings state.
+    @Test
+    public void repositoryRefreshPreservesStableIdentityAndSettings(
+            @TempDir Path tempDirectory)
+            throws IOException, ReflectiveOperationException {
+        GameSettingsPresetID defaultPresetId =
+                GameSettingsPresetID.parse(
+                        "game-settings-preset:123e4567-e89b-12d3-a456-426614174003");
+        GameSettingsPresets presets = new GameSettingsPresets();
+        presets.getPresets().add(new GameSettings.Preset(defaultPresetId));
+
+        GameDirectory gameDirectory = new GameDirectory(
+                GameDirectoryID.generate(),
+                LocalizedText.plain("Dev"),
+                PortablePath.of(tempDirectory.toString()));
+        GameDirectories localDirectories = new GameDirectories();
+        localDirectories.getGameDirectories().add(gameDirectory);
+        GameDirectories userDirectories = new GameDirectories();
+
+        try (GameDirectoryEnvironment ignored =
+                     new GameDirectoryEnvironment(localDirectories, userDirectories, presets)) {
+            settings().defaultGameSettingsPresetProperty().set(defaultPresetId);
+            HMCLGameRepository repository = new HMCLGameRepository(gameDirectory);
+            GameInstanceID instanceId = new GameInstanceID("stable");
+            writeVersionJson(repository, instanceId.id());
+            repository.refresh();
+
+            HMCLGameInstance originalInstance =
+                    repository.getInstance(instanceId).orElseThrow();
+            GameSettings.Instance originalSettings =
+                    Objects.requireNonNull(originalInstance.getOrCreateGameSettings());
+            Files.writeString(repository.getLayout().getInstanceJson(instanceId), """
+                    {
+                      "id": "stable",
+                      "mainClass": "example.Refreshed"
+                    }
+                    """);
+            repository.refresh();
+
+            HMCLGameInstance refreshedInstance =
+                    repository.getInstance(instanceId).orElseThrow();
+            assertSame(originalInstance, refreshedInstance);
+            assertSame(originalSettings, refreshedInstance.getGameSettings());
+            assertEquals(
+                    "example.Refreshed",
+                    refreshedInstance.getManifest().mainClass());
+        }
+    }
+
     /// Tests that new isolated installing instances resolve content directories under the version root before metadata is saved.
     @Test
     public void newIsolatedInstallingInstanceUsesVersionRootBeforeVersionExists(@TempDir Path tempDirectory)
@@ -463,8 +513,12 @@ public final class GameDirectoriesTest {
 
             repository.applyDefaultIsolationSettingForNewInstance(id, true);
 
-            assertEquals(repository.getInstanceRoot(id), repository.getRunDirectory(id));
-            assertEquals(repository.getInstanceRoot(id).resolve("mods"), repository.getModsDirectory(id));
+            assertEquals(
+                    repository.getLayout().getInstanceRoot(id),
+                    repository.getRunDirectory(id));
+            assertEquals(
+                    repository.getLayout().getInstanceRoot(id).resolve("mods"),
+                    repository.getRunDirectory(id).resolve("mods"));
 
             assertTrue(repository.removeInstanceFromDisk(id));
             assertEquals(repository.getBaseDirectory(), repository.getRunDirectory(id));
@@ -529,7 +583,7 @@ public final class GameDirectoriesTest {
             settings().defaultGameSettingsPresetProperty().set(defaultPresetId);
             HMCLGameRepository repository = new HMCLGameRepository(gameDirectory);
             GameInstanceID instanceId = new GameInstanceID("1.20.1");
-            Path versionRoot = repository.getInstanceRoot(instanceId);
+            Path versionRoot = repository.getLayout().getInstanceRoot(instanceId);
             Files.createDirectories(versionRoot);
             Files.writeString(versionRoot.resolve("hmclversion.cfg"), """
                     {
@@ -571,7 +625,7 @@ public final class GameDirectoriesTest {
             HMCLGameRepository repository = new HMCLGameRepository(gameDirectory);
             writeVersionJson(repository, "1.20.1");
             GameInstanceID instanceId = new GameInstanceID("1.20.1");
-            Path versionRoot = repository.getInstanceRoot(instanceId);
+            Path versionRoot = repository.getLayout().getInstanceRoot(instanceId);
             Files.writeString(versionRoot.resolve(LegacyGameSettingsMigrator.LEGACY_INSTANCE_SETTINGS_FILENAME), """
                     {
                       "usesGlobal": true
@@ -839,7 +893,8 @@ public final class GameDirectoriesTest {
 
     /// Writes a minimal valid version json for repository refresh tests.
     private static void writeVersionJson(HMCLGameRepository repository, String id) throws IOException {
-        Path versionRoot = repository.getInstanceRoot(new GameInstanceID(id));
+        Path versionRoot =
+                repository.getLayout().getInstanceRoot(new GameInstanceID(id));
         Files.createDirectories(versionRoot);
         Files.writeString(versionRoot.resolve(id + ".json"), """
                 {

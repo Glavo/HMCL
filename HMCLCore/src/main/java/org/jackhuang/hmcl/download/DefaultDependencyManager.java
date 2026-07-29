@@ -26,6 +26,8 @@ import org.jackhuang.hmcl.download.neoforge.NeoForgeInstallTask;
 import org.jackhuang.hmcl.download.optifine.OptiFineInstallTask;
 import org.jackhuang.hmcl.game.Artifact;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
+import org.jackhuang.hmcl.game.GameInstance;
+import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.Library;
 import org.jackhuang.hmcl.task.Task;
@@ -36,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -81,7 +84,13 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
     public Task<?> checkGameCompletionAsync(GameInstanceManifest manifest, boolean integrityCheck) {
         return Task.allOf(
                 Task.composeAsync(() -> {
-                    Path versionJar = repository.getInstanceJar(manifest);
+                    GameInstanceManifest launchManifest =
+                            repository.resolve(manifest).launchManifest();
+                    GameInstanceID jarId = Objects.requireNonNullElse(
+                            launchManifest.jar(),
+                            launchManifest.id());
+                    Path versionJar =
+                            repository.getLayout().getInstanceJarFile(jarId);
 
                     return Files.notExists(versionJar) || FileUtils.size(versionJar) == 0L
                             ? new GameDownloadTask(this, null, manifest)
@@ -106,8 +115,11 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
             String gameVersion = repository.getGameVersion(manifest).orElse(null);
             if (gameVersion == null) return null;
 
-            GameInstanceManifest original = repository.getInstanceManifest(manifest.id());
-            GameInstanceManifest.Resolved resolvedInstanceManifest = repository.getResolvedInstanceManifest(manifest.id());
+            GameInstance instance = repository.getInstance(manifest.id())
+                    .orElseThrow();
+            GameInstanceManifest original = instance.getManifest();
+            GameInstanceManifest.Resolved resolvedInstanceManifest =
+                    instance.getResolvedManifest();
 
             LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(resolvedInstanceManifest, gameVersion);
             for (LibraryAnalyzer.LibraryType type : LibraryAnalyzer.LibraryType.values()) {
@@ -136,7 +148,10 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
                         if (GameLibrariesTask.shouldDownloadLibrary(repository, manifest, installer, integrityCheck)) {
                             tasks.add(installLibraryAsync(gameVersion, original, "optifine", optifinePatchVersion));
                         } else {
-                            tasks.add(OptiFineInstallTask.install(this, original, repository.getLibraryFile(manifest, installer)));
+                            tasks.add(OptiFineInstallTask.install(
+                                    this,
+                                    original,
+                                    repository.getLayout().getLibraryFile(manifest.id(), installer)));
                         }
                     }
                 }

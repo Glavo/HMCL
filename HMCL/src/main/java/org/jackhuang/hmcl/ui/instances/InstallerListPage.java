@@ -24,6 +24,7 @@ import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.download.LibraryAnalyzer;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
@@ -66,13 +67,14 @@ public class InstallerListPage extends ListPageBase<InstallerItem> implements Ga
     public void loadInstance(HMCLGameRepository repository, @Nullable GameInstanceID instanceId) {
         this.repository = repository;
         this.instanceId = instanceId;
-        this.manifest = repository.getInstanceManifest(instanceId);
+        HMCLGameInstance instance = repository.getInstance(instanceId).orElseThrow();
+        this.manifest = instance.getManifest();
         this.gameVersion = null;
 
         CompletableFuture.supplyAsync(() -> {
             gameVersion = repository.getGameVersion(manifest).orElse(null);
 
-            return LibraryAnalyzer.analyze(repository.getResolvedInstanceManifest(instanceId), gameVersion);
+            return LibraryAnalyzer.analyze(instance.getResolvedManifest(), gameVersion);
         }).thenAcceptAsync(analyzer -> {
             itemsProperty().clear();
 

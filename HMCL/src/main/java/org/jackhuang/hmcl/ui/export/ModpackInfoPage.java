@@ -100,7 +100,10 @@ public final class ModpackInfoPage extends Control implements WizardPage {
         name.set(instanceId.toString());
         author.set(Optional.ofNullable(Accounts.getSelectedAccount()).map(Account::getProfileName).orElse(""));
 
-        GameSettings.Effective versionSetting = repository.getEffectiveGameSettings(this.instanceId);
+        GameSettings.Effective versionSetting = repository
+                .getInstance(this.instanceId)
+                .orElseThrow()
+                .getEffectiveGameSettings();
         minMemory.set(Optional.ofNullable(versionSetting.getInheritable(GameSettings::minMemoryProperty)).orElse(0));
         launchArguments.set(versionSetting.getInheritable(GameSettings::gameArgumentsProperty));
         javaArguments.set(versionSetting.getInheritable(GameSettings::jvmOptionsProperty));

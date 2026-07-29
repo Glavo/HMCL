@@ -37,6 +37,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.game.GameInstanceID;
+import org.jackhuang.hmcl.game.HMCLGameInstance;
 import org.jackhuang.hmcl.game.HMCLGameRepository;
 import org.jackhuang.hmcl.game.World;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -71,6 +72,7 @@ public final class WorldListPage extends ListPageBase<World> implements GameInst
     private List<World> worlds;
     private HMCLGameRepository repository;
     private GameInstanceID instanceId;
+    private HMCLGameInstance instance;
     private final BooleanProperty supportQuickPlay = new SimpleBooleanProperty(this, "supportQuickPlay", false);
 
     private int refreshCount = 0;
@@ -92,7 +94,8 @@ public final class WorldListPage extends ListPageBase<World> implements GameInst
     public void loadInstance(HMCLGameRepository repository, @Nullable GameInstanceID instanceId) {
         this.repository = repository;
         this.instanceId = instanceId;
-        this.savesDir = repository.getSavesDirectory(instanceId);
+        this.instance = repository.getInstance(instanceId).orElseThrow();
+        this.savesDir = instance.getSavesDirectory();
         refresh();
     }
 
@@ -102,7 +105,10 @@ public final class WorldListPage extends ListPageBase<World> implements GameInst
         } else if (showAll.get()) {
             getItems().setAll(worlds);
         } else {
-            GameVersionNumber gameVersion = repository.getGameVersion(instanceId).map(GameVersionNumber::asGameVersion).orElse(null);
+            GameVersionNumber gameVersion = repository
+                    .getGameVersion(instance.getManifest())
+                    .map(GameVersionNumber::asGameVersion)
+                    .orElse(null);
             getItems().setAll(worlds.stream()
                     .filter(world -> world.getGameVersion() == null || world.getGameVersion().equals(gameVersion))
                     .toList());
@@ -118,7 +124,7 @@ public final class WorldListPage extends ListPageBase<World> implements GameInst
         setLoading(true);
         Task.supplyAsync(Schedulers.io(), () -> {
             // Ensure the game version number is parsed
-            repository.getGameVersion(instanceId);
+            repository.getGameVersion(instance.getManifest());
             return World.getWorlds(savesDir);
         }).whenComplete(Schedulers.javafx(), (result, exception) -> {
             if (refreshCount != currentRefresh) {
@@ -126,7 +132,8 @@ public final class WorldListPage extends ListPageBase<World> implements GameInst
                 return;
             }
 
-            Optional<String> gameVersion = repository.getGameVersion(instanceId);
+            Optional<String> gameVersion =
+                    repository.getGameVersion(instance.getManifest());
             supportQuickPlay.set(World.supportQuickPlay(GameVersionNumber.asGameVersion(gameVersion)));
 
             worlds = result;

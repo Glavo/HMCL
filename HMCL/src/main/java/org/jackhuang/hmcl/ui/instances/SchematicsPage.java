@@ -89,7 +89,8 @@ public final class SchematicsPage extends ListPageBase<SchematicsPage.Item> impl
 
     @Override
     public void loadInstance(HMCLGameRepository repository, @Nullable GameInstanceID instanceId) {
-        this.schematicsDirectory = repository.getSchematicsDirectory(instanceId);
+        this.schematicsDirectory =
+                repository.getInstance(instanceId).orElseThrow().getSchematicsDirectory();
 
         refresh();
     }

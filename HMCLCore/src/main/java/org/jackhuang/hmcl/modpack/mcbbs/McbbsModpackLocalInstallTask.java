@@ -21,6 +21,7 @@ import com.google.gson.JsonParseException;
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.GameBuilder;
 import org.jackhuang.hmcl.game.DefaultGameRepository;
+import org.jackhuang.hmcl.game.GameInstance;
 import org.jackhuang.hmcl.game.GameInstanceID;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
@@ -105,7 +106,8 @@ public final class McbbsModpackLocalInstallTask extends Task<Void> {
 
     @Override
     public void execute() throws Exception {
-        GameInstanceManifest instanceManifest = repository.getInstanceManifest(instanceId);
+        GameInstance instance = repository.getInstance(instanceId).orElseThrow();
+        GameInstanceManifest instanceManifest = instance.getManifest();
         Optional<GameInstancePatch> mcbbsPatch = instanceManifest.getPatches().stream().filter(patch -> PATCH_NAME.equals(patch.id())).findFirst();
         if (!update) {
             GameInstancePatch patch = new GameInstancePatch(PATCH_NAME).withLibraries(manifest.getLibraries());

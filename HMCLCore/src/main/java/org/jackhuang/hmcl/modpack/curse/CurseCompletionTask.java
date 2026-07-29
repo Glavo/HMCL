@@ -53,7 +53,6 @@ public final class CurseCompletionTask extends Task<Void> {
 
     private final DefaultDependencyManager dependency;
     private final DefaultGameRepository repository;
-    private final ModManager modManager;
     private final GameInstanceID instanceId;
     private CurseManifest manifest;
     private List<Task<?>> dependencies;
@@ -82,13 +81,14 @@ public final class CurseCompletionTask extends Task<Void> {
     public CurseCompletionTask(DefaultDependencyManager dependencyManager, GameInstanceID instanceId, CurseManifest manifest) {
         this.dependency = dependencyManager;
         this.repository = dependencyManager.getGameRepository();
-        this.modManager = repository.getModManager(instanceId);
         this.instanceId = instanceId;
         this.manifest = manifest;
 
         if (manifest == null)
             try {
-                Path manifestFile = repository.getInstanceRoot(instanceId).resolve("manifest.json");
+                Path manifestFile = repository.getLayout()
+                        .getInstanceRoot(instanceId)
+                        .resolve("manifest.json");
                 if (Files.exists(manifestFile))
                     this.manifest = JsonUtils.fromJsonFile(manifestFile, CurseManifest.class);
             } catch (Exception e) {
@@ -113,7 +113,9 @@ public final class CurseCompletionTask extends Task<Void> {
         if (manifest == null)
             return;
 
-        Path root = repository.getInstanceRoot(instanceId);
+        ModManager modManager =
+                new ModManager(repository.getInstance(instanceId).orElseThrow());
+        Path root = repository.getLayout().getInstanceRoot(instanceId);
 
         // Because in China, Curse is too difficult to visit,
         // if failed, ignore it and retry next time.
@@ -141,7 +143,7 @@ public final class CurseCompletionTask extends Task<Void> {
                         .collect(Collectors.toList()));
         JsonUtils.writeToJsonFile(root.resolve("manifest.json"), newManifest);
 
-        Path versionRoot = repository.getInstanceRoot(modManager.getInstanceId());
+        Path versionRoot = modManager.getInstance().getInstanceRoot();
         Path resourcePacksRoot = versionRoot.resolve("resourcepacks");
         Path shaderPacksRoot = versionRoot.resolve("shaderpacks");
         finished.set(0);
@@ -150,7 +152,12 @@ public final class CurseCompletionTask extends Task<Void> {
                 .filter(f -> f.fileName() != null)
                 .flatMap(f -> {
                     try {
-                        Path path = guessFilePath(f, dependency.getDownloadProvider(), resourcePacksRoot, shaderPacksRoot);
+                        Path path = guessFilePath(
+                                modManager,
+                                f,
+                                dependency.getDownloadProvider(),
+                                resourcePacksRoot,
+                                shaderPacksRoot);
                         if (path == null) {
                             return Stream.empty();
                         }
@@ -184,7 +191,12 @@ public final class CurseCompletionTask extends Task<Void> {
      * @return ./resourcepacks/$filename or ./shaderpacks/$filename or ./mods/$filename if the file doesn't exist. null if the file existed.
      * @throws IOException If IOException was encountered during getting data from CurseForge.
      */
-    private Path guessFilePath(CurseManifestFile file, DownloadProvider downloadProvider, Path resourcePacksRoot, Path shaderPacksRoot) throws IOException {
+    private Path guessFilePath(
+            ModManager modManager,
+            CurseManifestFile file,
+            DownloadProvider downloadProvider,
+            Path resourcePacksRoot,
+            Path shaderPacksRoot) throws IOException {
         RemoteAddon mod = CurseForgeRemoteAddonRepository.MODS.getModById(downloadProvider, Integer.toString(file.projectID()));
         int classID = ((CurseForgeRemoteAddonRepository.CurseAddon) mod.data()).classId();
         String fileName = file.fileName();
