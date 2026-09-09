@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.glavo.site/hmcl/announcements/1.0.0",
+  "title": "HMCL Announcement Feed",
+  "description": "A complete public announcement snapshot. Cross-item references, language tags, HTML, URL semantics, and transport limits require additional validation.",
+  "type": "array",
+  "maxItems": 100,
+  "items": {
+    "$ref": "#/$defs/announcement"
+  },
+  "$defs": {
+    "announcementId": {
+      "type": "string",
+      "description": "A permanent, canonical lowercase UUID v7 identifier.",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "localizedText": {
+      "description": "Locale-independent text or localized text with a mandatory fallback.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "propertyNames": {
+            "pattern": "^(default|[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*)$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      ]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://[^/?#\\s@]+(?:[/?#][^\\s]*)?$",
+      "description": "An absolute HTTPS URL. Host and user-information constraints require URI parsing."
+    },
+    "localizedUrl": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": {
+              "$ref": "#/$defs/httpsUrl"
+            }
+          },
+          "propertyNames": {
+            "pattern": "^(default|[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*)$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/httpsUrl"
+          }
+        }
+      ]
+    },
+    "announcement": {
+      "type": "object",
+      "required": ["id", "type", "title", "content"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/announcementId"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["board", "popup"],
+          "description": "The presentation surface. It must remain unchanged for an existing ID."
+        },
+        "title": {
+          "$ref": "#/$defs/localizedText",
+          "description": "A plain-text title. HTML is not interpreted."
+        },
+        "content": {
+          "$ref": "#/$defs/localizedText",
+          "description": "An inline HTML fragment using the announcement HTML subset."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "default": 0,
+          "description": "Higher values appear first within the same presentation surface and parent."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"],
+          "default": "info",
+          "description": "Visual importance. It does not change dismissal behavior."
+        },
+        "parent": {
+          "$ref": "#/$defs/announcementId",
+          "description": "The ID of a root board announcement in the same snapshot."
+        },
+        "url": {
+          "$ref": "#/$defs/localizedUrl",
+          "description": "An optional detail page opened only after a user action."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-5][0-9]Z$",
+          "description": "The exclusive UTC end of the display interval, at whole-second precision."
+        }
+      },
+      "if": {
+        "properties": {
+          "parent": true
+        },
+        "required": ["parent"]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "board"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
