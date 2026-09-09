@@ -2,9 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.glavo.site/hmcl/announcements/1.0.0",
   "title": "HMCL Announcement Feed",
-  "description": "A complete public announcement snapshot. Cross-item references, language tags, Markdown rendering rules, URL semantics, and transport limits require additional validation.",
+  "description": "A complete list of announcements with localized Markdown content.",
   "type": "array",
-  "maxItems": 100,
   "items": {
     "$ref": "#/$defs/announcement"
   },
@@ -90,7 +89,7 @@
         },
         "content": {
           "$ref": "#/$defs/localizedText",
-          "description": "CommonMark 0.31.2 text without extensions. Raw HTML is displayed as text, images as alt text, and links are restricted to absolute HTTPS URLs."
+          "description": "Localized CommonMark 0.31.2 text without extensions."
         },
         "priority": {
           "type": "integer",
