@@ -69,20 +69,19 @@ HMCL 启动时先读取本地缓存，再异步检查更新；运行期间也定
 
 使用 HTTP 条件请求减少重复传输：
 
-- 优先保存服务端返回的 `ETag`，下次请求通过 `If-None-Match` 发送。
-- 没有 `ETag` 时，可以保存服务端的 `Last-Modified`，通过 `If-Modified-Since` 发送。
-- 本地没有有效缓存时，直接获取完整公告列表。
+- 保存服务端返回的 `Last-Modified`，下次请求通过 `If-Modified-Since` 原样发送。
+- 本地没有有效缓存，或服务端未提供 `Last-Modified` 时，直接获取完整公告列表。
 
-返回 `200` 且内容有效时，替换本地公告列表及对应校验器；返回 `304` 时继续使用缓存。
-请求失败或返回内容无效时，不覆盖原有公告和校验器。
+返回 `200` 且内容有效时，替换本地公告列表及对应的修改时间；响应未提供 `Last-Modified` 时清除旧值。
+返回 `304` 时继续使用缓存。请求失败或返回内容无效时，不覆盖原有公告和修改时间。
 本地请求时间只用于控制刷新频率，不能作为 `If-Modified-Since` 的值。
 
-缓存保存在 `./.hmcl/announcements.json`，包含公告列表、关闭记录、最后请求时间和 HTTP 校验器，例如：
+缓存保存在 `./.hmcl/announcements.json`，包含公告列表、关闭记录、最后请求时间和服务端修改时间，例如：
 
 ```json
 {
   "lastAttemptTime": 1788940800000,
-  "etag": "\"announcements-42\"",
+  "lastModified": "Wed, 09 Sep 2026 08:00:00 GMT",
   "closed": [
     "019976a8-04af-7442-9ffd-ebdaf9bbf68e"
   ],
@@ -90,7 +89,7 @@ HMCL 启动时先读取本地缓存，再异步检查更新；运行期间也定
 }
 ```
 
-`lastAttemptTime` 使用 Unix 毫秒时间戳；`etag`、`lastModified` 在服务端提供时保存。
+`lastAttemptTime` 使用 Unix 毫秒时间戳；`lastModified` 保存服务端提供的 `Last-Modified` 原始字符串，未提供时省略。
 `announcements` 保存包含 Markdown 原文的公告列表。
 
 ## 参考
