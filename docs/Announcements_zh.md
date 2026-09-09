@@ -5,7 +5,7 @@
 
 ## 公告源
 
-约定地址为 `https://docs.hmcl.net/announcements/v1.json`，上线时需在文档网站部署该文件。
+约定地址为 `https://hmcl.glavo.site/announcements/v1.json` ，上线时需在文档网站部署该文件。
 该地址的部署不由本文完成。协议不兼容的变更使用新地址，旧客户端继续读取原地址。
 
 响应正文是 UTF-8 JSON 数组，表示当前发布的完整公告集合，不分页、不按用户筛选。
