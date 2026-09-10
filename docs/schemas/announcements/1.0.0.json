@@ -83,6 +83,12 @@
           "enum": ["board", "popup"],
           "description": "The presentation surface. It must remain unchanged for an existing ID."
         },
+        "category": {
+          "$ref": "#/$defs/nonEmptyString",
+          "default": "general",
+          "examples": ["general", "promotion", "service", "security"],
+          "description": "The category identifier used for user filtering, independent of presentation type and severity. Additional categories are allowed."
+        },
         "title": {
           "$ref": "#/$defs/localizedText",
           "description": "A plain-text title. Markdown and HTML are not interpreted."
