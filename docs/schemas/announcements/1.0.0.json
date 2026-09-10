@@ -104,7 +104,7 @@
           "default": "info",
           "description": "Visual importance. It does not change dismissal behavior."
         },
-        "parent": {
+        "requiresShown": {
           "$ref": "#/$defs/announcementId",
           "description": "The ID of an announcement that must have been shown to the user before this announcement can be displayed. The referenced announcement may use either presentation type and need not be in the current feed."
         },
