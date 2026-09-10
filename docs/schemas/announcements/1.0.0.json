@@ -96,7 +96,7 @@
           "minimum": -2147483648,
           "maximum": 2147483647,
           "default": 0,
-          "description": "Higher values appear first within the same presentation surface and parent."
+          "description": "Higher values appear first within the same presentation surface."
         },
         "severity": {
           "type": "string",
@@ -106,7 +106,7 @@
         },
         "parent": {
           "$ref": "#/$defs/announcementId",
-          "description": "The ID of a root board announcement in the same snapshot."
+          "description": "The ID of an announcement that must have been shown to the user before this announcement can be displayed. The referenced announcement may use either presentation type and need not be in the current feed."
         },
         "url": {
           "$ref": "#/$defs/localizedUrl",
@@ -117,19 +117,6 @@
           "format": "date-time",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-5][0-9]Z$",
           "description": "The exclusive UTC end of the display interval, at whole-second precision."
-        }
-      },
-      "if": {
-        "properties": {
-          "parent": true
-        },
-        "required": ["parent"]
-      },
-      "then": {
-        "properties": {
-          "type": {
-            "const": "board"
-          }
         }
       },
       "additionalProperties": true
