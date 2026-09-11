@@ -46,19 +46,19 @@ HMCL 从静态 JSON 文件获取公告，在主页或弹窗中展示，并在本
 
 每条公告使用一个 `category` 标识其内容分类，与展示方式 `type` 和重要程度 `severity` 独立。
 
-| 分类 | 含义 |
-| --- | --- |
-| `general` | 一般公告，也是未指定分类时的默认值。 |
-| `promotion` | 宣传公告。 |
-| `service` | 服务器状态公告，例如宕机、维护和恢复。 |
-| `security` | 安全公告。 |
+| 分类        | 含义                                   |
+|-------------|----------------------------------------|
+| `general`   | 一般公告，也是未指定分类时的默认值。   |
+| `promotion` | 宣传公告。                             |
+| `service`   | 服务器状态公告，例如宕机、维护和恢复。 |
+| `security`  | 安全公告。                             |
 
 分类使用非空字符串标识，可以增加新分类。
-分类开关保存在 HMCL 目录下的 `state/launcher-state.json` 中，使用 `announcementCategoryStates` 对象记录，例如：
+分类开关保存在 HMCL 目录下的 `state/launcher-state.json` 中，使用 `announcementCategoryEnabled` 对象记录，例如：
 
 ```json
 {
-  "announcementCategoryStates": {
+  "announcementCategoryEnabled": {
     "promotion": false,
     "security": true
   }
