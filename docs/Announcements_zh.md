@@ -54,17 +54,21 @@ HMCL 从静态 JSON 文件获取公告，在主页或弹窗中展示，并在本
 | `security` | 安全公告。 |
 
 分类使用非空字符串标识，可以增加新分类。
-用户可以添加或移除按分类屏蔽的筛选器，在用户设置的 `hiddenCategories` 中保存分类标识，例如：
+分类开关保存在 HMCL 目录下的 `state/launcher-state.json` 中，使用 `announcementCategoryStates` 对象记录，例如：
 
 ```json
 {
-  "hiddenCategories": ["promotion"]
+  "announcementCategoryStates": {
+    "promotion": false,
+    "security": true
+  }
 }
 ```
 
-默认不屏蔽任何分类。分类标识精确匹配，未被屏蔽的分类正常展示，包括新增分类。
-匹配筛选器的公告不在主页展示，也不弹窗；筛选对所有 `severity` 生效。
-筛选不会新增 `shown` 或 `closed` 记录，也不删除已有记录；移除筛选器后，按正常展示条件重新判断。
+对象的键为分类标识，值为布尔值：`true` 表示开启，`false` 表示关闭。
+没有记录的分类使用客户端定义的该分类默认值；当前分类默认开启。删除分类对应的记录即恢复默认值。
+关闭分类后，该分类的公告不在主页展示，也不弹窗；筛选对所有 `severity` 生效。
+筛选不会新增 `shown` 或 `closed` 记录，也不删除已有记录；分类重新开启后，按正常展示条件重新判断。
 筛选只在客户端生效，不改变下载和缓存的公告列表。
 
 ## 本地化与正文
