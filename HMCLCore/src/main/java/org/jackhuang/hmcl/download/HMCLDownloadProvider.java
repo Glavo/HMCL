@@ -17,7 +17,9 @@
  */
 package org.jackhuang.hmcl.download;
 
+import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
+import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -27,15 +29,51 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.Semaphore;
 
 /// @author Glavo
 @NotNullByDefault
-public abstract class DownloadProvider2 {
+public final class HMCLDownloadProvider {
     private final @Nullable VersionListState[] versionListStates = new VersionListState[GameComponentType.ALL.size()];
     private static final VarHandle VERSION_LIST_STATES_HANDLE = MethodHandles.arrayElementVarHandle(VersionListState[].class);
 
-    protected abstract @Unmodifiable SortedSet<ComponentRemoteVersion> fetchVersions(GameComponentType type, @Nullable GameVersionNumber gameVersion);
+    public @Unmodifiable Task<SortedSet<ComponentRemoteVersion>> getVersions(
+            GameComponentType type,
+            @Nullable GameVersionNumber gameVersion,
+            boolean refresh) throws Exception {
+        assert (type == GameComponentType.GAME) == (gameVersion == null);
+
+        final VersionListState state = getState(type);
+
+        boolean acquired = false;
+        if (!refresh) {
+            state.semaphore.acquire();
+            acquired = true;
+            SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
+            if (result != null) {
+                state.semaphore.release();
+                return Task.completed(result);
+            }
+        }
+
+        if (!acquired) {
+            state.semaphore.acquire();
+        }
+
+
+        Task<SortedSet<ComponentRemoteVersion>> task;
+        try {
+            task = fetchVersions(type, gameVersion);
+            task.onDone().register(() -> {
+                state.semaphore.release();
+            });
+        } catch (Throwable e) {
+            state.semaphore.release();
+            throw e;
+        }
+
+        return task;
+    }
 
     private VersionListState getState(GameComponentType type) {
         @Nullable VersionListState currentState = versionListStates[type.ordinal()];
@@ -53,44 +91,14 @@ public abstract class DownloadProvider2 {
         }
     }
 
-    public final @Unmodifiable SortedSet<ComponentRemoteVersion> getVersions(
-            GameComponentType type,
-            @Nullable GameVersionNumber gameVersion,
-            boolean refresh) throws Exception {
-        assert (type == GameComponentType.GAME) == (gameVersion == null);
-
-        final VersionListState state = getState(type);
-
-        if (!refresh) {
-            state.lock.readLock().lockInterruptibly();
-            try {
-                @Nullable SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
-                if (result != null)
-                    return result;
-            } finally {
-                state.lock.readLock().unlock();
-            }
-        }
-
-        state.lock.writeLock().lockInterruptibly();
-        try {
-            if (!refresh) {
-                @Nullable SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
-                if (result != null)
-                    return result;
-            }
-
-            SortedSet<ComponentRemoteVersion> result = fetchVersions(type, gameVersion);
-            state.put(gameVersion, result);
-            return result;
-        } finally {
-            state.lock.writeLock().unlock();
-        }
+    private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
+        
     }
+
 
     private static final class VersionListState {
         private final GameComponentType type;
-        private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+        private final Semaphore semaphore = new Semaphore(1);
         private final Map<@Nullable GameVersionNumber, SoftReference<SortedSet<ComponentRemoteVersion>>> versions = new HashMap<>();
 
         private VersionListState(GameComponentType type) {
