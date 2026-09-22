@@ -19,7 +19,10 @@ package org.jackhuang.hmcl.download;
 
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
+import org.jackhuang.hmcl.setting.DownloadSource;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.ResourceCleaner;
+import org.jackhuang.hmcl.util.i18n.LocaleUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -34,8 +37,12 @@ import java.util.concurrent.Semaphore;
 /// @author Glavo
 @NotNullByDefault
 public final class HMCLDownloadProvider {
-    private final @Nullable VersionListState[] versionListStates = new VersionListState[GameComponentType.ALL.size()];
+    private static final String BMCLAPI_ROOT = System.getProperty("hmcl.bmclapi.override", "https://bmclapi2.bangbang93.com");
+
     private static final VarHandle VERSION_LIST_STATES_HANDLE = MethodHandles.arrayElementVarHandle(VersionListState[].class);
+    private final @Nullable VersionListState[] versionListStates = new VersionListState[GameComponentType.ALL.size()];
+    private volatile DownloadSource versionListSource = DownloadSource.DEFAULT;
+    private volatile DownloadSource fileSource = DownloadSource.DEFAULT;
 
     public @Unmodifiable Task<SortedSet<ComponentRemoteVersion>> getVersions(
             GameComponentType type,
@@ -60,19 +67,22 @@ public final class HMCLDownloadProvider {
             state.semaphore.acquire();
         }
 
+        ResourceCleaner cleaner = ResourceCleaner.ofSemaphore(state.semaphore);
 
-        Task<SortedSet<ComponentRemoteVersion>> task;
+        Task<? extends SortedSet<? extends ComponentRemoteVersion>> task;
         try {
-            task = fetchVersions(type, gameVersion);
-            task.onDone().register(() -> {
-                state.semaphore.release();
-            });
+            task = switch (type) {
+                case GAME -> fetchGameVersions();
+                default -> throw new AssertionError();
+            };
+            task.onDone().register(cleaner::close);
         } catch (Throwable e) {
-            state.semaphore.release();
+            cleaner.close();
             throw e;
         }
 
-        return task;
+        @SuppressWarnings("unchecked") var result = (Task<SortedSet<ComponentRemoteVersion>>) task;
+        return result;
     }
 
     private VersionListState getState(GameComponentType type) {
@@ -91,10 +101,13 @@ public final class HMCLDownloadProvider {
         }
     }
 
-    private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
-        
-    }
+    private static final String DEFAULT_VERSION_LIST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
+    private static final String BMCLAPI_VERSION_LIST_URL = BMCLAPI_ROOT + "/mc/game/version_manifest.json";
 
+    private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
+        DownloadSource versionListSource = this.versionListSource;
+        return null; // TODO
+    }
 
     private static final class VersionListState {
         private final GameComponentType type;
@@ -118,5 +131,6 @@ public final class HMCLDownloadProvider {
             versions.put(gameVersion, new SoftReference<>(componentRemoteVersions));
         }
     }
+
 }
 

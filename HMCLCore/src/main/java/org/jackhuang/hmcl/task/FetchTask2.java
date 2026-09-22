@@ -19,7 +19,6 @@ package org.jackhuang.hmcl.task;
 
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.DownloadCandidate;
-import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.event.Event;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.EventManager;
@@ -32,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URLConnection;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
@@ -110,13 +110,14 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                 }
 
                 int retry = candidate.retry() >= 0 ? candidate.retry() : DEFAULT_RETRY;
-
+                Duration connectTimeout = Objects.requireNonNullElse(candidate.connectTimeout(), NetworkUtils.TIMEOUT);
+                Duration readTimeout = Objects.requireNonNullElse(candidate.readTimeout(), NetworkUtils.TIMEOUT);
 
                 try {
                     if (NetworkUtils.isHttpUri(url))
-                        downloadHttp(url, retry, checkETag);
+                        downloadHttp(url, retry, connectTimeout, readTimeout, checkETag);
                     else
-                        downloadNotHttp(url, retry);
+                        downloadNotHttp(url, retry, connectTimeout, readTimeout);
                     return;
                 } catch (DownloadException e) {
                     if (exceptions == null)
@@ -245,7 +246,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                           @Nullable FetchTask2.HttpResumeContext resume, InputStream inputStream,
                           long contentLength,
                           ContentEncoding contentEncoding) throws IOException, InterruptedException {
-        boolean success = false;
+        boolean success;
         try (var counter = new CounterInputStream(inputStream);
              var input = contentEncoding.wrap(counter)) {
             long lastDownloaded = 0L;
@@ -292,7 +293,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
     }
 
     /// Downloads an HTTP candidate, following HTTP(S) redirects and retrying recoverable failures.
-    private void downloadHttp(WebURL url, int retry, boolean checkETag) throws DownloadException, InterruptedException {
+    private void downloadHttp(WebURL url, int retry, Duration connectTimeout, Duration readTimeout, boolean checkETag) throws DownloadException, InterruptedException {
         if (checkETag) {
             // Handle cache
             try {
@@ -312,7 +313,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
         // If loading the cache fails, the cache should not be loaded again.
         boolean useCachedResult = true;
         try {
-            for (int retryTime = 0, retryLimit = retry; retryTime < retryLimit; retryTime++) {
+            for (int attempts = 0, attemptsLimit = retry + 1; attempts < attemptsLimit; attempts++) {
                 if (isCancelled()) {
                     throw new InterruptedException();
                 }
@@ -322,7 +323,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                     beforeDownload(url);
                     updateProgress(0);
 
-                    @Nullable HttpURLConnection connection = null;
+                    @Nullable HttpURLConnection connection;
                     UrlResponseInfo responseInfo;
                     @Nullable String bmclapiHash;
                     int responseCode;
@@ -342,6 +343,8 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
 
                     do {
                         connection = NetworkUtils.createHttpConnection(currentURI);
+                        connection.setConnectTimeout((int) connectTimeout.toMillis());
+                        connection.setReadTimeout((int) readTimeout.toMillis());
                         boolean keepConnection = false;
                         try {
                             headers.forEach(connection::setRequestProperty);
@@ -395,7 +398,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                             resumeContext = null;
                             discardContext(context);
                             context = null;
-                            retryLimit++;
+                            attemptsLimit++;
                             continue;
                         }
 
@@ -414,7 +417,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                                 useCachedResult = false;
                                 // Now we must reconnect the server since 304 may result in empty content,
                                 // if we want to redownload the file, we must reconnect the server without etag settings.
-                                retryLimit++;
+                                attemptsLimit++;
                                 continue;
                             }
                         } else if (responseCode / 100 == 4) {
@@ -438,7 +441,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                                 resumeContext = null;
                                 discardContext(context);
                                 context = null;
-                                retryLimit++;
+                                attemptsLimit++;
                                 continue;
                             }
                         } else {
@@ -490,9 +493,9 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
 
                     exceptions.add(ex);
 
-                    LOG.warning("Failed to download " + url + ", repeat times: " + retryTime + (redirects == null ? "" : ", redirects: " + redirects), ex);
+                    LOG.warning("Failed to download " + url + ", repeat times: " + attempts + (redirects == null ? "" : ", redirects: " + redirects), ex);
 
-                    if (retryTime < retryLimit - 1) {
+                    if (attempts < attemptsLimit - 1) {
                         // Wait for a while before retrying
                         Thread.sleep(200);
                     }
@@ -525,7 +528,7 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
     }
 
     /// Downloads a non-HTTP candidate through its installed URL handler, retrying I/O failures.
-    private void downloadNotHttp(WebURL url, int retry) throws DownloadException, InterruptedException {
+    private void downloadNotHttp(WebURL url, int retry, Duration connectTimeout, Duration readTimeout) throws DownloadException, InterruptedException {
         @Nullable ArrayList<Exception> exceptions = null;
         for (int retryTime = 0; retryTime < retry; retryTime++) {
             if (isCancelled()) {
@@ -537,6 +540,8 @@ public abstract class FetchTask2<T extends @UnknownNullability Object> extends T
                 updateProgress(0);
 
                 URLConnection conn = NetworkUtils.createConnection(url);
+                conn.setConnectTimeout((int) connectTimeout.toMillis());
+                conn.setReadTimeout((int) readTimeout.toMillis());
                 try (Context context = getContext()) {
                     download(context,
                             null, conn.getInputStream(),
