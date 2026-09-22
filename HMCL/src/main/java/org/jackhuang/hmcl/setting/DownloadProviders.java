@@ -105,11 +105,10 @@ public final class DownloadProviders {
 
     public static String localizeErrorMessage(Throwable exception) {
         if (exception instanceof DownloadException de) {
-            WebURL url = de.getUrl();
+            String url = de.getUrl();
             if (exception.getCause() instanceof SocketTimeoutException) {
                 return i18n("install.failed.downloading.timeout", url);
-            } else if (exception.getCause() instanceof ResponseCodeException) {
-                ResponseCodeException responseCodeException = (ResponseCodeException) exception.getCause();
+            } else if (exception.getCause() instanceof ResponseCodeException responseCodeException) {
                 if (I18n.hasKey("download.code." + responseCodeException.getResponseCode())) {
                     return i18n("download.code." + responseCodeException.getResponseCode(), url);
                 } else {

@@ -147,7 +147,7 @@ public final class UpdateInstallerWizardProvider implements WizardProvider {
             }
             Controllers.dialog(message, i18n("install.failed.downloading"), MessageDialogPane.MessageType.ERROR, next);
         } else if (exception instanceof DownloadException de) {
-            WebURL url = de.getUrl();
+            String url = de.getUrl();
             if (exception.getCause() instanceof SocketTimeoutException) {
                 Controllers.dialog(i18n("install.failed.downloading.timeout", url), i18n("install.failed.downloading"), MessageDialogPane.MessageType.ERROR, next);
             } else if (exception.getCause() instanceof ResponseCodeException responseCodeException) {

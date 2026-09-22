@@ -365,7 +365,7 @@ public final class LauncherHelper {
                                         message += StringUtils.getStackTrace(ex.getCause());
                                     }
                                 } else if (ex instanceof DownloadException de) {
-                                    WebURL url = de.getUrl();
+                                    String url = de.getUrl();
                                     if (ex.getCause() instanceof SocketTimeoutException) {
                                         message = i18n("install.failed.downloading.timeout", url);
                                     } else if (ex.getCause() instanceof ResponseCodeException responseCodeException) {
