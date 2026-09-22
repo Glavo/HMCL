@@ -17,10 +17,12 @@
  */
 package org.jackhuang.hmcl.download;
 
+import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersionInfo;
 import org.jackhuang.hmcl.download.game.GameRemoteVersions;
 import org.jackhuang.hmcl.download.game.GameVersionList;
+import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.setting.DownloadSource;
 import org.jackhuang.hmcl.task.GetTask;
@@ -76,8 +78,9 @@ public final class HMCLDownloadProvider {
         }
 
         @SuppressWarnings("unchecked")
-        var task = (Task<SortedSet<ComponentRemoteVersion>>) (Task<? extends SortedSet<? extends ComponentRemoteVersion>>) switch (type) {
+        var task = (Task<SortedSet<ComponentRemoteVersion>>) switch (type) {
             case GAME -> fetchGameVersions();
+            case LEGACY_FABRIC -> fetchLegacyFabricVersions();
             default -> throw new AssertionError();
         };
 
@@ -108,32 +111,35 @@ public final class HMCLDownloadProvider {
         }
     }
 
-    private static final String DEFAULT_VERSION_LIST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
-    private static final String BMCLAPI_VERSION_LIST_URL = BMCLAPI_ROOT + "/mc/game/version_manifest.json";
-
-    /// @see GameRemoteVersion
-    private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
+    private List<DownloadCandidate> getVersionListCandidates(
+            String defaultUrl, String bmclapiUrl
+    ) {
         DownloadSource source = this.versionListSource;
-
-        List<DownloadCandidate> candidates;
         if (LocaleUtils.IS_CHINA_MAINLAND) {
-            candidates = switch (source) {
+            return switch (source) {
                 case DEFAULT, OFFICIAL -> List.of(
-                        DownloadCandidate.of(DEFAULT_VERSION_LIST_URL), DownloadCandidate.of(BMCLAPI_VERSION_LIST_URL)
+                        DownloadCandidate.of(defaultUrl), DownloadCandidate.of(bmclapiUrl)
                 );
                 case MIRROR -> List.of(
-                        DownloadCandidate.of(BMCLAPI_VERSION_LIST_URL), DownloadCandidate.of(DEFAULT_VERSION_LIST_URL)
+                        DownloadCandidate.of(bmclapiUrl), DownloadCandidate.of(defaultUrl)
                 );
             };
         } else {
-            candidates = switch (source) {
-                case DEFAULT, OFFICIAL -> List.of(DownloadCandidate.of(DEFAULT_VERSION_LIST_URL));
+            return switch (source) {
+                case DEFAULT, OFFICIAL -> List.of(DownloadCandidate.of(defaultUrl));
                 case MIRROR -> List.of(
-                        DownloadCandidate.of(BMCLAPI_VERSION_LIST_URL), DownloadCandidate.of(DEFAULT_VERSION_LIST_URL)
+                        DownloadCandidate.of(bmclapiUrl), DownloadCandidate.of(defaultUrl)
                 );
             };
         }
+    }
 
+    /// @see GameRemoteVersion
+    private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
+        List<DownloadCandidate> candidates = getVersionListCandidates(
+                "https://piston-meta.mojang.com/mc/game/version_manifest.json",
+                BMCLAPI_ROOT + "/mc/game/version_manifest.json"
+        );
         return new GetTask(candidates, null).thenGetJsonAsync(GameRemoteVersions.class)
                 .thenApplyAsync(root -> {
                     GameRemoteVersions unlistedVersions = null;
@@ -165,6 +171,23 @@ public final class HMCLDownloadProvider {
                     }
 
                     return versions;
+                });
+    }
+
+    private Task<SortedSet<LegacyFabricRemoteVersion>> fetchLegacyFabricVersions() {
+        String loaderMetaUrl = "https://meta.legacyfabric.net/v2/versions/loader";
+        String gameMetaUrl = "https://meta.legacyfabric.net/v2/versions/game";
+
+
+        List<DownloadCandidate> candidates = getVersionListCandidates(
+                "https://meta.legacyfabric.net/v2/versions/loader",
+                BMCLAPI_ROOT + "/legacyfabric/v2/versions/loader"
+        );
+        return new GetTask(candidates, null).thenGetJsonAsync(LegacyFabricRemoteVersion[].class)
+                .thenApplyAsync(versions -> {
+                    var result = new TreeSet<LegacyFabricRemoteVersion>();
+                    Collections.addAll(result, versions);
+                    return result;
                 });
     }
 
