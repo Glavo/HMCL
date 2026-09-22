@@ -43,4 +43,7 @@ public record DownloadCandidate(
         assert url != null || rawUrl != null;
     }
 
+    public String displayUrl() {
+        return url != null ? url.href() : rawUrl;
+    }
 }

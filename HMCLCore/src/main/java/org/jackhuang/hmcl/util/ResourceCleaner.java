@@ -28,7 +28,8 @@ import java.util.concurrent.Semaphore;
 public abstract class ResourceCleaner implements AutoCloseable {
     private static final VarHandle CLEANED_HANDLE;
 
-    public static ResourceCleaner ofSemaphore(Semaphore semaphore) {
+    public static ResourceCleaner acquire(Semaphore semaphore) throws InterruptedException {
+        semaphore.acquire();
         return new ResourceCleaner() {
             @Override
             protected void clean() {

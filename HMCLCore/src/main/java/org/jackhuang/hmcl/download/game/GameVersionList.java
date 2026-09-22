@@ -73,7 +73,6 @@ public final class GameVersionList extends ComponentVersionList<GameRemoteVersio
                             for (GameRemoteVersionInfo unlistedVersion : unlistedVersions.versions()) {
                                 versions.put(unlistedVersion.gameVersion(), new GameRemoteVersion(
                                         unlistedVersion.gameVersion(),
-                                        unlistedVersion.gameVersion(),
                                         Collections.singletonList(unlistedVersion.url()),
                                         unlistedVersion.type(), unlistedVersion.releaseTime()));
                             }
@@ -81,7 +80,6 @@ public final class GameVersionList extends ComponentVersionList<GameRemoteVersio
 
                         for (GameRemoteVersionInfo remoteVersion : root.versions()) {
                             versions.put(remoteVersion.gameVersion(), new GameRemoteVersion(
-                                    remoteVersion.gameVersion(),
                                     remoteVersion.gameVersion(),
                                     Collections.singletonList(remoteVersion.url()),
                                     remoteVersion.type(), remoteVersion.releaseTime()));

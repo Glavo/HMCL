@@ -40,8 +40,8 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
 
     private final ReleaseType type;
 
-    public GameRemoteVersion(String gameVersion, String selfVersion, List<String> url, ReleaseType type, Instant releaseDate) {
-        super(GameComponentType.GAME, gameVersion, selfVersion, releaseDate, getReleaseType(type), url);
+    public GameRemoteVersion(String gameVersion, List<String> url, ReleaseType type, Instant releaseDate) {
+        super(GameComponentType.GAME, gameVersion, gameVersion, releaseDate, getReleaseType(type), url);
         this.type = type;
     }
 
