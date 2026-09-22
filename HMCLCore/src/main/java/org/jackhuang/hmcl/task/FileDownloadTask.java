@@ -117,7 +117,7 @@ public class FileDownloadTask extends FetchTask<Void> {
     /// @param path           the location that download to.
     /// @param integrityCheck the integrity check to perform, null if no integrity check is to be performed
     public FileDownloadTask(List<WebURL> urls, Path path, @Nullable IntegrityCheck integrityCheck) {
-        super(urls);
+        super(toCandidates(urls));
         this.file = path;
         this.integrityCheck = integrityCheck;
 
@@ -149,7 +149,7 @@ public class FileDownloadTask extends FetchTask<Void> {
             if (cache.isPresent()) {
                 try {
                     FileUtils.copyFile(cache.get(), file);
-                    LOG.trace("Successfully verified file " + file + " from " + urls.get(0));
+                    LOG.trace("Successfully verified file " + file + " from " + candidates.get(0).url());
                     return EnumCheckETag.CACHED;
                 } catch (IOException e) {
                     LOG.warning("Failed to copy cache files", e);

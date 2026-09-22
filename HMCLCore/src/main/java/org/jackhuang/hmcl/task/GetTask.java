@@ -48,7 +48,7 @@ public final class GetTask extends FetchTask<String> {
 
     /// Creates a text download task with a snapshot of nonempty candidate URLs in attempt order.
     public GetTask(List<WebURL> url) {
-        super(url);
+        super(toCandidates(url));
         setName(url.get(0).toString());
     }
 

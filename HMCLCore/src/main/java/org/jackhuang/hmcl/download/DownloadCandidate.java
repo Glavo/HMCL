@@ -30,7 +30,17 @@ public record DownloadCandidate(
         @Nullable Duration connectTimeout,
         @Nullable Duration readTimeout
 ) {
+
+    public static DownloadCandidate of(WebURL url) {
+        return new DownloadCandidate(url, null, -1, null, null);
+    }
+
+    public static DownloadCandidate of(String url) {
+        return new DownloadCandidate(WebURL.tryParse(url), url, -1, null, null);
+    }
+
     public DownloadCandidate {
         assert url != null || rawUrl != null;
     }
+
 }

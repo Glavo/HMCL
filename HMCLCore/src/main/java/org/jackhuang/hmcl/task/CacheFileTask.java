@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.task;
 
 import org.glavo.url.WebURL;
+import org.jackhuang.hmcl.download.DownloadCandidate;
 import org.jackhuang.hmcl.util.CacheRepository;
 import org.jackhuang.hmcl.util.DigestUtils;
 import org.jackhuang.hmcl.util.io.ChecksumMismatchException;
@@ -62,7 +63,7 @@ public final class CacheFileTask extends FetchTask<Path> {
     ///
     /// @param urls candidate download URLs in attempt order
     public CacheFileTask(@NotNull List<@NotNull WebURL> urls) {
-        super(urls);
+        super(toCandidates(urls));
         this.expectedSha1 = null;
         validateUris(urls);
         setName(urls.get(0).toString());
@@ -75,7 +76,7 @@ public final class CacheFileTask extends FetchTask<Path> {
     public CacheFileTask(
             @NotNull List<@NotNull WebURL> urls,
             @NotNull String expectedSha1) {
-        super(urls);
+        super(toCandidates(urls));
         if (!DigestUtils.isSha1Digest(expectedSha1)) {
             throw new IllegalArgumentException("Invalid SHA-1 checksum: " + expectedSha1);
         }
@@ -110,7 +111,10 @@ public final class CacheFileTask extends FetchTask<Path> {
         }
 
         // Check cache
-        for (WebURL url : urls) {
+        for (DownloadCandidate candidate : candidates) {
+            WebURL url = candidate.url();
+            if (url == null) continue;
+
             try {
                 setResult(repository.getCachedRemoteFile(url, true));
                 LOG.info("Using cached file for " + NetworkUtils.dropQuery(url));
