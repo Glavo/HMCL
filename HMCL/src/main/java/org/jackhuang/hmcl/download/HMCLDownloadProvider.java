@@ -17,33 +17,20 @@
  */
 package org.jackhuang.hmcl.download;
 
-import org.jackhuang.hmcl.addon.RemoteAddon;
-import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
-import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
-import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
-import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricVersionList;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.setting.DownloadSource;
-import org.jackhuang.hmcl.task.GetTask;
-import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
-import org.jackhuang.hmcl.util.Lang;
 import org.jackhuang.hmcl.util.i18n.LocaleUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /// @author Glavo
 @NotNullByDefault
-public final class HMCLDownloadProvider extends DownloadProvider2 {
+public final class HMCLDownloadProvider extends DownloadProvider {
     private static final String BMCLAPI_ROOT = System.getProperty("hmcl.bmclapi.override", "https://bmclapi2.bangbang93.com");
 
     private volatile DownloadSource versionListSource = DownloadSource.DEFAULT;

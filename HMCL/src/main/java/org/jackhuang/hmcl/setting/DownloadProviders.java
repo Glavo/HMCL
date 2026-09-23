@@ -17,90 +17,36 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import javafx.beans.InvalidationListener;
-import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.task.DownloadException;
-import org.jackhuang.hmcl.task.FetchTask;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.i18n.I18n;
-import org.jackhuang.hmcl.util.i18n.LocaleUtils;
 import org.jackhuang.hmcl.util.io.ResponseCodeException;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.FileNotFoundException;
 import java.net.SocketTimeoutException;
 import java.nio.file.AccessDeniedException;
-import java.util.List;
 import java.util.concurrent.CancellationException;
 
-import static org.jackhuang.hmcl.setting.SettingsManager.settings;
-import static org.jackhuang.hmcl.task.FetchTask.DEFAULT_CONCURRENCY;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 public final class DownloadProviders {
     private DownloadProviders() {
     }
 
-    private static final DownloadProviderWrapper PROVIDER_WRAPPER;
-
-    private static final DownloadProvider MOJANG_PROVIDER;
-    private static final BMCLAPIDownloadProvider BMCLAPI_PROVIDER;
-    private static final DownloadProvider DEFAULT_PROVIDER;
-
-    static {
-        String bmclapiRoot = System.getProperty("hmcl.bmclapi.override", "https://bmclapi2.bangbang93.com");
-        BMCLAPI_PROVIDER = new BMCLAPIDownloadProvider(bmclapiRoot);
-        MOJANG_PROVIDER = new MojangDownloadProvider();
-        DEFAULT_PROVIDER = createDownloadProvider(DownloadSource.DEFAULT, DownloadSource.DEFAULT);
-        PROVIDER_WRAPPER = new DownloadProviderWrapper(DEFAULT_PROVIDER);
-    }
+    private static final HMCLDownloadProvider PROVIDER = new HMCLDownloadProvider();
 
     /// Initializes download provider settings and synchronizes download thread settings.
     public static void init() {
-        InvalidationListener onChangeDownloadThreads = observable -> {
-            FetchTask.setDownloadExecutorConcurrency(settings().autoDownloadThreadsProperty().get()
-                    ? DEFAULT_CONCURRENCY
-                    : settings().downloadThreadsProperty().get());
-        };
-        settings().autoDownloadThreadsProperty().addListener(onChangeDownloadThreads);
-        settings().downloadThreadsProperty().addListener(onChangeDownloadThreads);
-        onChangeDownloadThreads.invalidated(null);
-
-        InvalidationListener onChangeDownloadSource = observable -> {
-            PROVIDER_WRAPPER.setProvider(createDownloadProvider(
-                    settings().versionListSourceProperty().get(),
-                    settings().fileDownloadSourceProperty().get()));
-        };
-        settings().versionListSourceProperty().addListener(onChangeDownloadSource);
-        settings().fileDownloadSourceProperty().addListener(onChangeDownloadSource);
-        onChangeDownloadSource.invalidated(null);
-    }
-
-    /// Creates a download provider with independent version-list and file download preferences.
-    private static DownloadProvider createDownloadProvider(DownloadSource versionListSource, DownloadSource fileDownloadSource) {
-        return new AutoDownloadProvider(
-                getCandidates(versionListSource),
-                getCandidates(fileDownloadSource));
-    }
-
-    /// Returns provider candidates ordered by the given source preference.
-    private static List<DownloadProvider> getCandidates(DownloadSource source) {
-        DownloadSource normalized = source != null ? source : DownloadSource.DEFAULT;
-        return switch (normalized) {
-            case DEFAULT -> LocaleUtils.IS_CHINA_MAINLAND
-                    ? List.of(BMCLAPI_PROVIDER, MOJANG_PROVIDER)
-                    : List.of(MOJANG_PROVIDER, BMCLAPI_PROVIDER);
-            case OFFICIAL -> List.of(MOJANG_PROVIDER);
-            case MIRROR -> List.of(BMCLAPI_PROVIDER, MOJANG_PROVIDER);
-        };
+        // TODO
     }
 
     /**
      * Get current primary preferred download provider
      */
     public static DownloadProvider getDownloadProvider() {
-        return PROVIDER_WRAPPER;
+        return PROVIDER;
     }
 
     public static String localizeErrorMessage(Throwable exception) {

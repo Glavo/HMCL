@@ -1,6 +1,6 @@
 /*
  * Hello Minecraft! Launcher
- * Copyright (C) 2020  huangyuhui <huanghongxun2008@126.com> and contributors
+ * Copyright (C) 2026 huangyuhui <huanghongxun2008@126.com> and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,25 +17,207 @@
  */
 package org.jackhuang.hmcl.download;
 
+import com.google.gson.reflect.TypeToken;
 import org.glavo.url.WebURL;
+import org.jackhuang.hmcl.addon.RemoteAddon;
+import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
+import org.jackhuang.hmcl.download.fabric.FabricAPIRemoteVersion;
+import org.jackhuang.hmcl.download.fabric.FabricRemoteVersion;
+import org.jackhuang.hmcl.download.game.GameRemoteVersion;
+import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
+import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
+import org.jackhuang.hmcl.task.GetTask;
+import org.jackhuang.hmcl.task.Schedulers;
+import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.gson.JsonSerializable;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.LinkedHashSet;
-import java.util.List;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.ref.SoftReference;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/// The service provider that provides Minecraft online file downloads.
-///
-/// @author huangyuhui
-public interface DownloadProvider {
+import static org.jackhuang.hmcl.util.gson.JsonUtils.listTypeOf;
+
+@NotNullByDefault
+public class DownloadProvider {
+
+    private static final VarHandle VERSION_LIST_STATES_HANDLE = MethodHandles.arrayElementVarHandle(VersionListState[].class);
+    private final @Nullable VersionListState[] versionListStates = new VersionListState[GameComponentType.ALL.size()];
+
+    @SuppressWarnings("unchecked")
+    public @Unmodifiable Task<SortedSet<ComponentRemoteVersion>> getVersions(
+            GameComponentType type,
+            @Nullable GameVersionNumber gameVersion,
+            boolean refresh) throws Exception {
+        assert (type == GameComponentType.GAME) == (gameVersion == null);
+
+        final VersionListState state = getState(type);
+
+        if (!refresh) {
+            state.lock.readLock().lockInterruptibly();
+            try {
+                SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
+                if (result != null) {
+                    return Task.completed(result);
+                }
+            } finally {
+                state.lock.readLock().unlock();
+            }
+        }
+
+        var task = fetchVersionsAsync(type, gameVersion);
+
+        return task.thenApplyAsync(result -> {
+            state.lock.writeLock().lockInterruptibly();
+            try {
+                state.put(gameVersion, result);
+            } finally {
+                state.lock.writeLock().unlock();
+            }
+            return (SortedSet<ComponentRemoteVersion>) result;
+        });
+    }
+
+    private VersionListState getState(GameComponentType type) {
+        @Nullable VersionListState currentState = versionListStates[type.ordinal()];
+        if (currentState != null) {
+            return currentState;
+        }
+
+        VersionListState state = new VersionListState(type);
+        if (VERSION_LIST_STATES_HANDLE.compareAndSet(versionListStates, type.ordinal(), null, state)) {
+            return state;
+        } else {
+            state = (VersionListState) VERSION_LIST_STATES_HANDLE.getVolatile(versionListStates, type.ordinal());
+            Objects.requireNonNull(state, "VersionListState should not be null after compareAndSet failure");
+            return state;
+        }
+    }
+
+    protected <V extends ComponentRemoteVersion> @Unmodifiable Task<SortedSet<V>> fetchFabricVersionsAsync(
+            GameVersionNumber gameVersion,
+            List<DownloadCandidate> loaderMetaCandidates, List<DownloadCandidate> gameMetaCandidates,
+            BiFunction<String, String, V> function
+    ) {
+        return Task.combine(
+                new GetTask(loaderMetaCandidates, null),
+                new GetTask(gameMetaCandidates, null)
+        ).thenApplyAsync(pair -> {
+            @JsonSerializable
+            record GameVersion(String version, String maven, boolean stable) {
+            }
+
+            TypeToken<List<GameVersion>> gameVersionsType = listTypeOf(GameVersion.class);
+
+            List<GameVersion> gameVersions = JsonUtils.fromNonNullJson(pair.getKey(), gameVersionsType);
+
+            Optional<GameVersion> metaGameVersion = gameVersions.stream()
+                    .filter(it -> gameVersion.equals(GameVersionNumber.asGameVersion(it.version)))
+                    .findFirst();
+            if (metaGameVersion.isEmpty()) {
+                return Collections.emptySortedSet();
+            }
+
+            SortedSet<V> versions = new TreeSet<>();
+            List<GameVersion> loaderVersions = JsonUtils.fromNonNullJson(pair.getValue(), gameVersionsType);
+            for (GameVersion loaderVersion : loaderVersions) {
+                versions.add(function.apply(metaGameVersion.get().version, loaderVersion.version));
+            }
+
+            return Collections.unmodifiableSortedSet(versions);
+        });
+    }
+
+    protected <V extends ComponentRemoteVersion> Task<SortedSet<V>> fetchModrinthVersionsAsync(
+            String modId,
+            GameVersionNumber gameVersion,
+            Function<RemoteAddon.Version, V> mapper
+    ) {
+        return Task.supplyAsync(Schedulers.io(), () -> {
+            return ModrinthRemoteAddonRepository.MODS.getRemoteVersionsById(null, modId)
+                    .filter(it -> {
+                        for (String supportedGameVersion : it.gameVersions()) {
+                            if (GameVersionNumber.asGameVersion(supportedGameVersion).equals(gameVersion)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    })
+                    .map(mapper)
+                    .collect(Collectors.toCollection(() -> (SortedSet<V>) new TreeSet<V>()));
+        });
+    }
+
+    protected Task<? extends SortedSet<? extends ComponentRemoteVersion>> fetchVersionsAsync(
+            GameComponentType type, @Nullable GameVersionNumber gameVersion
+    ) {
+        assert (type == GameComponentType.GAME) == (gameVersion == null);
+
+        return switch (type) {
+            case GAME ->
+                    GameRemoteVersion.fetchAsync(List.of(DownloadCandidate.of(GameRemoteVersion.VERSION_MANIFEST_URL)));
+            case LEGACY_FABRIC -> fetchFabricVersionsAsync(
+                    gameVersion,
+                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
+                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
+                    (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
+                            gameVersion.toString(), loaderVersion,
+                            List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
+            );
+            case LEGACY_FABRIC_API -> fetchModrinthVersionsAsync(
+                    LegacyFabricAPIRemoteVersion.MODRINTH_ID,
+                    gameVersion,
+                    it -> new LegacyFabricAPIRemoteVersion(
+                            gameVersion.toString(),
+                            it.version(),
+                            it.name(),
+                            it.datePublished(),
+                            it,
+                            List.of(it.file().url()))
+            );
+            case FABRIC -> fetchFabricVersionsAsync(
+                    gameVersion,
+                    List.of(DownloadCandidate.of(FabricRemoteVersion.GAME_META_URL)),
+                    List.of(DownloadCandidate.of(FabricRemoteVersion.LOADER_META_URL)),
+                    (metaGameVersion, loaderVersion) -> new FabricRemoteVersion(
+                            gameVersion.toString(), loaderVersion,
+                            List.of("%s/%s/%s".formatted(FabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
+            );
+            case FABRIC_API -> fetchModrinthVersionsAsync(
+                    FabricAPIRemoteVersion.MODRINTH_ID,
+                    gameVersion,
+                    it -> new FabricAPIRemoteVersion(
+                            gameVersion.toString(),
+                            it.version(),
+                            it.name(),
+                            it.datePublished(),
+                            it,
+                            List.of(it.file().url()))
+            );
+
+            default -> throw new AssertionError("TODO");
+        };
+    }
+
+    //region Old API
 
     /// Returns unmodifiable candidate URLs for the Minecraft version manifest, in attempt order.
-    default @Unmodifiable List<WebURL> getVersionListURLs() {
+    public @Unmodifiable List<WebURL> getVersionListURLs() {
         return List.of(WebURL.parse("https://piston-meta.mojang.com/mc/game/version_manifest.json"));
     }
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
-    default @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation) {
+    public @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation) {
         return List.of(WebURL.parse("https://resources.download.minecraft.net/" + assetObjectLocation));
     }
 
@@ -46,21 +228,21 @@ public interface DownloadProvider {
     ///
     /// @param baseURL original URL provided by Mojang and Forge.
     /// @return the URL that is equivalent to `baseURL`, but belongs to your own service provider.
-    default String injectURL(String baseURL) {
+    public String injectURL(String baseURL) {
         return baseURL;
     }
 
     /// Returns unmodifiable download candidates for an original URL, in attempt order.
-    /// The default implementation parses the result of [#injectURL(String)].
+    /// The public implementation parses the result of [#injectURL(String)].
     ///
     /// @param baseURL original URL provided by Mojang and Forge.
     /// @return the candidate URLs
-    default @Unmodifiable List<WebURL> injectURLWithCandidates(String baseURL) {
+    public @Unmodifiable List<WebURL> injectURLWithCandidates(String baseURL) {
         return List.of(WebURL.parse(injectURL(baseURL)));
     }
 
     /// Returns unmodifiable candidates for all URLs, preserving first occurrence order and removing duplicates.
-    default @Unmodifiable List<WebURL> injectURLsWithCandidates(List<String> urls) {
+    public @Unmodifiable List<WebURL> injectURLsWithCandidates(List<String> urls) {
         LinkedHashSet<WebURL> result = new LinkedHashSet<>();
         for (String url : urls) {
             result.addAll(injectURLWithCandidates(url));
@@ -73,14 +255,33 @@ public interface DownloadProvider {
     /// @param componentType the component type of specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
     /// @return the version list
     /// @throws IllegalArgumentException if the version list does not exist
-    default ComponentVersionList<?> getVersionList(GameComponentType componentType) {
+    public ComponentVersionList<?> getVersionList(GameComponentType componentType) {
         throw new UnsupportedOperationException("TODO"); // TODO
     }
 
-    /// The maximum download concurrency that this download provider supports.
-    ///
-    /// @return the maximum download concurrency.
-    default int getConcurrency() {
-        return 114514; // TODO
+    //endregion
+
+    private static final class VersionListState {
+        private final GameComponentType type;
+        private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+        private final Map<@Nullable GameVersionNumber, SoftReference<SortedSet<ComponentRemoteVersion>>> versions = new HashMap<>();
+
+        private VersionListState(GameComponentType type) {
+            this.type = type;
+        }
+
+        @Unmodifiable
+        @Nullable SortedSet<ComponentRemoteVersion> tryGet(@Nullable GameVersionNumber gameVersion) {
+            assert (type == GameComponentType.GAME) == (gameVersion == null);
+
+            @Nullable SoftReference<SortedSet<ComponentRemoteVersion>> resultRef = versions.get(gameVersion);
+            return resultRef != null ? resultRef.get() : null;
+        }
+
+        @SuppressWarnings("unchecked")
+        void put(@Nullable GameVersionNumber gameVersion, SortedSet<? extends ComponentRemoteVersion> componentRemoteVersions) {
+            assert (type == GameComponentType.GAME) == (gameVersion == null);
+            versions.put(gameVersion, new SoftReference<>((SortedSet<ComponentRemoteVersion>) componentRemoteVersions));
+        }
     }
 }
