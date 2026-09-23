@@ -54,19 +54,25 @@ public class DownloadProvider {
     private static final VarHandle VERSION_LIST_STATES_HANDLE = MethodHandles.arrayElementVarHandle(VersionListState[].class);
     private final @Nullable VersionListState[] versionListStates = new VersionListState[GameComponentType.ALL.size()];
 
-    @SuppressWarnings("unchecked")
-    public @Unmodifiable Task<SortedSet<ComponentRemoteVersion>> getVersions(
+    public boolean hasType(GameComponentType type) {
+        return switch (type) {
+            case GAME, OPTIFINE, NEO_FORGE, LITELOADER -> true;
+            case FABRIC, FABRIC_API, FORGE, CLEANROOM, LEGACY_FABRIC, LEGACY_FABRIC_API, QUILT, QUILT_API -> false;
+        };
+    }
+
+    public @Unmodifiable Task<ComponentRemoteVersionList<?>> getVersionsAsync(
             GameComponentType type,
             @Nullable GameVersionNumber gameVersion,
-            boolean refresh) throws Exception {
+            boolean refresh) {
         assert (type == GameComponentType.GAME) == (gameVersion == null);
 
         final VersionListState state = getState(type);
 
         if (!refresh) {
-            state.lock.readLock().lockInterruptibly();
+            state.lock.readLock().lock();
             try {
-                SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
+                @Unmodifiable ComponentRemoteVersionList<?> result = state.tryGet(gameVersion);
                 if (result != null) {
                     return Task.completed(result);
                 }
@@ -84,7 +90,7 @@ public class DownloadProvider {
             } finally {
                 state.lock.writeLock().unlock();
             }
-            return (SortedSet<ComponentRemoteVersion>) result;
+            return result;
         });
     }
 
@@ -104,7 +110,8 @@ public class DownloadProvider {
         }
     }
 
-    protected <V extends ComponentRemoteVersion> @Unmodifiable Task<SortedSet<V>> fetchFabricVersionsAsync(
+    protected <V extends ComponentRemoteVersion> @Unmodifiable Task<ComponentRemoteVersionList<V>> fetchFabricVersionsAsync(
+            GameComponentType type,
             GameVersionNumber gameVersion,
             List<DownloadCandidate> loaderMetaCandidates, List<DownloadCandidate> gameMetaCandidates,
             BiFunction<String, String, V> function
@@ -125,7 +132,7 @@ public class DownloadProvider {
                     .filter(it -> gameVersion.equals(GameVersionNumber.asGameVersion(it.version)))
                     .findFirst();
             if (metaGameVersion.isEmpty()) {
-                return Collections.emptySortedSet();
+                return ComponentRemoteVersionList.of(type);
             }
 
             SortedSet<V> versions = new TreeSet<>();
@@ -134,31 +141,30 @@ public class DownloadProvider {
                 versions.add(function.apply(metaGameVersion.get().version, loaderVersion.version));
             }
 
-            return Collections.unmodifiableSortedSet(versions);
+            return ComponentRemoteVersionList.of(type, versions);
         });
     }
 
-    protected <V extends ComponentRemoteVersion> Task<SortedSet<V>> fetchModrinthVersionsAsync(
+    protected <V extends ComponentRemoteVersion> Task<ComponentRemoteVersionList<V>> fetchModrinthVersionsAsync(
+            GameComponentType type,
             String modId,
             GameVersionNumber gameVersion,
             Function<RemoteAddon.Version, V> mapper
     ) {
-        return Task.supplyAsync(Schedulers.io(), () -> {
-            return ModrinthRemoteAddonRepository.MODS.getRemoteVersionsById(null, modId)
-                    .filter(it -> {
-                        for (String supportedGameVersion : it.gameVersions()) {
-                            if (GameVersionNumber.asGameVersion(supportedGameVersion).equals(gameVersion)) {
-                                return true;
-                            }
+        return Task.supplyAsync(Schedulers.io(), () -> ComponentRemoteVersionList.of(type, ModrinthRemoteAddonRepository.MODS.getRemoteVersionsById(this, modId)
+                .filter(it -> {
+                    for (String supportedGameVersion : it.gameVersions()) {
+                        if (GameVersionNumber.asGameVersion(supportedGameVersion).equals(gameVersion)) {
+                            return true;
                         }
-                        return false;
-                    })
-                    .map(mapper)
-                    .collect(Collectors.toCollection(() -> (SortedSet<V>) new TreeSet<V>()));
-        });
+                    }
+                    return false;
+                })
+                .map(mapper)
+                .collect(Collectors.toCollection(() -> (SortedSet<V>) new TreeSet<V>()))));
     }
 
-    protected Task<? extends SortedSet<? extends ComponentRemoteVersion>> fetchVersionsAsync(
+    protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(
             GameComponentType type, @Nullable GameVersionNumber gameVersion
     ) {
         assert (type == GameComponentType.GAME) == (gameVersion == null);
@@ -167,6 +173,7 @@ public class DownloadProvider {
             case GAME ->
                     GameRemoteVersion.fetchAsync(List.of(DownloadCandidate.of(GameRemoteVersion.VERSION_MANIFEST_URL)));
             case LEGACY_FABRIC -> fetchFabricVersionsAsync(
+                    type,
                     gameVersion,
                     List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
                     List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
@@ -175,6 +182,7 @@ public class DownloadProvider {
                             List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
             );
             case LEGACY_FABRIC_API -> fetchModrinthVersionsAsync(
+                    type,
                     LegacyFabricAPIRemoteVersion.MODRINTH_ID,
                     gameVersion,
                     it -> new LegacyFabricAPIRemoteVersion(
@@ -186,6 +194,7 @@ public class DownloadProvider {
                             List.of(it.file().url()))
             );
             case FABRIC -> fetchFabricVersionsAsync(
+                    type,
                     gameVersion,
                     List.of(DownloadCandidate.of(FabricRemoteVersion.GAME_META_URL)),
                     List.of(DownloadCandidate.of(FabricRemoteVersion.LOADER_META_URL)),
@@ -194,6 +203,7 @@ public class DownloadProvider {
                             List.of("%s/%s/%s".formatted(FabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
             );
             case FABRIC_API -> fetchModrinthVersionsAsync(
+                    type,
                     FabricAPIRemoteVersion.MODRINTH_ID,
                     gameVersion,
                     it -> new FabricAPIRemoteVersion(
@@ -264,24 +274,23 @@ public class DownloadProvider {
     private static final class VersionListState {
         private final GameComponentType type;
         private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-        private final Map<@Nullable GameVersionNumber, SoftReference<SortedSet<ComponentRemoteVersion>>> versions = new HashMap<>();
+        private final Map<@Nullable GameVersionNumber, SoftReference<ComponentRemoteVersionList<?>>> versions = new HashMap<>();
 
         private VersionListState(GameComponentType type) {
             this.type = type;
         }
 
         @Unmodifiable
-        @Nullable SortedSet<ComponentRemoteVersion> tryGet(@Nullable GameVersionNumber gameVersion) {
+        @Nullable ComponentRemoteVersionList<?> tryGet(@Nullable GameVersionNumber gameVersion) {
             assert (type == GameComponentType.GAME) == (gameVersion == null);
 
-            @Nullable SoftReference<SortedSet<ComponentRemoteVersion>> resultRef = versions.get(gameVersion);
+            @Nullable SoftReference<ComponentRemoteVersionList<?>> resultRef = versions.get(gameVersion);
             return resultRef != null ? resultRef.get() : null;
         }
 
-        @SuppressWarnings("unchecked")
-        void put(@Nullable GameVersionNumber gameVersion, SortedSet<? extends ComponentRemoteVersion> componentRemoteVersions) {
+        void put(@Nullable GameVersionNumber gameVersion, ComponentRemoteVersionList<?> componentRemoteVersions) {
             assert (type == GameComponentType.GAME) == (gameVersion == null);
-            versions.put(gameVersion, new SoftReference<>((SortedSet<ComponentRemoteVersion>) componentRemoteVersions));
+            versions.put(gameVersion, new SoftReference<>(componentRemoteVersions));
         }
     }
 }

@@ -60,7 +60,7 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     }
 
     @Override
-    protected Task<? extends SortedSet<? extends ComponentRemoteVersion>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
+    protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
         switch (type) {
             case GAME -> {
                 List<DownloadCandidate> candidates = getVersionListCandidates(

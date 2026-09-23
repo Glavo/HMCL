@@ -355,7 +355,6 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
             String gameVersion,
             GameComponentType componentType,
             String componentVersion) {
-        ComponentVersionList<?> versionList = getVersionList(componentType);
         return versionList.loadAsync(gameVersion)
                 .thenComposeAsync(() -> installUnpublishedComponentAsync(
                         baseManifest,
@@ -410,6 +409,15 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
         if (!instance.getId().equals(baseManifest.id())) {
             throw new IllegalArgumentException("baseManifest id does not match instance");
         }
+
+        return downloadProvider.getVersionsAsync(componentType, componentType == GameComponentType.GAME ? null : GameVersionNumber.asGameVersion(gameVersion), false)
+                .thenComposeAsync(versions -> installComponentRemoteAsync(
+                        instance,
+                        baseManifest,
+                        versionList.getVersion(gameVersion, componentVersion)
+                                .orElseThrow(() -> new IOException(
+                                        "Remote component " + componentType + " has no version " + componentVersion))))
+                .withStage("hmcl.install.%s:%s".formatted(componentType, componentVersion));
 
         ComponentVersionList<?> versionList = getVersionList(componentType);
         return versionList.loadAsync(gameVersion)

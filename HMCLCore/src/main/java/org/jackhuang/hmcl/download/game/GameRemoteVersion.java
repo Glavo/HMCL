@@ -17,6 +17,7 @@
  */
 package org.jackhuang.hmcl.download.game;
 
+import org.jackhuang.hmcl.download.ComponentRemoteVersionList;
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.ComponentRemoteVersion;
 import org.jackhuang.hmcl.download.DownloadCandidate;
@@ -49,7 +50,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
 
     public static final String VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
 
-    public static Task<SortedSet<GameRemoteVersion>> fetchAsync(List<DownloadCandidate> versionManifestCandidates) {
+    public static Task<ComponentRemoteVersionList<GameRemoteVersion>> fetchAsync(List<DownloadCandidate> versionManifestCandidates) {
         return new GetTask(versionManifestCandidates, null)
                 .thenApplyAsync(json -> {
                     GameRemoteVersions root = JsonUtils.fromNonNullJson(json, GameRemoteVersions.class);
@@ -82,7 +83,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
                                 remoteVersion.type(), remoteVersion.releaseTime()));
                     }
 
-                    return versions;
+                    return ComponentRemoteVersionList.of(GameComponentType.GAME, versions);
                 });
     }
 
