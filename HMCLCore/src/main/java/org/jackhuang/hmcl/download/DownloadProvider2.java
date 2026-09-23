@@ -17,14 +17,18 @@
  */
 package org.jackhuang.hmcl.download;
 
+import com.google.gson.reflect.TypeToken;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
+import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.gson.JsonSerializable;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -35,8 +39,11 @@ import java.lang.invoke.VarHandle;
 import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.jackhuang.hmcl.util.gson.JsonUtils.listTypeOf;
 
 @NotNullByDefault
 public class DownloadProvider2 {
@@ -94,6 +101,41 @@ public class DownloadProvider2 {
         }
     }
 
+    protected <V extends ComponentRemoteVersion> @Unmodifiable Task<SortedSet<V>> fetchFabricVersionsAsync(
+            GameVersionNumber gameVersion,
+            List<DownloadCandidate> loaderMetaCandidates, List<DownloadCandidate> gameMetaCandidates,
+            BiFunction<String, String, V> function
+    ) {
+        return Task.combine(
+                new GetTask(loaderMetaCandidates, null),
+                new GetTask(gameMetaCandidates, null)
+        ).thenApplyAsync(pair -> {
+            @JsonSerializable
+            record GameVersion(String version, String maven, boolean stable) {
+            }
+
+            TypeToken<List<GameVersion>> gameVersionsType = listTypeOf(GameVersion.class);
+
+            List<GameVersion> gameVersions = JsonUtils.fromNonNullJson(pair.getKey(), gameVersionsType);
+
+            Optional<GameVersion> metaGameVersion = gameVersions.stream()
+                    .filter(it -> gameVersion.equals(GameVersionNumber.asGameVersion(it.version)))
+                    .findFirst();
+            if (metaGameVersion.isEmpty()) {
+                return Collections.emptySortedSet();
+            }
+
+            SortedSet<V> versions = new TreeSet<>();
+            List<GameVersion> loaderVersions = JsonUtils.fromNonNullJson(pair.getValue(), gameVersionsType);
+            for (GameVersion loaderVersion : loaderVersions) {
+                versions.add(function.apply(metaGameVersion.get().version, loaderVersion.version));
+            }
+
+            return Collections.unmodifiableSortedSet(versions);
+        });
+    }
+
+
     protected <V extends ComponentRemoteVersion> Task<SortedSet<V>> fetchModrinthVersionsAsync(
             String modId,
             GameVersionNumber gameVersion,
@@ -122,10 +164,13 @@ public class DownloadProvider2 {
         return switch (type) {
             case GAME ->
                     GameRemoteVersion.fetchAsync(List.of(DownloadCandidate.of(GameRemoteVersion.VERSION_MANIFEST_URL)));
-            case LEGACY_FABRIC -> LegacyFabricRemoteVersion.fetchAsync(
+            case LEGACY_FABRIC -> fetchFabricVersionsAsync(
                     gameVersion,
                     List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
-                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL))
+                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
+                    (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
+                            gameVersion.toString(), loaderVersion,
+                            List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
             );
             case LEGACY_FABRIC_API -> fetchModrinthVersionsAsync(
                     LegacyFabricAPIRemoteVersion.MODRINTH_ID,

@@ -78,7 +78,7 @@ public class LegacyFabricRemoteVersion extends ComponentRemoteVersion {
     /// @param gameVersion the Minecraft version that this remote version suits.
     /// @param selfVersion the version string of the remote version.
     /// @param urls        the installer or universal jar original URL.
-    LegacyFabricRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
+    public LegacyFabricRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
         super(GameComponentType.LEGACY_FABRIC, gameVersion, selfVersion, null, urls);
     }
 
