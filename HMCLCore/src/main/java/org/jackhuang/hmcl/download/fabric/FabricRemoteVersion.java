@@ -28,6 +28,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class FabricRemoteVersion extends ComponentRemoteVersion {
+    public static final String LOADER_META_URL = "https://meta.fabricmc.net/v2/versions/loader";
+    public static final String GAME_META_URL = "https://meta.fabricmc.net/v2/versions/game";
+
     /**
      * Constructor.
      *

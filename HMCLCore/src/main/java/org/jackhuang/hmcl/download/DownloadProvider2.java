@@ -183,6 +183,14 @@ public class DownloadProvider2 {
                             it,
                             List.of(it.file().url()))
             );
+            case FABRIC -> fetchFabricVersionsAsync(
+                    gameVersion,
+                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
+                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
+                    (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
+                            gameVersion.toString(), loaderVersion,
+                            List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
+            );
 
             default -> throw new AssertionError("TODO");
         };
