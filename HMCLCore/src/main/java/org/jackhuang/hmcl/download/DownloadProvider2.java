@@ -20,6 +20,8 @@ package org.jackhuang.hmcl.download;
 import com.google.gson.reflect.TypeToken;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
+import org.jackhuang.hmcl.download.fabric.FabricAPIRemoteVersion;
+import org.jackhuang.hmcl.download.fabric.FabricRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
@@ -135,7 +137,6 @@ public class DownloadProvider2 {
         });
     }
 
-
     protected <V extends ComponentRemoteVersion> Task<SortedSet<V>> fetchModrinthVersionsAsync(
             String modId,
             GameVersionNumber gameVersion,
@@ -185,11 +186,22 @@ public class DownloadProvider2 {
             );
             case FABRIC -> fetchFabricVersionsAsync(
                     gameVersion,
-                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
-                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
-                    (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
+                    List.of(DownloadCandidate.of(FabricRemoteVersion.GAME_META_URL)),
+                    List.of(DownloadCandidate.of(FabricRemoteVersion.LOADER_META_URL)),
+                    (metaGameVersion, loaderVersion) -> new FabricRemoteVersion(
                             gameVersion.toString(), loaderVersion,
-                            List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
+                            List.of("%s/%s/%s".formatted(FabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
+            );
+            case FABRIC_API -> fetchModrinthVersionsAsync(
+                    FabricAPIRemoteVersion.MODRINTH_ID,
+                    gameVersion,
+                    it -> new FabricAPIRemoteVersion(
+                            gameVersion.toString(),
+                            it.version(),
+                            it.name(),
+                            it.datePublished(),
+                            it,
+                            List.of(it.file().url()))
             );
 
             default -> throw new AssertionError("TODO");

@@ -30,17 +30,19 @@ import java.time.Instant;
 import java.util.List;
 
 public class FabricAPIRemoteVersion extends ComponentRemoteVersion {
+
+    /// @see <a href="https://modrinth.com/mod/fabric-api">Fabric API - Modrinth</a>
+    public static final String MODRINTH_ID = "fabric-api";
+
     private final String fullVersion;
     private final RemoteAddon.Version version;
 
-    /**
-     * Constructor.
-     *
-     * @param gameVersion the Minecraft version that this remote version suits.
-     * @param selfVersion the version string of the remote version.
-     * @param urls        the installer or universal jar original URL.
-     */
-    FabricAPIRemoteVersion(String gameVersion, String selfVersion, String fullVersion, Instant datePublished, RemoteAddon.Version version, List<String> urls) {
+    /// Constructor.
+    ///
+    /// @param gameVersion the Minecraft version that this remote version suits.
+    /// @param selfVersion the version string of the remote version.
+    /// @param urls        the installer or universal jar original URL.
+    public FabricAPIRemoteVersion(String gameVersion, String selfVersion, String fullVersion, Instant datePublished, RemoteAddon.Version version, List<String> urls) {
         super(GameComponentType.FABRIC_API, gameVersion, selfVersion, datePublished, urls);
 
         this.fullVersion = fullVersion;
