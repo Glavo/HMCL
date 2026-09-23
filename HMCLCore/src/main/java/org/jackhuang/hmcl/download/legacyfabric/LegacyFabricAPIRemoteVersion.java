@@ -24,12 +24,18 @@ import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.SortedSet;
 
 public class LegacyFabricAPIRemoteVersion extends ComponentRemoteVersion {
+
+    /// @see <a href="https://modrinth.com/mod/legacy-fabric-api">Legacy Fabric API - Modrinth</a>
+    public static final String MODRINTH_ID = "legacy-fabric-api";
+
     private final String fullVersion;
     private final RemoteAddon.Version version;
 
@@ -40,7 +46,7 @@ public class LegacyFabricAPIRemoteVersion extends ComponentRemoteVersion {
      * @param selfVersion the version string of the remote version.
      * @param urls        the installer or universal jar original URL.
      */
-    LegacyFabricAPIRemoteVersion(String gameVersion, String selfVersion, String fullVersion, Instant datePublished, RemoteAddon.Version version, List<String> urls) {
+    public LegacyFabricAPIRemoteVersion(String gameVersion, String selfVersion, String fullVersion, Instant datePublished, RemoteAddon.Version version, List<String> urls) {
         super(GameComponentType.LEGACY_FABRIC_API, gameVersion, selfVersion, datePublished, urls);
 
         this.fullVersion = fullVersion;
