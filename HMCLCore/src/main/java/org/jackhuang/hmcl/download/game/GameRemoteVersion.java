@@ -19,17 +19,26 @@ package org.jackhuang.hmcl.download.game;
 
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.ComponentRemoteVersion;
+import org.jackhuang.hmcl.download.DownloadCandidate;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.game.ReleaseType;
+import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.Immutable;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
+import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /**
  *
@@ -37,6 +46,45 @@ import java.util.List;
  */
 @Immutable
 public final class GameRemoteVersion extends ComponentRemoteVersion {
+
+    public static final String VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
+
+    public static Task<SortedSet<GameRemoteVersion>> fetchAsync(List<DownloadCandidate> versionManifestCandidates) {
+        return new GetTask(versionManifestCandidates, null)
+                .thenApplyAsync(json -> {
+                    GameRemoteVersions root = JsonUtils.fromNonNullJson(json, GameRemoteVersions.class);
+
+                    GameRemoteVersions unlistedVersions = null;
+
+                    //noinspection DataFlowIssue
+                    try (Reader input = new InputStreamReader(
+                            GameVersionList.class.getResourceAsStream("/assets/game/unlisted-versions.json"))) {
+                        unlistedVersions = JsonUtils.GSON.fromJson(input, GameRemoteVersions.class);
+                    } catch (Throwable e) {
+                        LOG.warning("Failed to load unlisted versions", e);
+                    }
+
+                    var versions = new TreeSet<GameRemoteVersion>();
+
+                    if (unlistedVersions != null) {
+                        for (GameRemoteVersionInfo unlistedVersion : unlistedVersions.versions()) {
+                            versions.add(new GameRemoteVersion(
+                                    unlistedVersion.gameVersion(),
+                                    List.of(unlistedVersion.url()),
+                                    unlistedVersion.type(), unlistedVersion.releaseTime()));
+                        }
+                    }
+
+                    for (GameRemoteVersionInfo remoteVersion : root.versions()) {
+                        versions.add(new GameRemoteVersion(
+                                remoteVersion.gameVersion(),
+                                List.of(remoteVersion.url()),
+                                remoteVersion.type(), remoteVersion.releaseTime()));
+                    }
+
+                    return versions;
+                });
+    }
 
     private final ReleaseType type;
 

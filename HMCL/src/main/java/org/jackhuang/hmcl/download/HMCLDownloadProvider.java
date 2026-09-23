@@ -17,35 +17,24 @@
  */
 package org.jackhuang.hmcl.download;
 
-import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
-import org.jackhuang.hmcl.download.game.GameRemoteVersionInfo;
-import org.jackhuang.hmcl.download.game.GameRemoteVersions;
-import org.jackhuang.hmcl.download.game.GameVersionList;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
+import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricVersionList;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.setting.DownloadSource;
 import org.jackhuang.hmcl.task.GetTask;
-import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
-import org.jackhuang.hmcl.util.ResourceCleaner;
-import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.i18n.LocaleUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.ref.SoftReference;
 import java.util.*;
-import java.util.concurrent.Semaphore;
-
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
-import static org.jackhuang.hmcl.util.logging.Logger.registerAccessToken;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /// @author Glavo
 @NotNullByDefault
@@ -66,30 +55,30 @@ public final class HMCLDownloadProvider {
         final VersionListState state = getState(type);
 
         if (!refresh) {
-            state.semaphore.acquire();
+            state.lock.readLock().lockInterruptibly();
             try {
                 SortedSet<ComponentRemoteVersion> result = state.tryGet(gameVersion);
                 if (result != null) {
                     return Task.completed(result);
                 }
             } finally {
-                state.semaphore.release();
+                state.lock.readLock().unlock();
             }
         }
 
         @SuppressWarnings("unchecked")
         var task = (Task<SortedSet<ComponentRemoteVersion>>) switch (type) {
             case GAME -> fetchGameVersions();
-            case LEGACY_FABRIC -> fetchLegacyFabricVersions();
+            case LEGACY_FABRIC -> fetchLegacyFabricVersions(gameVersion);
             default -> throw new AssertionError();
         };
 
         return task.thenApplyAsync(result -> {
-            state.semaphore.acquire();
+            state.lock.writeLock().lockInterruptibly();
             try {
                 state.put(gameVersion, result);
             } finally {
-                state.semaphore.release();
+                state.lock.writeLock().unlock();
             }
             return result;
         });
@@ -137,63 +126,24 @@ public final class HMCLDownloadProvider {
     /// @see GameRemoteVersion
     private Task<SortedSet<GameRemoteVersion>> fetchGameVersions() {
         List<DownloadCandidate> candidates = getVersionListCandidates(
-                "https://piston-meta.mojang.com/mc/game/version_manifest.json",
+                GameRemoteVersion.VERSION_MANIFEST_URL,
                 BMCLAPI_ROOT + "/mc/game/version_manifest.json"
         );
-        return new GetTask(candidates, null).thenGetJsonAsync(GameRemoteVersions.class)
-                .thenApplyAsync(root -> {
-                    GameRemoteVersions unlistedVersions = null;
 
-                    //noinspection DataFlowIssue
-                    try (Reader input = new InputStreamReader(
-                            GameVersionList.class.getResourceAsStream("/assets/game/unlisted-versions.json"))) {
-                        unlistedVersions = JsonUtils.GSON.fromJson(input, GameRemoteVersions.class);
-                    } catch (Throwable e) {
-                        LOG.warning("Failed to load unlisted versions", e);
-                    }
-
-                    var versions = new TreeSet<GameRemoteVersion>();
-
-                    if (unlistedVersions != null) {
-                        for (GameRemoteVersionInfo unlistedVersion : unlistedVersions.versions()) {
-                            versions.add(new GameRemoteVersion(
-                                    unlistedVersion.gameVersion(),
-                                    List.of(unlistedVersion.url()),
-                                    unlistedVersion.type(), unlistedVersion.releaseTime()));
-                        }
-                    }
-
-                    for (GameRemoteVersionInfo remoteVersion : root.versions()) {
-                        versions.add(new GameRemoteVersion(
-                                remoteVersion.gameVersion(),
-                                List.of(remoteVersion.url()),
-                                remoteVersion.type(), remoteVersion.releaseTime()));
-                    }
-
-                    return versions;
-                });
+        return GameRemoteVersion.fetchAsync(candidates);
     }
 
-    private Task<SortedSet<LegacyFabricRemoteVersion>> fetchLegacyFabricVersions() {
-        String loaderMetaUrl = "https://meta.legacyfabric.net/v2/versions/loader";
-        String gameMetaUrl = "https://meta.legacyfabric.net/v2/versions/game";
-
-
-        List<DownloadCandidate> candidates = getVersionListCandidates(
-                "https://meta.legacyfabric.net/v2/versions/loader",
-                BMCLAPI_ROOT + "/legacyfabric/v2/versions/loader"
+    private Task<SortedSet<LegacyFabricRemoteVersion>> fetchLegacyFabricVersions(GameVersionNumber gameVersion) {
+        return LegacyFabricRemoteVersion.fetchAsync(
+                gameVersion,
+                List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
+                List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL))
         );
-        return new GetTask(candidates, null).thenGetJsonAsync(LegacyFabricRemoteVersion[].class)
-                .thenApplyAsync(versions -> {
-                    var result = new TreeSet<LegacyFabricRemoteVersion>();
-                    Collections.addAll(result, versions);
-                    return result;
-                });
     }
 
     private static final class VersionListState {
         private final GameComponentType type;
-        private final Semaphore semaphore = new Semaphore(1);
+        private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
         private final Map<@Nullable GameVersionNumber, SoftReference<SortedSet<ComponentRemoteVersion>>> versions = new HashMap<>();
 
         private VersionListState(GameComponentType type) {
