@@ -30,10 +30,14 @@ import java.util.List;
 public interface DownloadProvider {
 
     /// Returns unmodifiable candidate URLs for the Minecraft version manifest, in attempt order.
-    @Unmodifiable List<WebURL> getVersionListURLs();
+    default @Unmodifiable List<WebURL> getVersionListURLs() {
+        return List.of(WebURL.parse("https://piston-meta.mojang.com/mc/game/version_manifest.json"));
+    }
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
-    @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation);
+    default @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation) {
+        return List.of(WebURL.parse("https://resources.download.minecraft.net/" + assetObjectLocation));
+    }
 
     /// Inject into original URL provided by Mojang and Forge.
     ///
@@ -42,7 +46,9 @@ public interface DownloadProvider {
     ///
     /// @param baseURL original URL provided by Mojang and Forge.
     /// @return the URL that is equivalent to `baseURL`, but belongs to your own service provider.
-    String injectURL(String baseURL);
+    default String injectURL(String baseURL) {
+        return baseURL;
+    }
 
     /// Returns unmodifiable download candidates for an original URL, in attempt order.
     /// The default implementation parses the result of [#injectURL(String)].
@@ -67,10 +73,14 @@ public interface DownloadProvider {
     /// @param componentType the component type of specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
     /// @return the version list
     /// @throws IllegalArgumentException if the version list does not exist
-    ComponentVersionList<?> getVersionList(GameComponentType componentType);
+    default ComponentVersionList<?> getVersionList(GameComponentType componentType) {
+        throw new UnsupportedOperationException("TODO"); // TODO
+    }
 
     /// The maximum download concurrency that this download provider supports.
     ///
     /// @return the maximum download concurrency.
-    int getConcurrency();
+    default int getConcurrency() {
+        return 114514; // TODO
+    }
 }
