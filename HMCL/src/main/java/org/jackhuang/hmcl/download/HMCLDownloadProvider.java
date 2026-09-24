@@ -26,8 +26,6 @@ import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
-
 /// @author Glavo
 @NotNullByDefault
 public final class HMCLDownloadProvider extends DownloadProvider {
@@ -61,7 +59,6 @@ public final class HMCLDownloadProvider extends DownloadProvider {
                         GameRemoteVersion.VERSION_MANIFEST_URL,
                         BMCLAPI_ROOT + "/mc/game/version_manifest.json"
                 );
-
                 return GameRemoteVersion.fetchAsync(candidates);
             }
         }
