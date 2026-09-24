@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.download;
 
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
+import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.setting.DownloadSource;
 import org.jackhuang.hmcl.task.Task;
@@ -68,11 +69,11 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     }
 
     @Override
-    public DownloadCandidates getAssetObjectCandidates(String assetObjectLocation) {
+    public DownloadCandidates getAssetObjectCandidates(AssetObject assetObject) {
         return getCandidates(
                 fileSource,
-                "https://resources.download.minecraft.net/" + assetObjectLocation,
-                BMCLAPI_ROOT + "/mc/assets/" + assetObjectLocation
+                "https://resources.download.minecraft.net/" + assetObject.getLocation(),
+                BMCLAPI_ROOT + "/mc/assets/" + assetObject.getLocation()
         );
     }
 }

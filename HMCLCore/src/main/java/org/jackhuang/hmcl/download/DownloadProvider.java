@@ -26,6 +26,7 @@ import org.jackhuang.hmcl.download.fabric.FabricRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
+import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -231,8 +232,8 @@ public class DownloadProvider {
     }
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
-    public DownloadCandidates getAssetObjectCandidates(String assetObjectLocation) {
-        return DownloadCandidates.of("https://resources.download.minecraft.net/" + assetObjectLocation);
+    public DownloadCandidates getAssetObjectCandidates(AssetObject assetObject) {
+        return DownloadCandidates.of("https://resources.download.minecraft.net/" + assetObject.getLocation());
     }
 
     private static final class VersionListState {
