@@ -18,7 +18,6 @@
 package org.jackhuang.hmcl.download.game;
 
 import com.google.gson.JsonParseException;
-import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.AbstractDependencyManager;
 import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.game.*;
@@ -26,7 +25,6 @@ import org.jackhuang.hmcl.task.FileDownloadTask;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.CacheRepository;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
-import org.jetbrains.annotations.Unmodifiable;
 
 import java.io.IOException;
 import java.nio.file.Files;

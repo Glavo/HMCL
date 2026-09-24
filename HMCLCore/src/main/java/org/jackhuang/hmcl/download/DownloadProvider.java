@@ -23,6 +23,7 @@ import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.download.fabric.FabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.fabric.FabricRemoteVersion;
+import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
@@ -111,7 +112,7 @@ public class DownloadProvider {
         }
     }
 
-    protected <V extends ComponentRemoteVersion> @Unmodifiable Task<ComponentRemoteVersionList<V>> fetchFabricVersionsAsync(
+    protected <V extends ComponentRemoteVersion> Task<ComponentRemoteVersionList<V>> fetchFabricVersionsAsync(
             GameComponentType type,
             GameVersionNumber gameVersion,
             DownloadCandidates loaderMetaCandidates, DownloadCandidates gameMetaCandidates,
@@ -214,8 +215,13 @@ public class DownloadProvider {
                             it,
                             List.of(it.file().url()))
             );
-
-            default -> throw new AssertionError("TODO");
+            case FORGE -> ForgeRemoteVersion.fetchAsync(DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST), gameVersion);
+            case NEO_FORGE -> null;
+            case CLEANROOM -> null;
+            case LITELOADER -> null;
+            case OPTIFINE -> null;
+            case QUILT -> null;
+            case QUILT_API -> null;
         };
     }
 
