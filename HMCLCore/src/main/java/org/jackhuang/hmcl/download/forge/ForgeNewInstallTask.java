@@ -20,6 +20,8 @@ package org.jackhuang.hmcl.download.forge;
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.ArtifactMalformedException;
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
+import org.jackhuang.hmcl.download.DownloadCandidates;
+import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.forge.ForgeNewInstallProfile.Processor;
 import org.jackhuang.hmcl.download.game.GameInstanceJsonDownloadTask;
 import org.jackhuang.hmcl.download.game.GameLibrariesTask;
@@ -372,8 +374,8 @@ public class ForgeNewInstallTask extends Task<GameInstancePatch> {
                         throw new Exception("client_mappings download info not found");
                     }
 
-                    @Unmodifiable List<WebURL> mappingsUrl = dependencyManager.getDownloadProvider()
-                            .injectURLWithCandidates(mappings.getUrl());
+                    DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
+                    DownloadCandidates mappingsUrl = downloadProvider.getDownloadCandidates(mappings.getUrl());
                     var mappingsTask = new FileDownloadTask(
                             mappingsUrl,
                             Path.of(output),

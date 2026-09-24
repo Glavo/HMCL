@@ -117,8 +117,8 @@ public class DownloadProvider {
             BiFunction<String, String, V> function
     ) {
         return Task.combine(
-                new GetTask(loaderMetaCandidates, null),
-                new GetTask(gameMetaCandidates, null)
+                new GetTask(loaderMetaCandidates),
+                new GetTask(gameMetaCandidates)
         ).thenApplyAsync(pair -> {
             @JsonSerializable
             record GameVersion(String version, String maven, boolean stable) {
@@ -170,8 +170,7 @@ public class DownloadProvider {
         assert (type == GameComponentType.GAME) == (gameVersion == null);
 
         return switch (type) {
-            case GAME ->
-                    GameRemoteVersion.fetchAsync(DownloadCandidates.of(GameRemoteVersion.VERSION_MANIFEST_URL));
+            case GAME -> GameRemoteVersion.fetchAsync(DownloadCandidates.of(GameRemoteVersion.VERSION_MANIFEST_URL));
             case LEGACY_FABRIC -> fetchFabricVersionsAsync(
                     type,
                     gameVersion,
@@ -223,28 +222,19 @@ public class DownloadProvider {
         return DownloadCandidates.of(List.of(DownloadCandidate.of(baseURL)));
     }
 
+    public DownloadCandidates getDownloadCandidates(WebURL baseURL) {
+        return DownloadCandidates.of(List.of(DownloadCandidate.of(baseURL)));
+    }
+
+    public DownloadCandidates getDownloadCandidates(List<String> baseURL) {
+        return DownloadCandidates.of(baseURL.stream().map(DownloadCandidate::of).toList());
+    }
+
     //region Old API
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
     public @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation) {
         return List.of(WebURL.parse("https://resources.download.minecraft.net/" + assetObjectLocation));
-    }
-
-    /// Returns unmodifiable download candidates for an original URL, in attempt order.
-    ///
-    /// @param baseURL original URL provided by Mojang and Forge.
-    /// @return the candidate URLs
-    public @Unmodifiable List<WebURL> injectURLWithCandidates(String baseURL) {
-        return List.of(WebURL.parse(baseURL));
-    }
-
-    /// Returns unmodifiable candidates for all URLs, preserving first occurrence order and removing duplicates.
-    public @Unmodifiable List<WebURL> injectURLsWithCandidates(List<String> urls) {
-        LinkedHashSet<WebURL> result = new LinkedHashSet<>();
-        for (String url : urls) {
-            result.addAll(injectURLWithCandidates(url));
-        }
-        return List.copyOf(result);
     }
 
     //endregion

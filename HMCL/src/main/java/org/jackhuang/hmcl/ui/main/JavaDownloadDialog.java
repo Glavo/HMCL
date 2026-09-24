@@ -32,6 +32,7 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.java.JavaDistribution;
 import org.jackhuang.hmcl.download.java.JavaPackageType;
@@ -372,7 +373,7 @@ public final class JavaDownloadDialog extends StackPane {
             if (version == null)
                 return;
 
-            Controllers.taskDialog(new GetTask(downloadProvider.injectURLWithCandidates(version.getLinks().pkgInfoUri()))
+            Controllers.taskDialog(new GetTask(downloadProvider.getDownloadCandidates(version.getLinks().pkgInfoUri()))
                     .setExecutor(Schedulers.io())
                     .thenComposeAsync(json -> {
                         DiscoResult<DiscoRemoteFileInfo> result = JsonUtils.fromNonNullJson(json, DiscoResult.typeOf(DiscoRemoteFileInfo.class));
@@ -392,8 +393,8 @@ public final class JavaDownloadDialog extends StackPane {
                         Task<FileDownloadTask.IntegrityCheck> getIntegrityCheck;
                         if (StringUtils.isNotBlank(fileInfo.checksum()))
                             getIntegrityCheck = Task.completed(new FileDownloadTask.IntegrityCheck(fileInfo.checksumType(), fileInfo.checksum()));
-                        else if (StringUtils.isNotBlank(fileInfo.checksumUri()))
-                            getIntegrityCheck = new GetTask(downloadProvider.injectURLWithCandidates(fileInfo.checksumUri()))
+                        else if (StringUtils.isNotBlank(fileInfo.checksumUri())) {
+                            getIntegrityCheck = new GetTask(downloadProvider.getDownloadCandidates(fileInfo.checksumUri()))
                                     .thenApplyAsync(checksum -> {
                                         checksum = checksum.trim();
 
@@ -403,13 +404,16 @@ public final class JavaDownloadDialog extends StackPane {
 
                                         return new FileDownloadTask.IntegrityCheck(fileInfo.checksumType(), checksum);
                                     });
+                        }
                         else
                             getIntegrityCheck = Task.completed(null);
 
                         return getIntegrityCheck
                                 .thenComposeAsync(integrityCheck ->
-                                        new FileDownloadTask(downloadProvider.injectURLWithCandidates(fileInfo.directDownloadUri()),
-                                                targetFile, integrityCheck).setName(fileInfo.fileName()))
+                                {
+                                    return new FileDownloadTask(downloadProvider.getDownloadCandidates(fileInfo.directDownloadUri()),
+                                            targetFile, integrityCheck).setName(fileInfo.fileName());
+                                })
                                 .thenSupplyAsync(() -> targetFile);
                     })
                     .whenComplete(Schedulers.javafx(), ((result, exception) -> {

@@ -108,6 +108,18 @@ public class FileDownloadTask extends FetchTask<Void> {
         setName(path.getFileName().toString());
     }
 
+    public FileDownloadTask(DownloadCandidates candidates, Path file) {
+        this(candidates, file, null);
+    }
+
+    public FileDownloadTask(DownloadCandidates candidates, Path path, @Nullable IntegrityCheck integrityCheck) {
+        super(candidates);
+        this.file = path;
+        this.integrityCheck = integrityCheck;
+
+        setName(path.getFileName().toString());
+    }
+
     public Path getPath() {
         return file;
     }
@@ -133,7 +145,7 @@ public class FileDownloadTask extends FetchTask<Void> {
             if (cache.isPresent()) {
                 try {
                     FileUtils.copyFile(cache.get(), file);
-                    LOG.trace("Successfully verified file " + file + " from " + candidates.get(0).url());
+                    LOG.trace("Successfully verified file " + file + " from " + candidates.getPrimaryCandidate().url());
                     return EnumCheckETag.CACHED;
                 } catch (IOException e) {
                     LOG.warning("Failed to copy cache files", e);

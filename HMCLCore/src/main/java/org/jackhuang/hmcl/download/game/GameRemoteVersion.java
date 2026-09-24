@@ -47,7 +47,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
     public static final String VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
 
     public static Task<ComponentRemoteVersionList<GameRemoteVersion>> fetchAsync(DownloadCandidates versionManifestCandidates) {
-        return new GetTask(versionManifestCandidates, null)
+        return new GetTask(versionManifestCandidates)
                 .thenApplyAsync(json -> {
                     GameRemoteVersions root = JsonUtils.fromNonNullJson(json, GameRemoteVersions.class);
 

@@ -17,9 +17,7 @@
  */
 package org.jackhuang.hmcl.download.cleanroom;
 
-import org.jackhuang.hmcl.download.DefaultDependencyManager;
-import org.jackhuang.hmcl.download.UnsupportedInstallationException;
-import org.jackhuang.hmcl.download.VersionMismatchException;
+import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.download.forge.ForgeNewInstallProfile;
 import org.jackhuang.hmcl.download.forge.ForgeNewInstallTask;
 import org.jackhuang.hmcl.download.game.GameDownloadTask;
@@ -38,10 +36,7 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static org.jackhuang.hmcl.download.UnsupportedInstallationException.CLEANROOM_NOT_COMPATIBLE_WITH_FORGE;
 
@@ -108,8 +103,9 @@ public final class CleanroomInstallTask extends Task<GameInstancePatch> {
             installer = Files.createTempFile("cleanroom-installer", ".jar");
 
             CleanroomRemoteVersion remoteVersion = Objects.requireNonNull(remote);
+            DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
             dependent = new FileDownloadTask(
-                    dependencyManager.getDownloadProvider().injectURLsWithCandidates(remoteVersion.getUrls()),
+                    downloadProvider.getDownloadCandidates(remoteVersion.getUrls()),
                     installer, null);
             dependent.setCacheRepository(dependencyManager.getCacheRepository());
             dependent.setCaching(true);

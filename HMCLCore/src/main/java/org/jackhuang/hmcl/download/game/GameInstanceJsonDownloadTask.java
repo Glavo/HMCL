@@ -17,9 +17,7 @@
  */
 package org.jackhuang.hmcl.download.game;
 
-import org.jackhuang.hmcl.download.ComponentRemoteVersionList;
-import org.jackhuang.hmcl.download.DefaultDependencyManager;
-import org.jackhuang.hmcl.download.ComponentRemoteVersion;
+import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Task;
@@ -65,6 +63,7 @@ public final class GameInstanceJsonDownloadTask extends Task<String> {
         ComponentRemoteVersion remoteVersion = getGameVersionsTask.getResult().getRemoteVersion(gameVersion);
         if (remoteVersion == null)
             throw new IOException(new IOException("Cannot find specific version " + gameVersion + " in remote repository"));
-        dependencies.add(new GetTask(dependencyManager.getDownloadProvider().injectURLsWithCandidates(remoteVersion.getUrls())).storeTo(this::setResult));
+        DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
+        dependencies.add(new GetTask(downloadProvider.getDownloadCandidates(remoteVersion.getUrls())).storeTo(this::setResult));
     }
 }

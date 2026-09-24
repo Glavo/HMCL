@@ -101,7 +101,7 @@ public final class TexturesLoader {
         if (!Files.isRegularFile(file)) {
             // download it
             try {
-                new FileDownloadTask(DownloadProviders.getDownloadProvider().injectURLWithCandidates(texture.url()), file).run();
+                new FileDownloadTask(DownloadProviders.getDownloadProvider().getDownloadCandidates(texture.url()), file).run();
                 LOG.info("Texture downloaded: " + texture.url());
             } catch (Exception e) {
                 if (Files.isRegularFile(file)) {

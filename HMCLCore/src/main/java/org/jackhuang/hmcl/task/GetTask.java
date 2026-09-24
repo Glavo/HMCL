@@ -48,7 +48,7 @@ public final class GetTask extends FetchTask<String> {
         setName(url.get(0).toString());
     }
 
-    public GetTask(DownloadCandidates candidates, @Nullable Void tag) { // TODO
+    public GetTask(DownloadCandidates candidates) {
         super(candidates);
         setName(candidates.getPrimaryCandidate().displayUrl());
     }

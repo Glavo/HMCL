@@ -20,6 +20,8 @@ package org.jackhuang.hmcl.download.game;
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.AbstractDependencyManager;
 import org.jackhuang.hmcl.download.DefaultCacheRepository;
+import org.jackhuang.hmcl.download.DownloadCandidates;
+import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.game.Library;
 import org.jackhuang.hmcl.task.DownloadException;
 import org.jackhuang.hmcl.task.FileDownloadTask.IntegrityCheck;
@@ -116,7 +118,8 @@ public class LibraryDownloadTask extends Task<Void> {
         }
 
 
-        @Unmodifiable List<WebURL> urls = dependencyManager.getDownloadProvider().injectURLWithCandidates(url);
+        DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
+        DownloadCandidates urls = downloadProvider.getDownloadCandidates(url);
         task = new FileDownloadTask(urls, jar,
                 library.getDownload().getSha1() != null ? new IntegrityCheck("SHA-1", library.getDownload().getSha1()) : null);
         task.setCacheRepository(cacheRepository);

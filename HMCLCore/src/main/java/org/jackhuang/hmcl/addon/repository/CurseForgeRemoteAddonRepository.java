@@ -22,6 +22,8 @@ import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.addon.AddonLoader;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.RemoteAddonRepository;
+import org.jackhuang.hmcl.download.DownloadCandidate;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.util.Immutable;
 import org.jackhuang.hmcl.util.MurmurHash2;
@@ -155,17 +157,17 @@ public final class CurseForgeRemoteAddonRepository implements RemoteAddonReposit
             @Nullable Response<List<CurseAddon>> response = null;
 
             @Nullable IOException exception = null;
-            @Unmodifiable List<WebURL> candidates = downloadProvider.injectURLWithCandidates(NetworkUtils.withQuery(PREFIX + "/v1/mods/search", query));
-            for (WebURL candidate : candidates) {
+            DownloadCandidates candidates = downloadProvider.getDownloadCandidates(NetworkUtils.withQuery(PREFIX + "/v1/mods/search", query));
+            for (DownloadCandidate candidate : candidates.getCandidates()) {
                 LOG.info("Fetching " + candidate);
                 try {
-                    response = withApiKey(HttpRequest.GET(candidate.toString()))
+                    response = withApiKey(HttpRequest.GET(candidate.displayUrl()))
                             .retry(DEFAULT_RETRY_COUNT)
                             .getJson(Response.typeOf(listTypeOf(CurseAddon.class)));
                     break;
                 } catch (IOException e) {
                     LOG.warning("Failed to search addons: " + candidate, e);
-                    if (candidates.size() == 1) {
+                    if (candidates.getCandidates().size() == 1) {
                         exception = e;
                     } else {
                         if (exception == null) {

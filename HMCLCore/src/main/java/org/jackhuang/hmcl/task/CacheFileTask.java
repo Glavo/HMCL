@@ -64,34 +64,34 @@ public final class CacheFileTask extends FetchTask<Path> {
     ///
     /// @param urls candidate download URLs in attempt order
     public CacheFileTask(@NotNull List<@NotNull WebURL> urls) {
-        super(DownloadCandidates.ofUrls(urls));
-        this.expectedSha1 = null;
-        validateUris(urls);
-        setName(urls.get(0).toString());
+        this(DownloadCandidates.ofUrls(urls));
     }
 
-    /// Creates a task that returns content cached under a verified SHA-1 checksum.
-    ///
-    /// @param urls         candidate download URLs in attempt order
-    /// @param expectedSha1 the expected SHA-1 checksum
-    public CacheFileTask(
-            @NotNull List<@NotNull WebURL> urls,
-            @NotNull String expectedSha1) {
-        super(DownloadCandidates.ofUrls(urls));
+    public CacheFileTask(DownloadCandidates candidates) {
+        super(candidates);
+        this.expectedSha1 = null;
+        validateUris(candidates);
+        setName(candidates.getPrimaryCandidate().displayUrl());
+    }
+
+    public CacheFileTask(DownloadCandidates candidates, String expectedSha1) {
+        super(candidates);
         if (!DigestUtils.isSha1Digest(expectedSha1)) {
             throw new IllegalArgumentException("Invalid SHA-1 checksum: " + expectedSha1);
         }
         this.expectedSha1 = expectedSha1.toLowerCase(Locale.ROOT);
-        validateUris(urls);
-        setName(urls.get(0).toString());
+        validateUris(candidates);
+        setName(candidates.getPrimaryCandidate().displayUrl());
     }
 
     /// Verifies that all candidate URLs use HTTP or HTTPS.
     ///
     /// @param urls the candidate URLs
-    private static void validateUris(@NotNull List<@NotNull WebURL> urls) {
-        if (!urls.stream().allMatch(NetworkUtils::isHttpUri)) {
-            throw new IllegalArgumentException(urls.toString());
+    private static void validateUris(@NotNull DownloadCandidates urls) {
+        for (DownloadCandidate candidate : urls.getCandidates()) {
+            if (candidate.url() == null || !NetworkUtils.isHttpUri(candidate.url())) {
+                throw new IllegalArgumentException("Invalid URL: " + candidate.displayUrl());
+            }
         }
     }
 
@@ -112,7 +112,7 @@ public final class CacheFileTask extends FetchTask<Path> {
         }
 
         // Check cache
-        for (DownloadCandidate candidate : candidates) {
+        for (DownloadCandidate candidate : candidates.getCandidates()) {
             WebURL url = candidate.url();
             if (url == null) continue;
 

@@ -17,9 +17,7 @@
  */
 package org.jackhuang.hmcl.download.optifine;
 
-import org.jackhuang.hmcl.download.DefaultDependencyManager;
-import org.jackhuang.hmcl.download.UnsupportedInstallationException;
-import org.jackhuang.hmcl.download.VersionMismatchException;
+import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.download.game.GameDownloadTask;
 import org.jackhuang.hmcl.game.*;
 import org.jackhuang.hmcl.task.FileDownloadTask;
@@ -122,8 +120,9 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
         dest = installerFile;
 
         if (installer == null) {
+            DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
             var task = new FileDownloadTask(
-                    dependencyManager.getDownloadProvider().injectURLsWithCandidates(remote.getUrls()),
+                    downloadProvider.getDownloadCandidates(remote.getUrls()),
                     installerFile, null);
             task.setCacheRepository(dependencyManager.getCacheRepository());
             task.setCaching(true);
