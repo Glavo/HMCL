@@ -260,15 +260,6 @@ public class DownloadProvider {
         return List.copyOf(result);
     }
 
-    /// the specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
-    ///
-    /// @param componentType the component type of specific version list that this download provider provides. i.e. "fabric", "forge", "liteloader", "game", "optifine"
-    /// @return the version list
-    /// @throws IllegalArgumentException if the version list does not exist
-    public ComponentVersionList<?> getVersionList(GameComponentType componentType) {
-        throw new UnsupportedOperationException("TODO"); // TODO
-    }
-
     //endregion
 
     private static final class VersionListState {

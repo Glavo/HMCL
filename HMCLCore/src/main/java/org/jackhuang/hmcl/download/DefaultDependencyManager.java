@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 
 /// Provides downloads and game-component installation for one game repository.
@@ -355,11 +356,11 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
             String gameVersion,
             GameComponentType componentType,
             String componentVersion) {
-        return versionList.loadAsync(gameVersion)
-                .thenComposeAsync(() -> installUnpublishedComponentAsync(
+        return downloadProvider.getVersionsAsync(componentType, componentType == GameComponentType.GAME ? null : GameVersionNumber.asGameVersion(gameVersion), false)
+                .thenComposeAsync(versions -> installUnpublishedComponentAsync(
                         baseManifest,
                         modsDirectory,
-                        versionList.getVersion(gameVersion, componentVersion)
+                        Optional.ofNullable(versions.getRemoteVersion(componentVersion))
                                 .orElseThrow(() -> new IOException(
                                         "Remote component " + componentType + " has no version " + componentVersion))))
                 .withStage("hmcl.install.%s:%s".formatted(componentType, componentVersion));
@@ -414,17 +415,7 @@ public class DefaultDependencyManager extends AbstractDependencyManager {
                 .thenComposeAsync(versions -> installComponentRemoteAsync(
                         instance,
                         baseManifest,
-                        versionList.getVersion(gameVersion, componentVersion)
-                                .orElseThrow(() -> new IOException(
-                                        "Remote component " + componentType + " has no version " + componentVersion))))
-                .withStage("hmcl.install.%s:%s".formatted(componentType, componentVersion));
-
-        ComponentVersionList<?> versionList = getVersionList(componentType);
-        return versionList.loadAsync(gameVersion)
-                .thenComposeAsync(() -> installComponentRemoteAsync(
-                        instance,
-                        baseManifest,
-                        versionList.getVersion(gameVersion, componentVersion)
+                        Optional.ofNullable(versions.getRemoteVersion(componentVersion))
                                 .orElseThrow(() -> new IOException(
                                         "Remote component " + componentType + " has no version " + componentVersion))))
                 .withStage("hmcl.install.%s:%s".formatted(componentType, componentVersion));

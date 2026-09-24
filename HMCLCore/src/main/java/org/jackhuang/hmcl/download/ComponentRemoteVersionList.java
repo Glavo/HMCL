@@ -19,7 +19,9 @@ package org.jackhuang.hmcl.download;
 
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.game.GameComponentType;
+import org.jackhuang.hmcl.util.StringUtils;
 import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.AbstractList;
 import java.util.SortedSet;
@@ -59,6 +61,16 @@ public final class ComponentRemoteVersionList<V extends ComponentRemoteVersion> 
     @Override
     public V get(int index) {
         return elements[index];
+    }
+
+    public @Nullable V getRemoteVersion(String remoteVersion) {
+        if (type == GameComponentType.FORGE)
+            remoteVersion = StringUtils.substringAfter(remoteVersion, "-", remoteVersion);
+
+        for (V it : elements)
+            if (remoteVersion.equals(it.getSelfVersion()) || remoteVersion.equals(it.getFullVersion()))
+                return it;
+        return null;
     }
 
     @Override
