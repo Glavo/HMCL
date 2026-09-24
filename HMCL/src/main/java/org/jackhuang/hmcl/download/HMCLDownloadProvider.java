@@ -34,10 +34,10 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     private volatile DownloadSource versionListSource = DownloadSource.DEFAULT;
     private volatile DownloadSource fileSource = DownloadSource.DEFAULT;
 
-    private DownloadCandidates getVersionListCandidates(
+    private static DownloadCandidates getCandidates(
+            DownloadSource source,
             String defaultUrl, String bmclapiUrl
     ) {
-        DownloadSource source = this.versionListSource;
         if (LocaleUtils.IS_CHINA_MAINLAND) {
             return switch (source) {
                 case DEFAULT, OFFICIAL -> DownloadCandidates.of(defaultUrl, bmclapiUrl);
@@ -55,7 +55,8 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
         switch (type) {
             case GAME -> {
-                DownloadCandidates candidates = getVersionListCandidates(
+                DownloadCandidates candidates = getCandidates(
+                        versionListSource,
                         GameRemoteVersion.VERSION_MANIFEST_URL,
                         BMCLAPI_ROOT + "/mc/game/version_manifest.json"
                 );
@@ -64,6 +65,15 @@ public final class HMCLDownloadProvider extends DownloadProvider {
         }
 
         return super.fetchVersionsAsync(type, gameVersion);
+    }
+
+    @Override
+    public DownloadCandidates getAssetObjectCandidates(String assetObjectLocation) {
+        return getCandidates(
+                fileSource,
+                "https://resources.download.minecraft.net/" + assetObjectLocation,
+                BMCLAPI_ROOT + "/mc/assets/" + assetObjectLocation
+        );
     }
 }
 

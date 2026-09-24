@@ -230,14 +230,10 @@ public class DownloadProvider {
         return DownloadCandidates.of(baseURL.stream().map(DownloadCandidate::of).toList());
     }
 
-    //region Old API
-
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
     public DownloadCandidates getAssetObjectCandidates(String assetObjectLocation) {
         return DownloadCandidates.of("https://resources.download.minecraft.net/" + assetObjectLocation);
     }
-
-    //endregion
 
     private static final class VersionListState {
         private final GameComponentType type;
