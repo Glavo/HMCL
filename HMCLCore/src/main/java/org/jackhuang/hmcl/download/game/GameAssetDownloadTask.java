@@ -20,6 +20,7 @@ package org.jackhuang.hmcl.download.game;
 import com.google.gson.JsonParseException;
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.AbstractDependencyManager;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.game.*;
 import org.jackhuang.hmcl.task.FileDownloadTask;
 import org.jackhuang.hmcl.task.Task;
@@ -101,9 +102,8 @@ public final class GameAssetDownloadTask extends Task<Void> {
                 LOG.warning("Unable to calc hash value of file " + file, e);
             }
             if (download) {
-                @Unmodifiable List<WebURL> urls = dependencyManager.getDownloadProvider().getAssetObjectCandidates(assetObject.getLocation());
-
-                var task = new FileDownloadTask(urls, file, new FileDownloadTask.IntegrityCheck("SHA-1", assetObject.hash()));
+                DownloadCandidates candidates = dependencyManager.getDownloadProvider().getAssetObjectCandidates(assetObject.getLocation());
+                var task = new FileDownloadTask(candidates, file, new FileDownloadTask.IntegrityCheck("SHA-1", assetObject.hash()));
                 task.setName(assetObject.hash());
                 task.setCandidate(dependencyManager.getCacheRepository().getCommonDirectory()
                         .resolve("assets").resolve("objects").resolve(assetObject.getLocation()));

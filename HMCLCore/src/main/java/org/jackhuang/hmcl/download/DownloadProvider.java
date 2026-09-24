@@ -233,8 +233,8 @@ public class DownloadProvider {
     //region Old API
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
-    public @Unmodifiable List<WebURL> getAssetObjectCandidates(String assetObjectLocation) {
-        return List.of(WebURL.parse("https://resources.download.minecraft.net/" + assetObjectLocation));
+    public DownloadCandidates getAssetObjectCandidates(String assetObjectLocation) {
+        return DownloadCandidates.of("https://resources.download.minecraft.net/" + assetObjectLocation);
     }
 
     //endregion
