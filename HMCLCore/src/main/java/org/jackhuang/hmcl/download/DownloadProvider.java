@@ -219,6 +219,10 @@ public class DownloadProvider {
         };
     }
 
+    public @Unmodifiable List<DownloadCandidate> getCandidatesForURL(String baseURL) {
+        return List.of(DownloadCandidate.of(baseURL));
+    }
+
     //region Old API
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.
