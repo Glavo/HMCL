@@ -113,7 +113,7 @@ public class DownloadProvider {
     protected <V extends ComponentRemoteVersion> @Unmodifiable Task<ComponentRemoteVersionList<V>> fetchFabricVersionsAsync(
             GameComponentType type,
             GameVersionNumber gameVersion,
-            List<DownloadCandidate> loaderMetaCandidates, List<DownloadCandidate> gameMetaCandidates,
+            DownloadCandidates loaderMetaCandidates, DownloadCandidates gameMetaCandidates,
             BiFunction<String, String, V> function
     ) {
         return Task.combine(
@@ -171,12 +171,12 @@ public class DownloadProvider {
 
         return switch (type) {
             case GAME ->
-                    GameRemoteVersion.fetchAsync(List.of(DownloadCandidate.of(GameRemoteVersion.VERSION_MANIFEST_URL)));
+                    GameRemoteVersion.fetchAsync(DownloadCandidates.of(GameRemoteVersion.VERSION_MANIFEST_URL));
             case LEGACY_FABRIC -> fetchFabricVersionsAsync(
                     type,
                     gameVersion,
-                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.GAME_META_URL)),
-                    List.of(DownloadCandidate.of(LegacyFabricRemoteVersion.LOADER_META_URL)),
+                    DownloadCandidates.of(LegacyFabricRemoteVersion.GAME_META_URL),
+                    DownloadCandidates.of(LegacyFabricRemoteVersion.LOADER_META_URL),
                     (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
                             gameVersion.toString(), loaderVersion,
                             List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
@@ -196,8 +196,8 @@ public class DownloadProvider {
             case FABRIC -> fetchFabricVersionsAsync(
                     type,
                     gameVersion,
-                    List.of(DownloadCandidate.of(FabricRemoteVersion.GAME_META_URL)),
-                    List.of(DownloadCandidate.of(FabricRemoteVersion.LOADER_META_URL)),
+                    DownloadCandidates.of(FabricRemoteVersion.GAME_META_URL),
+                    DownloadCandidates.of(FabricRemoteVersion.LOADER_META_URL),
                     (metaGameVersion, loaderVersion) -> new FabricRemoteVersion(
                             gameVersion.toString(), loaderVersion,
                             List.of("%s/%s/%s".formatted(FabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
@@ -219,8 +219,8 @@ public class DownloadProvider {
         };
     }
 
-    public @Unmodifiable List<DownloadCandidate> getCandidatesForURL(String baseURL) {
-        return List.of(DownloadCandidate.of(baseURL));
+    public DownloadCandidates getDownloadCandidates(String baseURL) {
+        return DownloadCandidates.of(List.of(DownloadCandidate.of(baseURL)));
     }
 
     //region Old API

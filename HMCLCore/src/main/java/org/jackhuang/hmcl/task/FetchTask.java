@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.task;
 
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.download.DownloadCandidate;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.event.Event;
 import org.jackhuang.hmcl.event.EventBus;
 import org.jackhuang.hmcl.event.EventManager;
@@ -50,24 +51,16 @@ public abstract class FetchTask<T extends @UnknownNullability Object> extends Ta
 
     protected static final int DEFAULT_RETRY = 5;
 
-    protected final @Unmodifiable List<DownloadCandidate> candidates;
+    protected final DownloadCandidates candidates;
     protected CacheRepository repository = CacheRepository.getInstance();
-
-    protected static List<DownloadCandidate> toCandidates(List<WebURL> urls) {
-        List<DownloadCandidate> candidates = new ArrayList<>(urls.size());
-        for (WebURL url : urls) {
-            candidates.add(DownloadCandidate.of(url));
-        }
-        return candidates;
-    }
 
     /// Creates a download task with a snapshot of the candidate URLs.
     ///
     /// @param candidates nonempty candidate URLs, with no null elements
     /// @throws IllegalArgumentException if no candidates are supplied
     /// @throws NullPointerException if the list or any element is null
-    public FetchTask(List<DownloadCandidate> candidates) {
-        this.candidates = List.copyOf(candidates);
+    public FetchTask(DownloadCandidates candidates) {
+        this.candidates = candidates;
         setExecutor(DOWNLOAD_EXECUTOR);
     }
 
@@ -108,7 +101,7 @@ public abstract class FetchTask<T extends @UnknownNullability Object> extends Ta
         if (SEMAPHORE != null)
             SEMAPHORE.acquire();
         try {
-            for (DownloadCandidate candidate : candidates) {
+            for (DownloadCandidate candidate : candidates.getCandidates()) {
                 WebURL url = candidate.url();
                 if (url == null) {
                     if (exceptions == null)

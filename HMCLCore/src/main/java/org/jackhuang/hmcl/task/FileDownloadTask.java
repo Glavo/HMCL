@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.task;
 
 import org.glavo.url.WebURL;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.util.DigestUtils;
 import org.jackhuang.hmcl.util.io.ChecksumMismatchException;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
@@ -100,7 +101,7 @@ public class FileDownloadTask extends FetchTask<Void> {
     /// @param path           the location that download to.
     /// @param integrityCheck the integrity check to perform, null if no integrity check is to be performed
     public FileDownloadTask(List<WebURL> urls, Path path, @Nullable IntegrityCheck integrityCheck) {
-        super(toCandidates(urls));
+        super(DownloadCandidates.ofUrls(urls));
         this.file = path;
         this.integrityCheck = integrityCheck;
 

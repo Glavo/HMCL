@@ -36,25 +36,19 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     private volatile DownloadSource versionListSource = DownloadSource.DEFAULT;
     private volatile DownloadSource fileSource = DownloadSource.DEFAULT;
 
-    private List<DownloadCandidate> getVersionListCandidates(
+    private DownloadCandidates getVersionListCandidates(
             String defaultUrl, String bmclapiUrl
     ) {
         DownloadSource source = this.versionListSource;
         if (LocaleUtils.IS_CHINA_MAINLAND) {
             return switch (source) {
-                case DEFAULT, OFFICIAL -> List.of(
-                        DownloadCandidate.of(defaultUrl), DownloadCandidate.of(bmclapiUrl)
-                );
-                case MIRROR -> List.of(
-                        DownloadCandidate.of(bmclapiUrl), DownloadCandidate.of(defaultUrl)
-                );
+                case DEFAULT, OFFICIAL -> DownloadCandidates.of(defaultUrl, bmclapiUrl);
+                case MIRROR -> DownloadCandidates.of(bmclapiUrl, defaultUrl);
             };
         } else {
             return switch (source) {
-                case DEFAULT, OFFICIAL -> List.of(DownloadCandidate.of(defaultUrl));
-                case MIRROR -> List.of(
-                        DownloadCandidate.of(bmclapiUrl), DownloadCandidate.of(defaultUrl)
-                );
+                case DEFAULT, OFFICIAL -> DownloadCandidates.of(defaultUrl);
+                case MIRROR -> DownloadCandidates.of(bmclapiUrl, defaultUrl);
             };
         }
     }
@@ -63,7 +57,7 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
         switch (type) {
             case GAME -> {
-                List<DownloadCandidate> candidates = getVersionListCandidates(
+                DownloadCandidates candidates = getVersionListCandidates(
                         GameRemoteVersion.VERSION_MANIFEST_URL,
                         BMCLAPI_ROOT + "/mc/game/version_manifest.json"
                 );

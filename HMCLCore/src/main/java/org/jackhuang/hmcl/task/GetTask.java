@@ -19,7 +19,7 @@ package org.jackhuang.hmcl.task;
 
 import com.google.gson.reflect.TypeToken;
 import org.glavo.url.WebURL;
-import org.jackhuang.hmcl.download.DownloadCandidate;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
 import org.jackhuang.hmcl.util.io.UrlResponseInfo;
@@ -44,13 +44,13 @@ public final class GetTask extends FetchTask<String> {
 
     /// Creates a text download task with a snapshot of nonempty candidate URLs in attempt order.
     public GetTask(List<WebURL> url) {
-        super(toCandidates(url));
+        super(DownloadCandidates.ofUrls(url));
         setName(url.get(0).toString());
     }
 
-    public GetTask(List<DownloadCandidate> candidates, @Nullable Void tag) { // TODO
+    public GetTask(DownloadCandidates candidates, @Nullable Void tag) { // TODO
         super(candidates);
-        setName(candidates.get(0).displayUrl());
+        setName(candidates.getPrimaryCandidate().displayUrl());
     }
 
     @Override
