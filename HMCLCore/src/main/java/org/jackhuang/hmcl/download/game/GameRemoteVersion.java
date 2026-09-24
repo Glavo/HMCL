@@ -59,7 +59,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
 
                     //noinspection DataFlowIssue
                     try (Reader input = new InputStreamReader(
-                            GameVersionList.class.getResourceAsStream("/assets/game/unlisted-versions.json"))) {
+                            GameRemoteVersion.class.getResourceAsStream("/assets/game/unlisted-versions.json"))) {
                         unlistedVersions = JsonUtils.GSON.fromJson(input, GameRemoteVersions.class);
                     } catch (Throwable e) {
                         LOG.warning("Failed to load unlisted versions", e);
