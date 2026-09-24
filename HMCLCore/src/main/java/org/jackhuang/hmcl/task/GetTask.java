@@ -36,11 +36,6 @@ import java.util.List;
 /// Downloads text, decoding HTTP responses using their declared charset or UTF-8.
 public final class GetTask extends FetchTask<String> {
 
-    /// Creates a text download task for an absolute URL string.
-    public GetTask(String url) {
-        this(WebURL.parse(url));
-    }
-
     /// Creates a text download task for one URL.
     public GetTask(WebURL url) {
         this(List.of(url));

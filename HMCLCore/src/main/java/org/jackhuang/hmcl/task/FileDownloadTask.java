@@ -86,23 +86,6 @@ public class FileDownloadTask extends FetchTask<Void> {
         this(List.of(WebURL.parse(url)), path, integrityCheck);
     }
 
-    /// Creates a download task for one URL.
-    ///
-    /// @param url  the URL of remote file.
-    /// @param path the location that download to.
-    public FileDownloadTask(WebURL url, Path path) {
-        this(url, path, null);
-    }
-
-    /// Creates a download task with an optional integrity check for one URL.
-    ///
-    /// @param url            the URL of remote file.
-    /// @param path           the location that download to.
-    /// @param integrityCheck the integrity check to perform, null if no integrity check is to be performed
-    public FileDownloadTask(WebURL url, Path path, @Nullable IntegrityCheck integrityCheck) {
-        this(List.of(url), path, integrityCheck);
-    }
-
     /// Creates a download task with a snapshot of nonempty candidate URLs.
     ///
     /// @param urls candidate URLs of the remote file, attempted in order
