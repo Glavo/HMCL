@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.Immutable;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -37,11 +38,9 @@ import java.util.TreeSet;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-/**
- *
- * @author huangyuhui
- */
+/// @author huangyuhui
 @Immutable
+@NotNullByDefault
 public final class GameRemoteVersion extends ComponentRemoteVersion {
 
     public static final String VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
@@ -102,7 +101,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
     @Override
     public int compareTo(ComponentRemoteVersion o) {
         if (!(o instanceof GameRemoteVersion)) {
-            return 0;
+            return this.getComponentType().compareTo(o.getComponentType());
         }
 
         int dateCompare = o.getReleaseDate().compareTo(getReleaseDate());

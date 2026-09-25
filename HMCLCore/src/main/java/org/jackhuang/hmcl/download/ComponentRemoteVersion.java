@@ -23,6 +23,7 @@ import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.ToStringBuilder;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -32,6 +33,7 @@ import java.util.Objects;
 /// The remote version.
 ///
 /// @author huangyuhui
+@NotNullByDefault
 public abstract class ComponentRemoteVersion implements Comparable<ComponentRemoteVersion> {
 
     private final GameComponentType componentType;
@@ -106,7 +108,7 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof ComponentRemoteVersion && Objects.equals(selfVersion, ((ComponentRemoteVersion) obj).selfVersion);
+        return obj instanceof ComponentRemoteVersion that && Objects.equals(selfVersion, that.selfVersion);
     }
 
     @Override
@@ -124,6 +126,10 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
 
     @Override
     public int compareTo(ComponentRemoteVersion o) {
+        if (this.getComponentType() != o.getComponentType()) {
+            return this.getComponentType().compareTo(o.getComponentType());
+        }
+
         // newer versions are smaller than older versions
         return VersionNumber.asVersion(o.selfVersion).compareTo(VersionNumber.asVersion(selfVersion));
     }

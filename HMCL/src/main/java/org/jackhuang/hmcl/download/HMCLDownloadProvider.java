@@ -56,12 +56,14 @@ public final class HMCLDownloadProvider extends DownloadProvider {
     protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
         switch (type) {
             case GAME -> {
-                DownloadCandidates candidates = getCandidates(
+                return GameRemoteVersion.fetchAsync(getCandidates(
                         versionListSource,
                         GameRemoteVersion.VERSION_MANIFEST_URL,
                         BMCLAPI_ROOT + "/mc/game/version_manifest.json"
-                );
-                return GameRemoteVersion.fetchAsync(candidates);
+                ));
+            }
+            case FORGE -> {
+
             }
         }
 
