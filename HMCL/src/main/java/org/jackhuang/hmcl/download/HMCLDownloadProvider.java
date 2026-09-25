@@ -17,6 +17,7 @@
  */
 package org.jackhuang.hmcl.download;
 
+import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
@@ -26,6 +27,9 @@ import org.jackhuang.hmcl.util.i18n.LocaleUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
+import java.util.List;
 
 /// @author Glavo
 @NotNullByDefault
@@ -63,7 +67,55 @@ public final class HMCLDownloadProvider extends DownloadProvider {
                 ));
             }
             case FORGE -> {
+                Task<ComponentRemoteVersionList<ForgeRemoteVersion>> fetchOfficial = ForgeRemoteVersion.fetchAsync(DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST), gameVersion);
 
+                DownloadSource source = versionListSource;
+                if (!LocaleUtils.IS_CHINA_MAINLAND && (
+                        source == DownloadSource.DEFAULT || source == DownloadSource.OFFICIAL
+                )) {
+                    return fetchOfficial;
+                }
+
+                Task<ComponentRemoteVersionList<ForgeRemoteVersion>> fetchBMCL = ForgeRemoteVersion.fetchBMCLAsync(BMCLAPI_ROOT, gameVersion);
+
+                Task<ComponentRemoteVersionList<ForgeRemoteVersion>> first, second;
+                if (source == DownloadSource.MIRROR) {
+                    first = fetchBMCL;
+                    second = fetchOfficial;
+                } else {
+                    first = fetchOfficial;
+                    second = fetchBMCL;
+                }
+
+                return new Task<>() {
+
+                    private List<Task<?>> dependencies = List.of();
+
+                    @Override
+                    public Collection<? extends Task<?>> getDependents() {
+                        return List.of(first);
+                    }
+
+                    @Override
+                    public boolean isRelyingOnDependents() {
+                        return false;
+                    }
+
+                    @Override
+                    public void execute() throws Exception {
+                        if (isDependentsSucceeded()) {
+                            setResult(first.getResult());
+                        } else {
+                            dependencies = List.of(second);
+                            second.storeTo(this::setResult);
+                        }
+                    }
+
+                    @Override
+                    public List<Task<?>> getDependencies() {
+                        return dependencies;
+                    }
+                };
             }
         }
 

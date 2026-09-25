@@ -18,10 +18,7 @@
 package org.jackhuang.hmcl.download.forge;
 
 import org.glavo.url.WebURL;
-import org.jackhuang.hmcl.download.ComponentRemoteVersionList;
-import org.jackhuang.hmcl.download.DefaultDependencyManager;
-import org.jackhuang.hmcl.download.ComponentRemoteVersion;
-import org.jackhuang.hmcl.download.DownloadCandidates;
+import org.jackhuang.hmcl.download.*;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
@@ -96,10 +93,10 @@ public class ForgeRemoteVersion extends ComponentRemoteVersion {
         });
     }
 
-    public static Task<ComponentRemoteVersionList<ForgeRemoteVersion>> fetchBMCLAPIAsync(DownloadCandidates candidates, GameVersionNumber gameVersion) {
+    public static Task<ComponentRemoteVersionList<ForgeRemoteVersion>> fetchBMCLAsync(String bmclRoot, GameVersionNumber gameVersion) {
         String lookupVersion = toLookupVersion(gameVersion.toString());
 
-        return new GetTask(candidates).thenApplyAsync(result -> {
+        return new GetTask(DownloadCandidates.of(bmclRoot + "/forge/minecraft/" + lookupVersion)).thenApplyAsync(result -> {
             List<ForgeBMCLVersion> forgeVersions = JsonUtils.fromNonNullJson(result, listTypeOf(ForgeBMCLVersion.class));
 
             TreeSet<ForgeRemoteVersion> versions = new TreeSet<>();
