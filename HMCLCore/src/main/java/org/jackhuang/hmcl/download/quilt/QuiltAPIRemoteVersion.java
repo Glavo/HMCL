@@ -41,7 +41,7 @@ public class QuiltAPIRemoteVersion extends ComponentRemoteVersion {
      * @param urls        the installer or universal jar original URL.
      */
     QuiltAPIRemoteVersion(String gameVersion, String selfVersion, String fullVersion, Instant datePublished, RemoteAddon.Version version, List<String> urls) {
-        super(GameComponentType.QUILT_API, gameVersion, selfVersion, datePublished, urls);
+        super(GameComponentType.QUILT_API, gameVersion, selfVersion, datePublished, Type.UNCATEGORIZED, urls);
 
         this.fullVersion = fullVersion;
         this.version = version;

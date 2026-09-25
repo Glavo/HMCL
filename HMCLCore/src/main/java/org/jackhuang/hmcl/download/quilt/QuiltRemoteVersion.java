@@ -36,7 +36,7 @@ public class QuiltRemoteVersion extends ComponentRemoteVersion {
      * @param urls        the installer or universal jar original URL.
      */
     QuiltRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
-        super(GameComponentType.QUILT, gameVersion, selfVersion, null, urls);
+        super(GameComponentType.QUILT, gameVersion, selfVersion, null, Type.UNCATEGORIZED, urls);
     }
 
     @Override

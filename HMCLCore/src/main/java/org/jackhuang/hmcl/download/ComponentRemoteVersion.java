@@ -47,15 +47,6 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
     ///
     /// @param gameVersion the Minecraft version that this remote version suits.
     /// @param selfVersion the version string of the remote version.
-    /// @param urls        the installer or universal jar original URL.
-    public ComponentRemoteVersion(GameComponentType componentType, String gameVersion, String selfVersion, Instant releaseDate, List<String> urls) {
-        this(componentType, gameVersion, selfVersion, releaseDate, Type.UNCATEGORIZED, urls);
-    }
-
-    /// Constructor.
-    ///
-    /// @param gameVersion the Minecraft version that this remote version suits.
-    /// @param selfVersion the version string of the remote version.
     /// @param urls        the installer or universal jar URL.
     public ComponentRemoteVersion(GameComponentType componentType, String gameVersion, String selfVersion, Instant releaseDate, Type type, List<String> urls) {
         this.componentType = Objects.requireNonNull(componentType);

@@ -153,7 +153,7 @@ public class ForgeRemoteVersion extends ComponentRemoteVersion {
      * @param url         the installer or universal jar original URL.
      */
     public ForgeRemoteVersion(String gameVersion, String selfVersion, Instant releaseDate, List<String> url) {
-        super(GameComponentType.FORGE, gameVersion, selfVersion, releaseDate, url);
+        super(GameComponentType.FORGE, gameVersion, selfVersion, releaseDate, Type.UNCATEGORIZED, url);
     }
 
     @Override
