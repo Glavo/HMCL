@@ -24,19 +24,25 @@ import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;
 import java.util.List;
 
-public class OptiFineRemoteVersion extends ComponentRemoteVersion {
+@NotNullByDefault
+public final class OptiFineRemoteVersion extends ComponentRemoteVersion {
 
-    public OptiFineRemoteVersion(String gameVersion, String selfVersion, List<String> urls, boolean snapshot) {
+    private final String fullVersion;
+
+    public OptiFineRemoteVersion(GameVersionNumber gameVersion, String selfVersion, List<String> urls, boolean snapshot) {
         super(GameComponentType.OPTIFINE, gameVersion, selfVersion, null, snapshot ? Type.SNAPSHOT : Type.RELEASE, urls);
+        this.fullVersion = getGameVersion() + "_" + getSelfVersion();
     }
 
     @Override
     public String getFullVersion() {
-        return getGameVersion() + "_" + getSelfVersion();
+        return fullVersion;
     }
 
     @Override

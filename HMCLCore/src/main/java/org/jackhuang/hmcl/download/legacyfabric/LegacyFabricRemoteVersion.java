@@ -23,6 +23,7 @@ import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -37,7 +38,7 @@ public class LegacyFabricRemoteVersion extends ComponentRemoteVersion {
     /// @param gameVersion the Minecraft version that this remote version suits.
     /// @param selfVersion the version string of the remote version.
     /// @param urls        the installer or universal jar original URL.
-    public LegacyFabricRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
+    public LegacyFabricRemoteVersion(GameVersionNumber gameVersion, String selfVersion, List<String> urls) {
         super(GameComponentType.LEGACY_FABRIC, gameVersion, selfVersion, null, Type.UNCATEGORIZED, urls);
     }
 

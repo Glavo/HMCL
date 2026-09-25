@@ -23,11 +23,14 @@ import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;
 import java.util.List;
 
-public class FabricRemoteVersion extends ComponentRemoteVersion {
+@NotNullByDefault
+public final class FabricRemoteVersion extends ComponentRemoteVersion {
     public static final String LOADER_META_URL = "https://meta.fabricmc.net/v2/versions/loader";
     public static final String GAME_META_URL = "https://meta.fabricmc.net/v2/versions/game";
 
@@ -38,7 +41,7 @@ public class FabricRemoteVersion extends ComponentRemoteVersion {
      * @param selfVersion the version string of the remote version.
      * @param urls        the installer or universal jar original URL.
      */
-    public FabricRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
+    public FabricRemoteVersion(GameVersionNumber gameVersion, String selfVersion, List<String> urls) {
         super(GameComponentType.FABRIC, gameVersion, selfVersion, null, Type.UNCATEGORIZED, urls);
     }
 

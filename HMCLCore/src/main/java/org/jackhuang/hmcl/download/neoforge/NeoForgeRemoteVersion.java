@@ -23,12 +23,13 @@ import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 
 import java.nio.file.Path;
 import java.util.List;
 
 public class NeoForgeRemoteVersion extends ComponentRemoteVersion {
-    public NeoForgeRemoteVersion(String gameVersion, String selfVersion, List<String> urls) {
+    public NeoForgeRemoteVersion(GameVersionNumber gameVersion, String selfVersion, List<String> urls) {
         super(GameComponentType.NEO_FORGE, gameVersion, selfVersion, null, getType(selfVersion), urls);
     }
 

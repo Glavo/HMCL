@@ -108,7 +108,7 @@ public final class ForgeInstallTask extends Task<GameInstancePatch> {
     @Override
     public void execute() throws IOException, VersionMismatchException, UnsupportedInstallationException {
         String originalMainClass = manifest.mainClass();
-        if (GameVersionNumber.compare("1.13", remote.getGameVersion()) <= 0) {
+        if (GameVersionNumber.asGameVersion("1.13").compareTo(remote.getGameVersion()) <= 0) {
             // Forge 1.13 is not compatible with fabric.
             if (!GameComponentAnalyzer.FORGE_OPTIFINE_MAIN.contains(originalMainClass))
                 throw new UnsupportedInstallationException(UNSUPPORTED_LAUNCH_WRAPPER);
@@ -135,19 +135,19 @@ public final class ForgeInstallTask extends Task<GameInstancePatch> {
     /// @throws IOException              if the installer profile is missing, malformed, or
     ///                                  unsupported
     /// @throws VersionMismatchException if the installer targets another Minecraft version
-    public static boolean detectForgeInstallerType(String gameVersion, Path installer) throws IOException, VersionMismatchException {
+    public static boolean detectForgeInstallerType(GameVersionNumber gameVersion, Path installer) throws IOException, VersionMismatchException {
         try (FileSystem fs = CompressingUtils.createReadOnlyZipFileSystem(installer)) {
             String installProfileText = Files.readString(fs.getPath("install_profile.json"));
             Map<?, ?> installProfile = JsonUtils.fromNonNullJson(installProfileText, Map.class);
             if (installProfile.containsKey("spec")) {
                 ForgeNewInstallProfile profile = JsonUtils.fromNonNullJson(installProfileText, ForgeNewInstallProfile.class);
-                if (!gameVersion.equals(profile.getMinecraft()))
-                    throw new VersionMismatchException(profile.getMinecraft(), gameVersion);
+                if (!gameVersion.equals(GameVersionNumber.asGameVersion(profile.getMinecraft())))
+                    throw new VersionMismatchException(profile.getMinecraft(), gameVersion.toString());
                 return true;
             } else if (installProfile.containsKey("install") && installProfile.containsKey("versionInfo")) {
                 ForgeInstallProfile profile = JsonUtils.fromNonNullJson(installProfileText, ForgeInstallProfile.class);
-                if (!gameVersion.equals(profile.install().getMinecraft()))
-                    throw new VersionMismatchException(profile.install().getMinecraft(), gameVersion);
+                if (!gameVersion.equals(GameVersionNumber.asGameVersion(profile.install().getMinecraft())))
+                    throw new VersionMismatchException(profile.install().getMinecraft(), gameVersion.toString());
                 return false;
             } else {
                 throw new IOException();

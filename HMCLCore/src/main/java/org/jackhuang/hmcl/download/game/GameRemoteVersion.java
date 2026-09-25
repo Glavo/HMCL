@@ -65,7 +65,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
                     if (unlistedVersions != null) {
                         for (GameRemoteVersionInfo unlistedVersion : unlistedVersions.versions()) {
                             versions.add(new GameRemoteVersion(
-                                    unlistedVersion.gameVersion(),
+                                    GameVersionNumber.asGameVersion(unlistedVersion.gameVersion()),
                                     List.of(unlistedVersion.url()),
                                     unlistedVersion.type(), unlistedVersion.releaseTime()));
                         }
@@ -73,7 +73,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
 
                     for (GameRemoteVersionInfo remoteVersion : root.versions()) {
                         versions.add(new GameRemoteVersion(
-                                remoteVersion.gameVersion(),
+                                GameVersionNumber.asGameVersion(remoteVersion.gameVersion()),
                                 List.of(remoteVersion.url()),
                                 remoteVersion.type(), remoteVersion.releaseTime()));
                     }
@@ -84,8 +84,8 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
 
     private final ReleaseType type;
 
-    public GameRemoteVersion(String gameVersion, List<String> url, ReleaseType type, Instant releaseDate) {
-        super(GameComponentType.GAME, gameVersion, gameVersion, releaseDate, getReleaseType(type), url);
+    public GameRemoteVersion(GameVersionNumber gameVersion, List<String> url, ReleaseType type, Instant releaseDate) {
+        super(GameComponentType.GAME, gameVersion, gameVersion.toString(), releaseDate, getReleaseType(type), url);
         this.type = type;
     }
 
@@ -109,7 +109,7 @@ public final class GameRemoteVersion extends ComponentRemoteVersion {
             return dateCompare;
         }
 
-        return GameVersionNumber.compare(o.getSelfVersion(), getSelfVersion());
+        return o.getGameVersion().compareTo(getGameVersion());
     }
 
     private static Type getReleaseType(ReleaseType type) {

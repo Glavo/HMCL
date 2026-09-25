@@ -100,7 +100,7 @@ public final class NeoForgeInstallTask extends Task<GameInstancePatch> {
 
     @Override
     public void execute() throws Exception {
-        dependency = install(dependencyManager, manifest, remoteVersion.getGameVersion(), installer);
+        dependency = install(dependencyManager, manifest, remoteVersion.getGameVersion().toString(), installer);
     }
 
     /// Creates a task that installs NeoForge from a local installer JAR.

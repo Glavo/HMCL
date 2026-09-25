@@ -45,7 +45,7 @@ public final class CleanroomInstallTask extends Task<GameInstancePatch> {
     private final DefaultDependencyManager dependencyManager;
     private final GameInstanceManifest manifest;
     /// Minecraft version whose vanilla client JAR is required by the installer processors.
-    private final String gameVersion;
+    private final GameVersionNumber gameVersion;
     private final @Nullable CleanroomRemoteVersion remote;
     private @Nullable Path installer;
     private @Nullable FileDownloadTask dependent;
@@ -79,7 +79,7 @@ public final class CleanroomInstallTask extends Task<GameInstancePatch> {
     public CleanroomInstallTask(
             DefaultDependencyManager dependencyManager,
             GameInstanceManifest manifest,
-            String gameVersion,
+            GameVersionNumber gameVersion,
             String selfVersion,
             Path installer) {
         this.dependencyManager = dependencyManager;
@@ -187,7 +187,7 @@ public final class CleanroomInstallTask extends Task<GameInstancePatch> {
                 return new CleanroomInstallTask(
                         dependencyManager,
                         manifest,
-                        gameVersion,
+                        GameVersionNumber.asGameVersion(gameVersion),
                         modifyVersion(profile.getVersion()),
                         installer);
             } else {

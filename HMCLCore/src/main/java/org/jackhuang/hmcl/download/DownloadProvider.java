@@ -179,7 +179,7 @@ public class DownloadProvider {
                     DownloadCandidates.of(LegacyFabricRemoteVersion.GAME_META_URL),
                     DownloadCandidates.of(LegacyFabricRemoteVersion.LOADER_META_URL),
                     (metaGameVersion, loaderVersion) -> new LegacyFabricRemoteVersion(
-                            gameVersion.toString(), loaderVersion,
+                            gameVersion, loaderVersion,
                             List.of("%s/%s/%s".formatted(LegacyFabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
             );
             case LEGACY_FABRIC_API -> fetchModrinthVersionsAsync(
@@ -187,7 +187,7 @@ public class DownloadProvider {
                     LegacyFabricAPIRemoteVersion.MODRINTH_ID,
                     gameVersion,
                     it -> new LegacyFabricAPIRemoteVersion(
-                            gameVersion.toString(),
+                            gameVersion,
                             it.version(),
                             it.name(),
                             it.datePublished(),
@@ -200,7 +200,7 @@ public class DownloadProvider {
                     DownloadCandidates.of(FabricRemoteVersion.GAME_META_URL),
                     DownloadCandidates.of(FabricRemoteVersion.LOADER_META_URL),
                     (metaGameVersion, loaderVersion) -> new FabricRemoteVersion(
-                            gameVersion.toString(), loaderVersion,
+                            gameVersion, loaderVersion,
                             List.of("%s/%s/%s".formatted(FabricRemoteVersion.LOADER_META_URL, metaGameVersion, loaderVersion)))
             );
             case FABRIC_API -> fetchModrinthVersionsAsync(
@@ -208,7 +208,7 @@ public class DownloadProvider {
                     FabricAPIRemoteVersion.MODRINTH_ID,
                     gameVersion,
                     it -> new FabricAPIRemoteVersion(
-                            gameVersion.toString(),
+                            gameVersion,
                             it.version(),
                             it.name(),
                             it.datePublished(),

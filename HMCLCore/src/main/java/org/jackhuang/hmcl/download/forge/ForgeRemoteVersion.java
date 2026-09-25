@@ -82,7 +82,7 @@ public class ForgeRemoteVersion extends ComponentRemoteVersion {
                             continue;
 
                         versions.add(new ForgeRemoteVersion(
-                                toLookupVersion(version.getGameVersion()),
+                                GameVersionNumber.asGameVersion(toLookupVersion(version.getGameVersion())),
                                 version.getVersion(),
                                 version.getModified() > 0 ? Instant.ofEpochSecond(version.getModified()) : null,
                                 Collections.singletonList(jar)
@@ -138,7 +138,7 @@ public class ForgeRemoteVersion extends ComponentRemoteVersion {
                     }
                 }
 
-                versions.add(new ForgeRemoteVersion(GameVersionNumber.asGameVersion(version.mcversion()).toString(), version.version(), releaseDate, urls));
+                versions.add(new ForgeRemoteVersion(GameVersionNumber.asGameVersion(version.mcversion()), version.version(), releaseDate, urls));
             }
 
             return ComponentRemoteVersionList.of(GameComponentType.FORGE, versions);
@@ -152,7 +152,7 @@ public class ForgeRemoteVersion extends ComponentRemoteVersion {
      * @param selfVersion the version string of the remote version.
      * @param url         the installer or universal jar original URL.
      */
-    public ForgeRemoteVersion(String gameVersion, String selfVersion, Instant releaseDate, List<String> url) {
+    public ForgeRemoteVersion(GameVersionNumber gameVersion, String selfVersion, Instant releaseDate, List<String> url) {
         super(GameComponentType.FORGE, gameVersion, selfVersion, releaseDate, Type.UNCATEGORIZED, url);
     }
 

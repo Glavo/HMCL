@@ -22,8 +22,11 @@ import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.util.ToStringBuilder;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jackhuang.hmcl.util.versioning.VersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -37,10 +40,10 @@ import java.util.Objects;
 public abstract class ComponentRemoteVersion implements Comparable<ComponentRemoteVersion> {
 
     private final GameComponentType componentType;
-    private final String gameVersion;
+    private final GameVersionNumber gameVersion;
     private final String selfVersion;
-    private final Instant releaseDate;
-    private final List<String> urls;
+    private final @Nullable Instant releaseDate;
+    private final @Unmodifiable List<String> urls;
     private final Type type;
 
     /// Constructor.
@@ -48,12 +51,16 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
     /// @param gameVersion the Minecraft version that this remote version suits.
     /// @param selfVersion the version string of the remote version.
     /// @param urls        the installer or universal jar URL.
-    public ComponentRemoteVersion(GameComponentType componentType, String gameVersion, String selfVersion, Instant releaseDate, Type type, List<String> urls) {
+    public ComponentRemoteVersion(
+            GameComponentType componentType,
+            GameVersionNumber gameVersion,
+            String selfVersion,
+            @Nullable Instant releaseDate, Type type, List<String> urls) {
         this.componentType = Objects.requireNonNull(componentType);
         this.gameVersion = Objects.requireNonNull(gameVersion);
         this.selfVersion = Objects.requireNonNull(selfVersion);
         this.releaseDate = releaseDate;
-        this.urls = Objects.requireNonNull(urls);
+        this.urls = List.copyOf(urls);
         this.type = Objects.requireNonNull(type);
     }
 
@@ -61,7 +68,7 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
         return componentType;
     }
 
-    public String getGameVersion() {
+    public GameVersionNumber getGameVersion() {
         return gameVersion;
     }
 
@@ -73,11 +80,11 @@ public abstract class ComponentRemoteVersion implements Comparable<ComponentRemo
         return getSelfVersion();
     }
 
-    public Instant getReleaseDate() {
+    public @Nullable Instant getReleaseDate() {
         return releaseDate;
     }
 
-    public List<String> getUrls() {
+    public @Unmodifiable List<String> getUrls() {
         return urls;
     }
 

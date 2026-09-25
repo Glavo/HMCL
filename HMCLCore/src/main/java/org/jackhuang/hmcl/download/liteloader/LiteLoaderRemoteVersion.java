@@ -24,12 +24,15 @@ import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
 import org.jackhuang.hmcl.game.Library;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
-public class LiteLoaderRemoteVersion extends ComponentRemoteVersion {
+@NotNullByDefault
+public final class LiteLoaderRemoteVersion extends ComponentRemoteVersion {
     private final String tweakClass;
     private final Collection<Library> libraries;
 
@@ -40,7 +43,7 @@ public class LiteLoaderRemoteVersion extends ComponentRemoteVersion {
      * @param selfVersion the version string of the remote version.
      * @param urls        the installer or universal jar original URL.
      */
-    LiteLoaderRemoteVersion(String gameVersion, String selfVersion, Type type, List<String> urls, String tweakClass, Collection<Library> libraries) {
+    LiteLoaderRemoteVersion(GameVersionNumber gameVersion, String selfVersion, Type type, List<String> urls, String tweakClass, Collection<Library> libraries) {
         super(GameComponentType.LITELOADER, gameVersion, selfVersion, null, type, urls);
 
         this.tweakClass = tweakClass;
