@@ -215,7 +215,8 @@ public class DownloadProvider {
                             it,
                             List.of(it.file().url()))
             );
-            case FORGE -> ForgeRemoteVersion.fetchAsync(DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST), gameVersion);
+            case FORGE ->
+                    ForgeRemoteVersion.fetchAsync(DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST), gameVersion);
             case NEO_FORGE -> null;
             case CLEANROOM -> null;
             case LITELOADER -> null;
@@ -235,6 +236,10 @@ public class DownloadProvider {
 
     public DownloadCandidates getDownloadCandidates(List<String> baseURL) {
         return DownloadCandidates.of(baseURL.stream().map(DownloadCandidate::of).toList());
+    }
+
+    public DownloadCandidates getDownloadCandidates(ComponentRemoteVersion remoteVersion) {
+        return getDownloadCandidates(remoteVersion.getUrls());
     }
 
     /// Returns unmodifiable candidate URLs for an asset's relative object location, in attempt order.

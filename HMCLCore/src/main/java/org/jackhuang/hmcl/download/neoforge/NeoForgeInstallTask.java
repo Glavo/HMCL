@@ -69,7 +69,7 @@ public final class NeoForgeInstallTask extends Task<GameInstancePatch> {
 
         DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
         dependent = new FileDownloadTask(
-                downloadProvider.getDownloadCandidates(remoteVersion.getUrls()),
+                downloadProvider.getDownloadCandidates(remoteVersion),
                 installer, null
         );
         dependent.setCacheRepository(dependencyManager.getCacheRepository());

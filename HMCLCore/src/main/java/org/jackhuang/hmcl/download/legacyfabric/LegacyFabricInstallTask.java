@@ -47,7 +47,7 @@ public final class LegacyFabricInstallTask extends Task<GameInstancePatch> {
         this.remote = remoteVersion;
 
         DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
-        launchMetaTask = new GetTask(downloadProvider.getDownloadCandidates(remoteVersion.getUrls()));
+        launchMetaTask = new GetTask(downloadProvider.getDownloadCandidates(remoteVersion));
         launchMetaTask.setCacheRepository(dependencyManager.getCacheRepository());
     }
 

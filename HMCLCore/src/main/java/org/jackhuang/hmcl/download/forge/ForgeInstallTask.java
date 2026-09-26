@@ -77,7 +77,7 @@ public final class ForgeInstallTask extends Task<GameInstancePatch> {
 
         DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
         dependent = new FileDownloadTask(
-                downloadProvider.getDownloadCandidates(remote.getUrls()),
+                downloadProvider.getDownloadCandidates(remote),
                 installer, null);
         dependent.setCacheRepository(dependencyManager.getCacheRepository());
         dependent.setCaching(true);

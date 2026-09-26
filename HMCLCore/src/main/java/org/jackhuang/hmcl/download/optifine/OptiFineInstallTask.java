@@ -123,7 +123,7 @@ public final class OptiFineInstallTask extends Task<GameInstancePatch> {
         if (installer == null) {
             DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
             var task = new FileDownloadTask(
-                    downloadProvider.getDownloadCandidates(remote.getUrls()),
+                    downloadProvider.getDownloadCandidates(remote),
                     installerFile, null);
             task.setCacheRepository(dependencyManager.getCacheRepository());
             task.setCaching(true);

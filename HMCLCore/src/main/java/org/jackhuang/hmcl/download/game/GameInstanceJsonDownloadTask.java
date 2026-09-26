@@ -64,6 +64,6 @@ public final class GameInstanceJsonDownloadTask extends Task<String> {
         if (remoteVersion == null)
             throw new IOException(new IOException("Cannot find specific version " + gameVersion + " in remote repository"));
         DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
-        dependencies.add(new GetTask(downloadProvider.getDownloadCandidates(remoteVersion.getUrls())).storeTo(this::setResult));
+        dependencies.add(new GetTask(downloadProvider.getDownloadCandidates(remoteVersion)).storeTo(this::setResult));
     }
 }

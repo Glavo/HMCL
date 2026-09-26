@@ -88,7 +88,6 @@ public final class HMCLDownloadProvider extends DownloadProvider {
                 }
 
                 return new Task<>() {
-
                     private List<Task<?>> dependencies = List.of();
 
                     @Override

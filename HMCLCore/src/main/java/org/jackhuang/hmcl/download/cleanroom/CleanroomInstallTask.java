@@ -105,7 +105,7 @@ public final class CleanroomInstallTask extends Task<GameInstancePatch> {
             CleanroomRemoteVersion remoteVersion = Objects.requireNonNull(remote);
             DownloadProvider downloadProvider = dependencyManager.getDownloadProvider();
             dependent = new FileDownloadTask(
-                    downloadProvider.getDownloadCandidates(remoteVersion.getUrls()),
+                    downloadProvider.getDownloadCandidates(remoteVersion),
                     installer, null);
             dependent.setCacheRepository(dependencyManager.getCacheRepository());
             dependent.setCaching(true);
