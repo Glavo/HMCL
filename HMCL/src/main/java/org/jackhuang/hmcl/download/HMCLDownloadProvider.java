@@ -19,6 +19,7 @@ package org.jackhuang.hmcl.download;
 
 import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
+import org.jackhuang.hmcl.download.neoforge.NeoForgeRemoteVersion;
 import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.setting.DownloadSource;
@@ -58,6 +59,7 @@ public final class HMCLDownloadProvider extends DownloadProvider {
 
     @Override
     protected Task<? extends ComponentRemoteVersionList<?>> fetchVersionsAsync(GameComponentType type, @Nullable GameVersionNumber gameVersion) {
+        assert (gameVersion == null) == (type == GameComponentType.GAME);
         switch (type) {
             case GAME -> {
                 return GameRemoteVersion.fetchAsync(getCandidates(
@@ -77,44 +79,31 @@ public final class HMCLDownloadProvider extends DownloadProvider {
                 }
 
                 Task<ComponentRemoteVersionList<ForgeRemoteVersion>> fetchBMCL = ForgeRemoteVersion.fetchBMCLAsync(BMCLAPI_ROOT, gameVersion);
-
-                Task<ComponentRemoteVersionList<ForgeRemoteVersion>> first, second;
                 if (source == DownloadSource.MIRROR) {
-                    first = fetchBMCL;
-                    second = fetchOfficial;
+                    return new FallbackTask<>(fetchBMCL, fetchOfficial);
                 } else {
-                    first = fetchOfficial;
-                    second = fetchBMCL;
+                    return new FallbackTask<>(fetchOfficial, fetchBMCL);
                 }
+            }
+            case NEO_FORGE -> {
+                Task<ComponentRemoteVersionList<NeoForgeRemoteVersion>> fetchOfficial = NeoForgeRemoteVersion.fetchAsync(
+                        DownloadCandidates.of(NeoForgeRemoteVersion.META_URL),
+                        DownloadCandidates.of(NeoForgeRemoteVersion.OLD_URL),
+                        gameVersion
+                );
 
-                return new Task<>() {
-                    private List<Task<?>> dependencies = List.of();
-
-                    @Override
-                    public Collection<? extends Task<?>> getDependents() {
-                        return List.of(first);
-                    }
-
-                    @Override
-                    public boolean isRelyingOnDependents() {
-                        return false;
-                    }
-
-                    @Override
-                    public void execute() throws Exception {
-                        if (isDependentsSucceeded()) {
-                            setResult(first.getResult());
-                        } else {
-                            dependencies = List.of(second);
-                            second.storeTo(this::setResult);
-                        }
-                    }
-
-                    @Override
-                    public List<Task<?>> getDependencies() {
-                        return dependencies;
-                    }
-                };
+                DownloadSource source = versionListSource;
+                if (!LocaleUtils.IS_CHINA_MAINLAND && (
+                        source == DownloadSource.DEFAULT || source == DownloadSource.OFFICIAL
+                )) {
+                    return fetchOfficial;
+                }
+                Task<ComponentRemoteVersionList<NeoForgeRemoteVersion>> fetchBMCL = NeoForgeRemoteVersion.fetchBMCLAsync(BMCLAPI_ROOT, gameVersion);
+                if (source == DownloadSource.MIRROR || source == DownloadSource.DEFAULT) {
+                    return new FallbackTask<>(fetchBMCL, fetchOfficial);
+                } else {
+                    return new FallbackTask<>(fetchOfficial, fetchBMCL);
+                }
             }
         }
 
@@ -128,6 +117,45 @@ public final class HMCLDownloadProvider extends DownloadProvider {
                 "https://resources.download.minecraft.net/" + assetObject.getLocation(),
                 BMCLAPI_ROOT + "/mc/assets/" + assetObject.getLocation()
         );
+    }
+
+    @NotNullByDefault
+    private static final class FallbackTask<T> extends Task<T> {
+
+        private final Task<? extends T> task;
+        private final Task<? extends T> fallback;
+
+        private List<Task<?>> dependencies = List.of();
+
+        public FallbackTask(Task<? extends T> task, Task<? extends T> fallback) {
+            this.task = task;
+            this.fallback = fallback;
+        }
+
+        @Override
+        public Collection<? extends Task<?>> getDependents() {
+            return List.of(task);
+        }
+
+        @Override
+        public boolean isRelyingOnDependents() {
+            return false;
+        }
+
+        @Override
+        public void execute() throws Exception {
+            if (isDependentsSucceeded()) {
+                setResult(task.getResult());
+            } else {
+                dependencies = List.of(fallback);
+                fallback.storeTo(this::setResult);
+            }
+        }
+
+        @Override
+        public List<Task<?>> getDependencies() {
+            return dependencies;
+        }
     }
 }
 

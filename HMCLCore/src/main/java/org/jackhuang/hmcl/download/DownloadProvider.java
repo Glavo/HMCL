@@ -27,6 +27,7 @@ import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
+import org.jackhuang.hmcl.download.neoforge.NeoForgeRemoteVersion;
 import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.task.GetTask;
@@ -215,9 +216,15 @@ public class DownloadProvider {
                             it,
                             List.of(it.file().url()))
             );
-            case FORGE ->
-                    ForgeRemoteVersion.fetchAsync(DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST), gameVersion);
-            case NEO_FORGE -> null;
+            case FORGE -> ForgeRemoteVersion.fetchAsync(
+                    DownloadCandidates.of(ForgeRemoteVersion.FORGE_LIST),
+                    gameVersion
+            );
+            case NEO_FORGE -> NeoForgeRemoteVersion.fetchAsync(
+                    DownloadCandidates.of(NeoForgeRemoteVersion.META_URL),
+                    DownloadCandidates.of(NeoForgeRemoteVersion.OLD_URL),
+                    gameVersion
+            );
             case CLEANROOM -> null;
             case LITELOADER -> null;
             case OPTIFINE -> null;
@@ -235,7 +242,7 @@ public class DownloadProvider {
     }
 
     public DownloadCandidates getDownloadCandidates(List<String> baseURL) {
-        return DownloadCandidates.of(baseURL.stream().map(DownloadCandidate::of).toList());
+        return DownloadCandidates.of(baseURL.stream().map(DownloadCandidate::of).toArray(DownloadCandidate[]::new));
     }
 
     public DownloadCandidates getDownloadCandidates(ComponentRemoteVersion remoteVersion) {
