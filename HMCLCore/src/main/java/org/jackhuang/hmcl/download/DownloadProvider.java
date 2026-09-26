@@ -28,6 +28,7 @@ import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
 import org.jackhuang.hmcl.download.game.GameRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.legacyfabric.LegacyFabricRemoteVersion;
+import org.jackhuang.hmcl.download.liteloader.LiteLoaderRemoteVersion;
 import org.jackhuang.hmcl.download.neoforge.NeoForgeRemoteVersion;
 import org.jackhuang.hmcl.game.AssetObject;
 import org.jackhuang.hmcl.game.GameComponentType;
@@ -230,7 +231,7 @@ public class DownloadProvider {
                     DownloadCandidates.of(CleanroomRemoteVersion.LOADER_LIST_URL),
                     gameVersion
             );
-            case LITELOADER -> null;
+            case LITELOADER -> LiteLoaderRemoteVersion.fetchAsync(gameVersion);
             case OPTIFINE -> null;
             case QUILT -> null;
             case QUILT_API -> null;
