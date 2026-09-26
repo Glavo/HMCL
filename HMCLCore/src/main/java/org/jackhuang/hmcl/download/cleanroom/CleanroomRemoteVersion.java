@@ -17,21 +17,56 @@
  */
 package org.jackhuang.hmcl.download.cleanroom;
 
+import com.google.gson.annotations.SerializedName;
+import org.jackhuang.hmcl.download.ComponentRemoteVersionList;
 import org.jackhuang.hmcl.download.DefaultDependencyManager;
 import org.jackhuang.hmcl.download.ComponentRemoteVersion;
+import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.game.GameComponentType;
 import org.jackhuang.hmcl.game.GameInstanceManifest;
 import org.jackhuang.hmcl.game.GameInstancePatch;
+import org.jackhuang.hmcl.task.GetTask;
 import org.jackhuang.hmcl.task.Task;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 
 @NotNullByDefault
 public final class CleanroomRemoteVersion extends ComponentRemoteVersion {
+    private static final GameVersionNumber GAME_VERSION_1_12_2 = GameVersionNumber.asGameVersion("1.12.2");
+
+    public static final String LOADER_LIST_URL = "https://hmcl.glavo.site/metadata/cleanroom/index.json";
+
+    public static Task<ComponentRemoteVersionList<CleanroomRemoteVersion>> fetchAsync(
+            DownloadCandidates candidates,
+            GameVersionNumber gameVersion) {
+        if (!gameVersion.equals(GAME_VERSION_1_12_2)) {
+            return Task.completed(ComponentRemoteVersionList.of(GameComponentType.CLEANROOM));
+        }
+
+        record ReleaseResult(String name,
+                             @SerializedName("created_at") String createdAt) {
+        }
+        return new GetTask(candidates).thenApplyAsync(result -> {
+            var results = JsonUtils.fromNonNullJson(result, JsonUtils.listTypeOf(ReleaseResult.class));
+
+            var versions = new TreeSet<CleanroomRemoteVersion>();
+            for (ReleaseResult version : results) {
+                versions.add(new CleanroomRemoteVersion(
+                        GAME_VERSION_1_12_2, version.name, Instant.parse(version.createdAt),
+                        List.of("https://hmcl.glavo.site/metadata/cleanroom/files/cleanroom-%s-installer.jar".formatted(version.name))
+                ));
+            }
+            return ComponentRemoteVersionList.of(GameComponentType.CLEANROOM, versions);
+        });
+    }
+
     public CleanroomRemoteVersion(GameVersionNumber gameVersion, String selfVersion, Instant releaseDate, List<String> url) {
         super(GameComponentType.CLEANROOM, gameVersion, selfVersion, releaseDate, Type.UNCATEGORIZED, url);
     }

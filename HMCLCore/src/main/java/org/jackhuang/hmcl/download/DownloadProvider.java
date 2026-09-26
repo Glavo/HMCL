@@ -21,6 +21,7 @@ import com.google.gson.reflect.TypeToken;
 import org.glavo.url.WebURL;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
+import org.jackhuang.hmcl.download.cleanroom.CleanroomRemoteVersion;
 import org.jackhuang.hmcl.download.fabric.FabricAPIRemoteVersion;
 import org.jackhuang.hmcl.download.fabric.FabricRemoteVersion;
 import org.jackhuang.hmcl.download.forge.ForgeRemoteVersion;
@@ -225,7 +226,10 @@ public class DownloadProvider {
                     DownloadCandidates.of(NeoForgeRemoteVersion.OLD_URL),
                     gameVersion
             );
-            case CLEANROOM -> null;
+            case CLEANROOM -> CleanroomRemoteVersion.fetchAsync(
+                    DownloadCandidates.of(CleanroomRemoteVersion.LOADER_LIST_URL),
+                    gameVersion
+            );
             case LITELOADER -> null;
             case OPTIFINE -> null;
             case QUILT -> null;
