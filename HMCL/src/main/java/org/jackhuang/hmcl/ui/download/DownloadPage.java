@@ -80,7 +80,7 @@ public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage
 
     private final ReadOnlyObjectWrapper<DecoratorPage.State> state = new ReadOnlyObjectWrapper<>(DecoratorPage.State.fromTitle(i18n("download"), -1));
     private final TabHeader tab;
-    private final TabHeader.Tab<VersionsPage> newGameTab = new TabHeader.Tab<>("newGameTab");
+    private final TabHeader.Tab<GameComponentRemoteVersionsPage> newGameTab = new TabHeader.Tab<>("newGameTab");
     private final TabHeader.Tab<DownloadListPage> modTab = new TabHeader.Tab<>("modTab");
     private final TabHeader.Tab<DownloadListPage> modpackTab = new TabHeader.Tab<>("modpackTab");
     private final TabHeader.Tab<DownloadListPage> resourcePackTab = new TabHeader.Tab<>("resourcePackTab");
@@ -96,7 +96,7 @@ public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage
     }
 
     public DownloadPage(GameInstanceID uploadInstance) {
-        newGameTab.setNodeSupplier(loadVersionFor(() -> new VersionsPage(versionPageNavigator, i18n("install.installer.choose", i18n("install.installer.game")), GameVersionNumber.unknown(), DownloadProviders.getDownloadProvider(),
+        newGameTab.setNodeSupplier(loadVersionFor(() -> new GameComponentRemoteVersionsPage(versionPageNavigator, i18n("install.installer.choose", i18n("install.installer.game")), GameVersionNumber.unknown(), DownloadProviders.getDownloadProvider(),
                 GameComponentType.GAME, versionPageNavigator::onGameSelected)));
         modpackTab.setNodeSupplier(loadVersionFor(() -> {
             DownloadListPage page = HMCLLocalizedDownloadListPage.ofModPack((downloadProvider, repository, __, modpack, file) -> {

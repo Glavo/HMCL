@@ -77,7 +77,7 @@ public abstract class AbstractInstallersPage extends Control implements WizardPa
 
                 if (!(component.resolvedStateProperty().get() instanceof InstallerItem.IncompatibleState))
                     controller.onNext(
-                            new VersionsPage(
+                            new GameComponentRemoteVersionsPage(
                                     controller,
                                     i18n("install.installer.choose", i18n("install.installer." + type.getPatchId())),
                                     gameVersion,

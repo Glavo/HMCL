@@ -75,7 +75,7 @@ import static org.jackhuang.hmcl.ui.FXUtils.*;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-public final class VersionsPage extends Control implements WizardPage, Refreshable {
+public final class GameComponentRemoteVersionsPage extends Control implements WizardPage, Refreshable {
     private final @Nullable GameVersionNumber gameVersion;
     private final GameComponentType componentType;
     private final String title;
@@ -86,11 +86,11 @@ public final class VersionsPage extends Control implements WizardPage, Refreshab
     private final ObservableList<ComponentRemoteVersion> versions = FXCollections.observableArrayList();
     private final ObjectProperty<Status> status = new SimpleObjectProperty<>(Status.LOADING);
 
-    public VersionsPage(Navigation navigation,
-                        String title, GameVersionNumber gameVersion,
-                        DownloadProvider downloadProvider,
-                        GameComponentType componentType,
-                        Runnable callback) {
+    public GameComponentRemoteVersionsPage(Navigation navigation,
+                                           String title, GameVersionNumber gameVersion,
+                                           DownloadProvider downloadProvider,
+                                           GameComponentType componentType,
+                                           Runnable callback) {
         this.title = title;
         this.gameVersion = componentType == GameComponentType.GAME ? null : gameVersion;
         this.componentType = componentType;
@@ -154,14 +154,14 @@ public final class VersionsPage extends Control implements WizardPage, Refreshab
     }
 
     private static class RemoteVersionListCell extends ListCell<ComponentRemoteVersion> {
-        private final VersionsPage control;
+        private final GameComponentRemoteVersionsPage control;
 
         private final TwoLineListItem twoLineListItem = new TwoLineListItem();
         private final ImageView imageView = new ImageView();
         private final StackPane pane = new StackPane();
         private final RipplerContainer ripplerContainer;
 
-        RemoteVersionListCell(VersionsPage control) {
+        RemoteVersionListCell(GameComponentRemoteVersionsPage control) {
             this.control = control;
 
             imageView.setMouseTransparent(true);
@@ -298,7 +298,7 @@ public final class VersionsPage extends Control implements WizardPage, Refreshab
         }
     }
 
-    private static final class VersionsPageSkin extends SkinBase<VersionsPage> {
+    private static final class VersionsPageSkin extends SkinBase<GameComponentRemoteVersionsPage> {
         private final JFXListView<ComponentRemoteVersion> list;
 
         private final TransitionPane transitionPane;
@@ -307,7 +307,7 @@ public final class VersionsPage extends Control implements WizardPage, Refreshab
         private final JFXTextField nameField;
         private final JFXComboBox<VersionTypeFilter> categoryField = new JFXComboBox<>();
 
-        VersionsPageSkin(VersionsPage control) {
+        VersionsPageSkin(GameComponentRemoteVersionsPage control) {
             super(control);
 
             BorderPane root = new BorderPane();
