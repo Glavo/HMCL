@@ -47,6 +47,7 @@ import org.jackhuang.hmcl.ui.construct.TabHeader;
 import org.jackhuang.hmcl.ui.construct.Validator;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
+import org.jackhuang.hmcl.ui.instances.AddonDownloadPage;
 import org.jackhuang.hmcl.ui.instances.DownloadListPage;
 import org.jackhuang.hmcl.ui.instances.HMCLLocalizedDownloadListPage;
 import org.jackhuang.hmcl.ui.instances.Instances;
@@ -71,11 +72,11 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage {
-    public static final org.jackhuang.hmcl.ui.instances.DownloadPage.DownloadCallback FOR_MOD =
+    public static final AddonDownloadPage.DownloadCallback FOR_MOD =
             (downloadProvider, repository, version, mod, file) -> download(downloadProvider, repository, version, file, "mods");
-    public static final org.jackhuang.hmcl.ui.instances.DownloadPage.DownloadCallback FOR_RESOURCE_PACK =
+    public static final AddonDownloadPage.DownloadCallback FOR_RESOURCE_PACK =
             (downloadProvider, repository, version, pack, file) -> download(downloadProvider, repository, version, file, "resourcepacks");
-    public static final org.jackhuang.hmcl.ui.instances.DownloadPage.DownloadCallback FOR_SHADER =
+    public static final AddonDownloadPage.DownloadCallback FOR_SHADER =
             (downloadProvider, repository, version, shader, file) -> download(downloadProvider, repository, version, file, "shaderpacks");
 
     private final ReadOnlyObjectWrapper<DecoratorPage.State> state = new ReadOnlyObjectWrapper<>(DecoratorPage.State.fromTitle(i18n("download"), -1));

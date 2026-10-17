@@ -179,7 +179,7 @@ public final class SchematicsPage extends ListPageBase<SchematicsPage.Item> {
         if (downloadTarget.get() != null && gameInstance != null) {
             var modDownloads = HMCLLocalizedDownloadListPage.ofModrinthMod(org.jackhuang.hmcl.ui.download.DownloadPage.FOR_MOD, false);
             modDownloads.loadInstance(HMCLGameInstance.Optional.of(gameInstance));
-            Controllers.navigate(new DownloadPage(
+            Controllers.navigate(new AddonDownloadPage(
                     modDownloads,
                     downloadTarget.get(),
                     modDownloads.getInstanceOptional(),

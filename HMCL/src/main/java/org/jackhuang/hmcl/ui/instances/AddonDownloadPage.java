@@ -60,7 +60,7 @@ import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-public class DownloadPage extends Control implements DecoratorPage {
+public class AddonDownloadPage extends Control implements DecoratorPage {
 
     private final ReadOnlyObjectWrapper<State> state = new ReadOnlyObjectWrapper<>();
     private final BooleanProperty loaded = new SimpleBooleanProperty(false);
@@ -77,7 +77,7 @@ public class DownloadPage extends Control implements DecoratorPage {
 
     private SimpleMultimap<String, RemoteAddon.Version, List<RemoteAddon.Version>> versions;
 
-    public DownloadPage(DownloadListPage page, RemoteAddon addon, HMCLGameInstance.Optional instanceReference, @Nullable DownloadCallback callback) {
+    public AddonDownloadPage(DownloadListPage page, RemoteAddon addon, HMCLGameInstance.Optional instanceReference, @Nullable DownloadCallback callback) {
         this.page = page;
         this.repository = page.repository;
         this.addon = addon;
@@ -199,9 +199,9 @@ public class DownloadPage extends Control implements DecoratorPage {
         return new DownloadPageSkin(this);
     }
 
-    private static class DownloadPageSkin extends SkinBase<DownloadPage> {
+    private static class DownloadPageSkin extends SkinBase<AddonDownloadPage> {
 
-        protected DownloadPageSkin(DownloadPage control) {
+        protected DownloadPageSkin(AddonDownloadPage control) {
             super(control);
 
             VBox pane = new VBox(8);
@@ -323,7 +323,7 @@ public class DownloadPage extends Control implements DecoratorPage {
                     }
 
                     final class Versions {
-                        static ComponentSublist createSublist(DownloadPage control, String title, List<String> target) {
+                        static ComponentSublist createSublist(AddonDownloadPage control, String title, List<String> target) {
                             var sublist = new ComponentSublist(() -> {
                                 ArrayList<AddonItem> items = new ArrayList<>();
                                 for (String gv : target) {
@@ -413,7 +413,7 @@ public class DownloadPage extends Control implements DecoratorPage {
             };
             setOnAction((e) -> {
                 fireEvent(new DialogCloseEvent());
-                Controllers.navigate(new DownloadPage(page, addon, instanceReference, callback));
+                Controllers.navigate(new AddonDownloadPage(page, addon, instanceReference, callback));
             });
             setNode(IDX_LEADING, pane);
 
@@ -433,7 +433,7 @@ public class DownloadPage extends Control implements DecoratorPage {
 
     private static final class AddonItem extends StackPane {
 
-        AddonItem(RemoteAddon mod, RemoteAddon.Version dataItem, DownloadPage selfPage) {
+        AddonItem(RemoteAddon mod, RemoteAddon.Version dataItem, AddonDownloadPage selfPage) {
             VBox pane = new VBox(8);
             pane.setPadding(new Insets(8, 0, 8, 0));
 
@@ -502,7 +502,7 @@ public class DownloadPage extends Control implements DecoratorPage {
     }
 
     private static final class AddonVersion extends JFXDialogLayout {
-        public AddonVersion(RemoteAddon mod, RemoteAddon.Version version, DownloadPage selfPage) {
+        public AddonVersion(RemoteAddon mod, RemoteAddon.Version version, AddonDownloadPage selfPage) {
             RemoteAddon.Type type = selfPage.type;
 
             String title = switch (type) {
@@ -586,7 +586,7 @@ public class DownloadPage extends Control implements DecoratorPage {
             onEscPressed(this, cancelButton::fire);
         }
 
-        private void loadDependencies(RemoteAddon.Version version, DownloadPage selfPage, SpinnerPane spinnerPane, ComponentList dependenciesList) {
+        private void loadDependencies(RemoteAddon.Version version, AddonDownloadPage selfPage, SpinnerPane spinnerPane, ComponentList dependenciesList) {
             spinnerPane.setLoading(true);
             Task.composeAsync(() -> {
                 // TODO: Massive tasks may cause OOM.
