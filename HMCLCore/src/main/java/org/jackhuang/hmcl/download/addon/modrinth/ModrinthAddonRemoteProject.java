@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Unmodifiable;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 /// @param id The ID of the project, encoded as a base62 string.
 /// @param team The ID of the team that has ownership of this project.
@@ -65,5 +66,21 @@ public record ModrinthAddonRemoteProject(
         int downloads,
         @Nullable String slug,
         @SerializedName("icon_url")
-        @Nullable String iconUrl) implements AddonRemoteProject  {
+        @Nullable String iconUrl) implements AddonRemoteProject {
+
+    public ModrinthAddonRemoteProject {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(team, "team");
+        Objects.requireNonNull(title, "title");
+        Objects.requireNonNull(description, "description");
+        Objects.requireNonNull(body, "body");
+        Objects.requireNonNull(status, "status");
+        Objects.requireNonNull(projectType, "projectType");
+        categories = List.copyOf(categories);
+        additionalCategories = List.copyOf(additionalCategories);
+        Objects.requireNonNull(environment, "environment");
+        versions = List.copyOf(versions);
+        Objects.requireNonNull(published, "published");
+        Objects.requireNonNull(updated, "updated");
+    }
 }
