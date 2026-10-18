@@ -21,8 +21,15 @@ import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.download.addon.AddonRemoteRepository;
 import org.jetbrains.annotations.NotNullByDefault;
 
+import java.util.concurrent.Semaphore;
+
 @NotNullByDefault
 public final class ModrinthAddonRemoteRepository extends AddonRemoteRepository {
+    private static final Semaphore SEMAPHORE = new Semaphore(16);
+
+    private static final String PREFIX = "https://api.modrinth.com";
+    private static final String BASE = "https://modrinth.com";
+
     public ModrinthAddonRemoteRepository(DownloadProvider downloadProvider) {
         super(downloadProvider);
     }
