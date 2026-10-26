@@ -237,7 +237,7 @@ public final class Instances {
                                     Controllers.dialog(
                                             I18n.localizeErrorMessage(exception), i18n("install.failed"), MessageDialogPane.MessageType.ERROR);
                                 }
-                            }), i18n("install.new_game"), TaskCancellationAction.NORMAL);
+                            }), i18n("install.new_game.installation", instanceId), TaskCancellationAction.NORMAL);
         }, FileUtils.getNameWithoutExtension(file), new Validator(i18n("install.new_game.malformed"), HMCLGameRepository::isValidInstanceId), new Validator(i18n("install.new_game.already_exists"), newVersionName -> !repository.instanceIdConflicts(newVersionName)));
     }
 

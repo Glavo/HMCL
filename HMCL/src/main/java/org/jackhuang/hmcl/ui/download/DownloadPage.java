@@ -278,7 +278,9 @@ public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage
         public void onGameSelected() {
             HMCLGameRepository repository = GameDirectoryManager.getSelectedRepository();
             if (repository.isLoaded()) {
-                Controllers.getDecorator().startWizard(new VanillaInstallWizardProvider(repository, (GameRemoteVersion) settings.get("game")), i18n("install.new_game"));
+                Controllers.getDecorator().startWizard(
+                        new VanillaInstallWizardProvider(repository, (GameRemoteVersion) settings.get("game")),
+                        i18n("install.new_game"));
             }
         }
 
@@ -343,7 +345,8 @@ public class DownloadPage extends DecoratorAnimatedPage implements DecoratorPage
 
         @Override
         public Object finish(SettingsMap settings) {
-            settings.put("title", i18n("install.new_game.installation"));
+            GameInstanceID instanceId = settings.get(AbstractInstallersPage.INSTANCE_ID);
+            settings.put("title", i18n("install.new_game.installation", instanceId));
             settings.put("success_message", i18n("install.success"));
             settings.put(FailureCallback.KEY, (settings1, exception, next) -> UpdateInstallerWizardProvider.alertFailureMessage(exception, next));
 
