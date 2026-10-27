@@ -32,9 +32,9 @@ import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardPage;
 import org.jackhuang.hmcl.util.SettingsMap;
 import org.jackhuang.hmcl.util.StringUtils;
-import org.jackhuang.hmcl.util.io.JarUtils;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jackhuang.hmcl.util.platform.SystemInfo;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -51,7 +51,6 @@ public final class ModpackInfoPage extends Control implements WizardPage {
     private final WizardController controller;
     private final HMCLGameInstance gameInstance;
     private final ModpackExportInfo.Options options;
-    private final boolean canIncludeLauncher;
 
     private final ModpackExportInfo exportInfo = new ModpackExportInfo();
 
@@ -61,7 +60,6 @@ public final class ModpackInfoPage extends Control implements WizardPage {
     private final SimpleStringProperty description = new SimpleStringProperty("");
     private final SimpleStringProperty url = new SimpleStringProperty("");
     private final SimpleBooleanProperty forceUpdate = new SimpleBooleanProperty();
-    private final SimpleBooleanProperty packWithLauncher = new SimpleBooleanProperty();
     private final SimpleStringProperty fileApi = new SimpleStringProperty("");
     private final SimpleIntegerProperty minMemory = new SimpleIntegerProperty(0);
     private final SimpleStringProperty authlibInjectorServer = new SimpleStringProperty();
@@ -86,21 +84,21 @@ public final class ModpackInfoPage extends Control implements WizardPage {
         minMemory.set(Optional.ofNullable(versionSetting.getInheritable(GameSettings::minMemoryProperty)).orElse(0));
         launchArguments.set(versionSetting.getInheritable(GameSettings::gameArgumentsProperty));
         javaArguments.set(versionSetting.getInheritable(GameSettings::jvmOptionsProperty));
-
-        canIncludeLauncher = JarUtils.thisJarPath() != null;
     }
 
+    /// Prompts for a destination and stores the export metadata before advancing the wizard.
+    /// Cancelling the save dialog leaves the wizard on this page.
     private void onNext() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(i18n("modpack.wizard.step.initialization.save"));
-        if (!packWithLauncher.get() && controller.getSettings().get(MODPACK_TYPE) == MODPACK_TYPE_MODRINTH) {
+        if (controller.getSettings().get(MODPACK_TYPE) == MODPACK_TYPE_MODRINTH) {
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(i18n("modpack"), "*.mrpack"));
             fileChooser.setInitialFileName(name.get() + (OperatingSystem.CURRENT_OS == OperatingSystem.MACOS ? "" : ".mrpack"));
         } else {
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(i18n("modpack"), "*.zip"));
             fileChooser.setInitialFileName(name.get() + ".zip");
         }
-        Path file = Controllers.showSaveDialog(fileChooser);
+        @Nullable Path file = Controllers.showSaveDialog(fileChooser);
         if (file == null) {
             return;
         }
@@ -112,7 +110,6 @@ public final class ModpackInfoPage extends Control implements WizardPage {
         exportInfo.setDescription(description.get());
         exportInfo.setUrl(url.get());
         exportInfo.setForceUpdate(forceUpdate.get());
-        exportInfo.setPackWithLauncher(packWithLauncher.get());
         exportInfo.setMinMemory(minMemory.get());
         exportInfo.setLaunchArguments(launchArguments.get());
         exportInfo.setJavaArguments(javaArguments.get());
@@ -315,15 +312,6 @@ public final class ModpackInfoPage extends Control implements WizardPage {
                         requireForceUpdateButton.selectedProperty().bindBidirectional(skinnable.forceUpdate);
 
                         list.getContent().add(requireForceUpdateButton);
-                    }
-
-                    {
-                        var canIncludeLauncherButton = new LineToggleButton();
-                        canIncludeLauncherButton.setTitle(i18n("modpack.wizard.step.initialization.include_launcher"));
-                        canIncludeLauncherButton.setDisable(!skinnable.canIncludeLauncher);
-                        canIncludeLauncherButton.selectedProperty().bindBidirectional(skinnable.packWithLauncher);
-
-                        list.getContent().add(canIncludeLauncherButton);
                     }
 
                     if (skinnable.options.isRequireNoCreateRemoteFiles()) {

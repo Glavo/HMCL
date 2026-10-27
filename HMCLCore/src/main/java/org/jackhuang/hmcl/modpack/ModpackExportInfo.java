@@ -19,7 +19,6 @@ public class ModpackExportInfo {
     private String url;
 
     private boolean forceUpdate;
-    private boolean packWithLauncher;
 
     private String fileApi;
     private int minMemory;
@@ -123,15 +122,6 @@ public class ModpackExportInfo {
 
     public ModpackExportInfo setForceUpdate(boolean forceUpdate) {
         this.forceUpdate = forceUpdate;
-        return this;
-    }
-
-    public boolean isPackWithLauncher() {
-        return packWithLauncher;
-    }
-
-    public ModpackExportInfo setPackWithLauncher(boolean packWithLauncher) {
-        this.packWithLauncher = packWithLauncher;
         return this;
     }
 
