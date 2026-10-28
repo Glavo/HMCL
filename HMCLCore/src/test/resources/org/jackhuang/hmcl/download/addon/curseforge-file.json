@@ -1,0 +1,33 @@
+{
+  "id": 1001,
+  "gameId": 432,
+  "modId": 42,
+  "isAvailable": true,
+  "displayName": "Test release",
+  "fileName": "test.jar",
+  "releaseType": 1,
+  "fileStatus": 4,
+  "hashes": [
+    {
+      "value": "abc",
+      "algo": 1
+    }
+  ],
+  "fileDate": "2026-01-01T00:00:00Z",
+  "fileLength": 5000000000,
+  "downloadCount": 6000000000,
+  "downloadUrl": null,
+  "gameVersions": [
+    "1.21.1",
+    "Forge"
+  ],
+  "dependencies": [
+    {
+      "modId": 7,
+      "relationType": 4
+    }
+  ],
+  "fileFingerprint": 4294967295,
+  "isServerPack": false,
+  "serverPackFileId": 1002
+}

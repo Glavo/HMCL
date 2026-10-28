@@ -1,0 +1,50 @@
+{
+  "id": "V1",
+  "project_id": "P1",
+  "author_id": "A1",
+  "name": "Test release",
+  "version_number": "1.0",
+  "changelog": "# Changes",
+  "changelog_url": null,
+  "date_published": "2026-01-01T00:00:00Z",
+  "downloads": 6000000000,
+  "version_type": "release",
+  "featured": true,
+  "files": [
+    {
+      "hashes": {
+        "sha1": "abc",
+        "sha512": "def"
+      },
+      "url": "https://cdn.modrinth.com/test.jar",
+      "filename": "test.jar",
+      "primary": false,
+      "size": 5000000000,
+      "file_type": null
+    },
+    {
+      "hashes": {
+        "sha1": "xyz"
+      },
+      "url": "https://cdn.modrinth.com/main.jar",
+      "filename": "main.jar",
+      "primary": true,
+      "size": 100,
+      "file_type": null
+    }
+  ],
+  "dependencies": [
+    {
+      "project_id": null,
+      "version_id": "D1",
+      "dependency_type": "required",
+      "file_name": "dependency.jar"
+    }
+  ],
+  "game_versions": [
+    "1.21.1"
+  ],
+  "loaders": [
+    "fabric"
+  ]
+}

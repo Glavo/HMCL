@@ -17,78 +17,59 @@
  */
 package org.jackhuang.hmcl.addon.repository;
 
-import com.google.gson.reflect.TypeToken;
 import org.jackhuang.hmcl.addon.AddonLoader;
+import org.jackhuang.hmcl.addon.AddonType;
 import org.jackhuang.hmcl.addon.RemoteAddon;
 import org.jackhuang.hmcl.addon.RemoteAddonRepository;
-import org.jackhuang.hmcl.download.DownloadCandidate;
-import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.download.DownloadProvider;
-import org.jackhuang.hmcl.util.Immutable;
-import org.jackhuang.hmcl.util.MurmurHash2;
+import org.jackhuang.hmcl.download.addon.curseforge.CurseForgeAPI;
+import org.jackhuang.hmcl.download.addon.curseforge.CurseForgeProjectClass;
 import org.jackhuang.hmcl.util.StringUtils;
-import org.jackhuang.hmcl.util.io.*;
+import org.jackhuang.hmcl.util.io.ResponseCodeException;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.Checksum;
 
-import static org.jackhuang.hmcl.util.Lang.mapOf;
-import static org.jackhuang.hmcl.util.Pair.pair;
-import static org.jackhuang.hmcl.util.gson.JsonUtils.listTypeOf;
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
-
-/// @see <a href="https://docs.curseforge.com/rest-api">CurseForge API Doc</a>
+/// Adapts CurseForge's native API models to the launcher's repository interface.
+@NotNullByDefault
 public final class CurseForgeRemoteAddonRepository implements RemoteAddonRepository {
+    /// The direct provider used by legacy methods without a provider parameter.
+    private static final DownloadProvider DIRECT_PROVIDER = new DownloadProvider();
 
-    private static final String PREFIX = "https://api.curseforge.com";
-    private static final String BASE = "https://www.curseforge.com";
-    private static final Semaphore SEMAPHORE = new Semaphore(16);
-    private static final int DEFAULT_RETRY_COUNT = 3;
+    /// The configured key retained for callers of the legacy repository API.
+    public static final String API_KEY = CurseForgeAPI.API_KEY;
 
-    public static final String API_KEY = System.getProperty("hmcl.curseforge.apikey", JarUtils.getAttribute("hmcl.curseforge.apikey", ""));
-
-    private static <R extends HttpRequest> R withApiKey(R request) {
-        if (request.getUrl().startsWith(PREFIX) && !API_KEY.isEmpty()) {
-            request.header("X-API-KEY", API_KEY);
-        }
-        return request;
-    }
-
+    /// Returns whether a CurseForge API key is configured.
     public static boolean isAvailable() {
-        return !API_KEY.isEmpty();
+        return CurseForgeAPI.isAvailable();
     }
 
+    /// Creates an adapter for CurseForge projects.
     public CurseForgeRemoteAddonRepository() {
     }
 
     @Override
     public String getApiBaseUrl() {
-        return PREFIX;
+        return CurseForgeAPI.API_BASE_URL;
     }
 
     @Override
     public String getBaseUrl() {
-        return BASE;
+        return CurseForgeAPI.WEBSITE_BASE_URL;
     }
 
+    /// Maps the legacy sort choices to CurseForge's search field codes.
     private static int toModsSearchSortField(SortType sort) {
-        // https://docs.curseforge.com/rest-api/#tocS_ModsSearchSortField
         return switch (sort) {
-            case RELEVANCY -> 1; // This represents Featured, however test shows that they are quite similar
+            case RELEVANCY -> 1;
             case POPULARITY -> 2;
             case DATE_CREATED -> 11;
             case LAST_UPDATED -> 3;
@@ -96,323 +77,183 @@ public final class CurseForgeRemoteAddonRepository implements RemoteAddonReposit
         };
     }
 
-    private static String toSortOrder(SortOrder sortOrder) {
-        // https://docs.curseforge.com/rest-api/#tocS_SortOrder
-        return switch (sortOrder) {
-            case ASC -> "asc";
-            case DESC -> "desc";
-        };
-    }
-
-    private static int calculateTotalPages(Response<List<CurseAddon>> response, int pageSize) {
-        return (int) Math.ceil((double) Math.min(response.pagination.totalCount, 10000) / pageSize);
-    }
-
-    /// Searches the configured section, preserving the order returned by the server.
-    ///
-    /// @throws UnsupportedOperationException if this repository has no configured section
-    /// @throws NoCandidatesException         if no response is obtained and no I/O failure was recorded
-    /// @throws IOException                   if all candidate requests fail with I/O errors
+    /// Searches the requested project class and adapts one page of results.
     @Override
-    public SearchResult search(DownloadProvider downloadProvider, RemoteAddon.Type type, String gameVersion, @Nullable RemoteAddonRepository.Category category, int pageOffset, int pageSize, String searchFilter, SortType sortType, SortOrder sortOrder) throws IOException {
-        int section = toSectionId(type);
-        if (section < 0) return SearchResult.empty();
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            int categoryId = 0;
-            if (category != null && category.self() instanceof Category) {
-                categoryId = ((Category) category.self()).getId();
-            }
-
-            var query = new LinkedHashMap<String, String>();
-            query.put("gameId", "432");
-            query.put("classId", Integer.toString(section));
-            if (categoryId != 0)
-                query.put("categoryId", Integer.toString(categoryId));
-            query.put("gameVersion", gameVersion);
-            query.put("searchFilter", searchFilter);
-            query.put("sortField", Integer.toString(toModsSearchSortField(sortType)));
-            query.put("sortOrder", toSortOrder(sortOrder));
-            query.put("index", Integer.toString(pageOffset * pageSize));
-            query.put("pageSize", Integer.toString(pageSize));
-
-            @Nullable Response<List<CurseAddon>> response = null;
-
-            @Nullable IOException exception = null;
-            DownloadCandidates candidates = downloadProvider.getDownloadCandidates(NetworkUtils.withQuery(PREFIX + "/v1/mods/search", query));
-            for (DownloadCandidate candidate : candidates.getCandidates()) {
-                LOG.info("Fetching " + candidate);
-                try {
-                    response = withApiKey(HttpRequest.GET(candidate.displayUrl()))
-                            .retry(DEFAULT_RETRY_COUNT)
-                            .getJson(Response.typeOf(listTypeOf(CurseAddon.class)));
-                    break;
-                } catch (IOException e) {
-                    LOG.warning("Failed to search addons: " + candidate, e);
-                    if (candidates.getCandidates().size() == 1) {
-                        exception = e;
-                    } else {
-                        if (exception == null) {
-                            exception = new IOException("Failed to search addons");
-                        }
-                        exception.addSuppressed(e);
-                    }
-                }
-            }
-
-            if (response != null)
-                return new SearchResult(response.data().stream().map(CurseAddon::toAddon), calculateTotalPages(response, pageSize));
-
-            throw exception != null ? exception : new NoCandidatesException();
-        } finally {
-            SEMAPHORE.release();
+    public SearchResult search(DownloadProvider downloadProvider, AddonType type, String gameVersion,
+            @Nullable RemoteAddonRepository.Category category, int pageOffset, int pageSize,
+            String searchFilter, SortType sortType, SortOrder sortOrder) throws IOException {
+        int classId = toSectionId(type);
+        if (classId < 0) return SearchResult.empty();
+        var query = new LinkedHashMap<String, String>();
+        query.put("classId", Integer.toString(classId));
+        if (category != null && category.self() instanceof Category value && value.getId() != 0) {
+            query.put("categoryId", Integer.toString(value.getId()));
         }
+        query.put("gameVersion", gameVersion);
+        query.put("searchFilter", searchFilter);
+        query.put("sortField", Integer.toString(toModsSearchSortField(sortType)));
+        query.put("sortOrder", sortOrder == SortOrder.ASC ? "asc" : "desc");
+        query.put("index", Integer.toString(pageOffset * pageSize));
+        query.put("pageSize", Integer.toString(pageSize));
+        var response = CurseForgeAPI.search(downloadProvider, 432, query);
+        @Nullable var pagination = response.pagination();
+        int total = pagination != null ? pagination.totalCount() : response.data().size();
+        return new SearchResult(response.data().stream().map(CurseAddon::new).map(CurseAddon::toAddon),
+                (int) Math.ceil((double) Math.min(total, 10000) / pageSize));
     }
 
-    /// Calculates the CurseForge fingerprint without retaining the filtered file in memory.
+    /// Calculates a file fingerprint using the native API helper.
     static long calculateFingerprint(Path file) throws IOException {
-        try (SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ)) {
-            long startPosition = channel.position();
-
-            byte[] bufferArray = new byte[1024 * 1024];
-            ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-
-            long filteredLength = 0;
-            while (channel.read(buffer) > 0) {
-                int len = buffer.position();
-                for (int i = 0; i < len; i++) {
-                    byte b = bufferArray[i];
-                    if (b != 0x9 && b != 0xa && b != 0xd && b != 0x20) {
-                        filteredLength++;
-                    }
-                }
-                buffer.clear();
-            }
-
-            channel.position(startPosition);
-
-            Checksum hasher = MurmurHash2.hash32(filteredLength, 1);
-            while (channel.read(buffer) > 0) {
-                int len = buffer.position();
-
-                int pos = 0;
-                while (pos < len) {
-                    byte b = bufferArray[pos];
-                    if (b == 0x9 || b == 0xa || b == 0xd || b == 0x20) {
-                        break;
-                    }
-                    pos++;
-                }
-
-                if (pos < len) {
-                    int pos2 = pos + 1;
-                    while (pos2 < len) {
-                        byte b = bufferArray[pos2];
-                        if (b != 0x9 && b != 0xa && b != 0xd && b != 0x20) {
-                            bufferArray[pos++] = b;
-                        }
-                        pos2++;
-                    }
-                }
-
-                hasher.update(bufferArray, 0, pos);
-                buffer.clear();
-            }
-            return hasher.getValue();
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            throw new IOException(e);
-        }
+        return CurseForgeAPI.calculateFingerprint(file);
     }
 
-    /// Finds the remote CurseForge version matching a local file.
+    /// Finds the first exact match for a local file, retaining the empty-file workaround.
     @Override
     public Optional<RemoteAddon.Version> getRemoteVersionByLocalFile(Path file) throws IOException {
         long hash = calculateFingerprint(file);
-        if (hash == 811513880) { // Workaround for https://github.com/HMCL-dev/HMCL/issues/4597
-            return Optional.empty();
-        }
-
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<FingerprintMatchesResult> response = withApiKey(HttpRequest.POST(PREFIX + "/v1/fingerprints/432"))
-                    .json(mapOf(pair("fingerprints", Collections.singletonList(hash))))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(FingerprintMatchesResult.class));
-
-            if (response.data().exactMatches() == null || response.data().exactMatches().isEmpty()) {
-                return Optional.empty();
-            }
-
-            return Optional.of(response.data().exactMatches().get(0).file().toVersion());
-        } finally {
-            SEMAPHORE.release();
-        }
+        if (hash == 811513880) return Optional.empty();
+        var result = CurseForgeAPI.getFingerprintMatches(DIRECT_PROVIDER, 432, List.of(hash));
+        @Nullable var matches = result.exactMatches();
+        return matches == null || matches.isEmpty() ? Optional.empty() : Optional.of(toVersion(matches.get(0).file()));
     }
 
     @Override
     public RemoteAddon getAddonById(DownloadProvider downloadProvider, String id) throws IOException {
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<CurseAddon> response = withApiKey(HttpRequest.GET(PREFIX + "/v1/mods/" + id))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(CurseAddon.class));
-            return response.data.toAddon();
-        } finally {
-            SEMAPHORE.release();
-        }
+        return new CurseAddon(CurseForgeAPI.getMod(downloadProvider, Integer.parseInt(id))).toAddon();
     }
 
+    /// Resolves a dependency, returning the legacy missing marker only if every candidate reports absence.
     @Override
     public RemoteAddon resolveDependency(DownloadProvider downloadProvider, String id) throws IOException {
         try {
             return getAddonById(downloadProvider, id);
         } catch (IOException e) {
-            if (e instanceof NoCandidatesException) throw e;
-            if (e instanceof FileNotFoundException
-                    || e instanceof ResponseCodeException rce && rce.getResponseCode() == 404)
-                return RemoteAddon.BROKEN;
+            if (isNotFound(e)) return RemoteAddon.BROKEN;
             throw e;
         }
     }
 
-    @Override
-    public RemoteAddon.File getAddonFile(String projectId, String fileId) throws IOException {
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<CurseAddon.LatestFile> response = withApiKey(HttpRequest.GET(String.format("%s/v1/mods/%s/files/%s", PREFIX, projectId, fileId)))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(CurseAddon.LatestFile.class));
-            return response.data().toVersion().file();
-        } finally {
-            SEMAPHORE.release();
-        }
+    /// Returns whether a failure, or all of its suppressed candidate failures, indicates absence.
+    private static boolean isNotFound(Throwable failure) {
+        if (failure instanceof FileNotFoundException
+                || failure instanceof ResponseCodeException response && response.getResponseCode() == 404) return true;
+        Throwable[] failures = failure.getSuppressed();
+        return failures.length > 0 && Arrays.stream(failures).allMatch(CurseForgeRemoteAddonRepository::isNotFound);
     }
 
     @Override
+    public RemoteAddon.File getAddonFile(String projectId, String fileId) throws IOException {
+        return toVersion(CurseForgeAPI.getModFile(DIRECT_PROVIDER, Integer.parseInt(projectId), Integer.parseInt(fileId))).file();
+    }
+
+    /// Fetches file pages up to the API's 10,000-result limit before returning the converted stream.
+    @Override
     public Stream<RemoteAddon.Version> getRemoteVersionsById(DownloadProvider downloadProvider, String id) throws IOException {
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<List<CurseAddon.LatestFile>> response = withApiKey(HttpRequest.GET(PREFIX + "/v1/mods/" + id + "/files",
-                    pair("pageSize", "10000")))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(listTypeOf(CurseAddon.LatestFile.class)));
-            return response.data().stream().map(CurseAddon.LatestFile::toVersion);
-        } finally {
-            SEMAPHORE.release();
+        int modId = Integer.parseInt(id);
+        List<CurseForgeAPI.File> files = new ArrayList<>();
+        int index = 0;
+        while (index < 10000) {
+            var response = CurseForgeAPI.getModFiles(downloadProvider, modId,
+                    Map.of("index", Integer.toString(index), "pageSize", Integer.toString(Math.min(50, 10000 - index))));
+            if (response.data().isEmpty()) break;
+            files.addAll(response.data());
+            index += response.data().size();
+            @Nullable var pagination = response.pagination();
+            if (pagination != null ? index >= pagination.totalCount() : response.data().size() < 50) break;
         }
+        return files.stream().map(CurseForgeRemoteAddonRepository::toVersion);
     }
 
     @Override
     public String getAddonChangelog(DownloadProvider downloadProvider, String addonId, String versionId) throws IOException {
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<String> response = withApiKey(HttpRequest.GET(String.format("%s/v1/mods/%s/files/%s/changelog", PREFIX, addonId, versionId)))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(String.class));
-            return response.data();
-        } finally {
-            SEMAPHORE.release();
-        }
+        return CurseForgeAPI.getModFileChangelog(downloadProvider, Integer.parseInt(addonId), Integer.parseInt(versionId));
     }
 
     @Override
-    public @NotNull String getVersionPageUrl(RemoteAddon.Version version) throws IOException {
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<CurseAddon> response = withApiKey(HttpRequest.GET(PREFIX + "/v1/mods/" + version.projectId()))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(CurseAddon.class));
-            var addon = response.data();
-            var classId = addon.classId();
-            var clazz = switch (classId) {
-                case SECTION_MOD -> "mc-mods";
-                case SECTION_RESOURCE_PACK -> "texture-packs";
-                case SECTION_WORLD -> "worlds";
-                case SECTION_MODPACK -> "modpacks";
-                case SECTION_DATAPACK -> "data-packs";
-                case SECTION_BUKKIT_PLUGIN -> "bukkit-plugins";
-                case SECTION_ADDONS -> "mc-addons";
-                case SECTION_CUSTOMIZATION -> "customization";
-                case SECTION_SHADER -> "shaders";
-                default ->
-                        throw new IllegalArgumentException("Unsupported CurseForge class id [%d]".formatted(classId));
-            };
-            return "%s/minecraft/%s/%s/files/%s".formatted(BASE, clazz, addon.slug(), version.versionId());
-        } finally {
-            SEMAPHORE.release();
+    public String getVersionPageUrl(RemoteAddon.Version version) throws IOException {
+        var project = CurseForgeAPI.getMod(DIRECT_PROVIDER, Integer.parseInt(version.projectId()));
+        for (var projectClass : CurseForgeProjectClass.values()) {
+            if (Objects.equals(project.classId(), projectClass.id())) {
+                return "%s/minecraft/%s/%s/files/%s".formatted(getBaseUrl(), projectClass.slug(), project.slug(), version.versionId());
+            }
         }
+        throw new IllegalArgumentException("Unsupported CurseForge class id [%s]".formatted(project.classId()));
     }
 
     @Override
-    public Stream<RemoteAddonRepository.Category> getCategories(RemoteAddon.Type type) throws IOException {
-        int section = toSectionId(type);
-        if (section < 0) return Stream.empty();
-        SEMAPHORE.acquireUninterruptibly();
-        try {
-            Response<List<Category>> categories = withApiKey(HttpRequest.GET(PREFIX + "/v1/categories", pair("gameId", "432")))
-                    .retry(DEFAULT_RETRY_COUNT)
-                    .getJson(Response.typeOf(listTypeOf(Category.class)));
-            return reorganizeCategories(categories.data(), section).stream().map(Category::toCategory);
-        } finally {
-            SEMAPHORE.release();
-        }
+    public Stream<RemoteAddonRepository.Category> getCategories(AddonType type) throws IOException {
+        int classId = toSectionId(type);
+        if (classId < 0) return Stream.empty();
+        @Unmodifiable List<Category> categories = CurseForgeAPI.getCategories(DIRECT_PROVIDER, 432, null, false).stream()
+                .map(Category::fromAPI).toList();
+        return reorganizeCategories(categories, classId).stream().map(Category::toCategory);
     }
 
+    /// Arranges freshly adapted categories into the legacy tree for the requested root.
     private static List<Category> reorganizeCategories(List<Category> categories, int rootId) {
         List<Category> result = new ArrayList<>();
-
         Map<Integer, Category> categoryMap = new HashMap<>();
-        for (Category category : categories) {
-            categoryMap.put(category.getId(), category);
-        }
+        for (Category category : categories) categoryMap.put(category.getId(), category);
         for (Category category : categories) {
             if (category.getParentCategoryId() == rootId) {
                 result.add(category);
             } else {
-                Category parentCategory = categoryMap.get(category.getParentCategoryId());
-                if (parentCategory == null) {
-                    // Category list is not correct, so we ignore this item.
-                    continue;
-                }
-                parentCategory.getSubcategories().add(category);
+                @Nullable Category parent = categoryMap.get(category.getParentCategoryId());
+                if (parent != null) parent.getSubcategories().add(category);
             }
         }
         return result;
     }
 
+    /// The CurseForge class ID for bukkit plugin.
     public static final int SECTION_BUKKIT_PLUGIN = 5;
+    /// The CurseForge class ID for mod.
     public static final int SECTION_MOD = 6;
+    /// The CurseForge class ID for resource pack.
     public static final int SECTION_RESOURCE_PACK = 12;
+    /// The CurseForge class ID for datapack.
     public static final int SECTION_DATAPACK = 6945;
+    /// The CurseForge class ID for world.
     public static final int SECTION_WORLD = 17;
+    /// The CurseForge class ID for modpack.
     public static final int SECTION_MODPACK = 4471;
+    /// The CurseForge class ID for shader.
     public static final int SECTION_SHADER = 6552;
+    /// The CurseForge class ID for customization.
     public static final int SECTION_CUSTOMIZATION = 4546;
+    /// The CurseForge class ID for addons.
     public static final int SECTION_ADDONS = 4559; // For Pocket Edition
+    /// The CurseForge class ID for unknown1.
     public static final int SECTION_UNKNOWN1 = 4944;
+    /// The CurseForge class ID for unknown2.
     public static final int SECTION_UNKNOWN2 = 4979;
+    /// The CurseForge class ID for unknown3.
     public static final int SECTION_UNKNOWN3 = 4984;
 
+    /// The shared legacy adapter.
     private static final CurseForgeRemoteAddonRepository INSTANCE = new CurseForgeRemoteAddonRepository();
 
+    /// Returns the shared legacy adapter.
     public static CurseForgeRemoteAddonRepository getInstance() {
         return INSTANCE;
     }
 
+    /// Maps a class ID to a supported launcher content type, or null.
     @Nullable
-    private static RemoteAddon.Type toAddonType(int classId) {
+    private static AddonType toAddonType(int classId) {
         return switch (classId) {
-            case SECTION_MODPACK -> RemoteAddon.Type.MODPACK;
-            case SECTION_RESOURCE_PACK -> RemoteAddon.Type.RESOURCE_PACK;
-            case SECTION_WORLD -> RemoteAddon.Type.WORLD;
-            case SECTION_CUSTOMIZATION -> RemoteAddon.Type.CUSTOMIZATION;
-            case SECTION_SHADER -> RemoteAddon.Type.SHADER_PACK;
-            case SECTION_MOD -> RemoteAddon.Type.MOD;
+            case SECTION_MODPACK -> AddonType.MODPACK;
+            case SECTION_RESOURCE_PACK -> AddonType.RESOURCE_PACK;
+            case SECTION_WORLD -> AddonType.WORLD;
+            case SECTION_CUSTOMIZATION -> AddonType.CUSTOMIZATION;
+            case SECTION_SHADER -> AddonType.SHADER_PACK;
+            case SECTION_MOD -> AddonType.MOD;
             default -> null;
         };
     }
 
-    private static int toSectionId(RemoteAddon.Type type) {
+    /// Returns the class ID for a launcher content type, or -1 if unsupported.
+    private static int toSectionId(AddonType type) {
         return switch (type) {
             case MOD -> SECTION_MOD;
             case MODPACK -> SECTION_MODPACK;
@@ -424,289 +265,124 @@ public final class CurseForgeRemoteAddonRepository implements RemoteAddonReposit
         };
     }
 
-    public record Pagination(int index, int pageSize, int resultCount, int totalCount) {
-    }
-
-    public record Response<T>(T data, Pagination pagination) {
-
-        @SuppressWarnings("unchecked")
-        public static <T> TypeToken<Response<T>> typeOf(Class<T> responseType) {
-            return (TypeToken<Response<T>>) TypeToken.getParameterized(Response.class, responseType);
+    /// Adapts a native project to the legacy project loading interface.
+    ///
+    /// @param data the native project metadata
+    public record CurseAddon(CurseForgeAPI.Mod data) implements RemoteAddon.IAddon {
+        /// Returns the project class ID, or -1 if the server did not provide it.
+        public int classId() {
+            return data.classId() == null ? -1 : data.classId();
         }
-
-        @SuppressWarnings("unchecked")
-        public static <T> TypeToken<Response<T>> typeOf(TypeToken<T> responseType) {
-            return (TypeToken<Response<T>>) TypeToken.getParameterized(Response.class, responseType.getType());
-        }
-
-    }
-
-    /**
-     * @see <a href="https://docs.curseforge.com/rest-api/#tocS_FingerprintsMatchesResult">Schema</a>
-     */
-    private record FingerprintMatchesResult(boolean isCacheBuilt, List<FingerprintMatch> exactMatches,
-                                            List<Long> exactFingerprints) {
-    }
-
-    /**
-     * @see <a href="https://docs.curseforge.com/rest-api/#tocS_FingerprintMatch">Schema</a>
-     */
-    private record FingerprintMatch(int id, CurseAddon.LatestFile file, List<CurseAddon.LatestFile> latestFiles) {
-    }
-
-    @Immutable
-    public record CurseAddon(int id, int gameId, String name, String slug, Links links, String summary,
-                             int status,
-                             int downloadCount, boolean isFeatured, int primaryCategoryId,
-                             List<CurseForgeRemoteAddonRepository.Category> categories,
-                             int classId, List<Author> authors, Logo logo, int mainFileId,
-                             List<LatestFile> latestFiles,
-                             List<LatestFileIndex> latestFileIndices, Instant dateCreated, Instant dateModified,
-                             Instant dateReleased, boolean allowModDistribution, int gamePopularityRank,
-                             boolean isAvailable, int thumbsUpCount) implements RemoteAddon.IAddon {
-        public static final Map<Integer, RemoteAddon.DependencyType> RELATION_TYPE = mapOf(
-                pair(1, RemoteAddon.DependencyType.EMBEDDED),
-                pair(2, RemoteAddon.DependencyType.OPTIONAL),
-                pair(3, RemoteAddon.DependencyType.REQUIRED),
-                pair(4, RemoteAddon.DependencyType.OPTIONAL), // CF name: TOOL
-                pair(5, RemoteAddon.DependencyType.INCOMPATIBLE),
-                pair(6, RemoteAddon.DependencyType.EMBEDDED) // CF name: INCLUDE, should never appear because CF hides this
-        );
 
         @Override
         public List<RemoteAddon> loadDependencies(RemoteAddonRepository repo, DownloadProvider downloadProvider) throws IOException {
-            Set<Integer> dependencies = latestFiles.stream()
-                    .flatMap(latestFile -> latestFile.dependencies().stream())
-                    .filter(dep -> dep.relationType() == 3)
-                    .map(Dependency::modId)
-                    .collect(Collectors.toSet());
-            List<RemoteAddon> mods = new ArrayList<>();
-            for (int dependencyId : dependencies) {
-                mods.add(repo.getAddonById(downloadProvider, Integer.toString(dependencyId)));
-            }
-            return mods;
+            Set<Integer> dependencies = data.latestFiles().stream()
+                    .flatMap(file -> file.dependencies().stream())
+                    .filter(dependency -> dependency.relationType() == 3)
+                    .map(CurseForgeAPI.FileDependency::modId).collect(Collectors.toSet());
+            List<RemoteAddon> result = new ArrayList<>();
+            for (int id : dependencies) result.add(repo.getAddonById(downloadProvider, Integer.toString(id)));
+            return result;
         }
 
         @Override
         public Stream<RemoteAddon.Version> loadVersions(RemoteAddonRepository repo, DownloadProvider downloadProvider) throws IOException {
-            return repo.getRemoteVersionsById(downloadProvider, Integer.toString(id));
+            return repo.getRemoteVersionsById(downloadProvider, Integer.toString(data.id()));
         }
 
+        /// Converts the native project to the legacy display model.
         public RemoteAddon toAddon() {
             String iconUrl = "";
+            @Nullable var logo = data.logo();
             if (logo != null) {
-                if (StringUtils.isNotBlank(logo.thumbnailUrl()))
-                    iconUrl = logo.thumbnailUrl();
-                else if (StringUtils.isNotBlank(logo.url()))
-                    iconUrl = logo.url();
+                @Nullable String thumbnail = logo.thumbnailUrl();
+                iconUrl = StringUtils.isNotBlank(thumbnail) ? thumbnail : logo.url();
             }
-
-            return new RemoteAddon(
-                    slug,
-                    "",
-                    name,
-                    summary,
-                    categories.stream().map(category -> Integer.toString(category.getId())).collect(Collectors.toList()),
-                    links.websiteUrl,
-                    iconUrl,
-                    this,
-                    toAddonType(classId)
-            );
+            return new RemoteAddon(data.slug(), "", data.name(), data.summary(),
+                    data.categories().stream().map(category -> Integer.toString(category.id())).toList(),
+                    Objects.requireNonNullElse(data.links().websiteUrl(), ""), iconUrl, this, toAddonType(classId()));
         }
-
-        @Immutable
-        public record Links(String websiteUrl, String wikiUrl, @Nullable String issuesUrl, @Nullable String sourceUrl) {
-        }
-
-        @Immutable
-        public record Author(int id, String name, String url) {
-        }
-
-        @Immutable
-        public record Logo(int id, int modId, String title, String description, String thumbnailUrl, String url) {
-        }
-
-        @Immutable
-        public record Attachment(int id, int projectId, String description, boolean isDefault, String thumbnailUrl,
-                                 String title, String url, int status) {
-        }
-
-        @Immutable
-        public record Dependency(int modId, int relationType) {
-            public Dependency() {
-                this(0, 1);
-            }
-        }
-
-        /**
-         * @see <a href="https://docs.curseforge.com/rest-api/#tocS_FileHash">Schema</a>
-         */
-        @Immutable
-        public record LatestFileHash(String value, int algo) {
-        }
-
-        /**
-         * @see <a href="https://docs.curseforge.com/rest-api/#tocS_File">Schema</a>
-         */
-        @Immutable
-        public record LatestFile(int id, int gameId, int modId, boolean isAvailable, String displayName,
-                                 String fileName,
-                                 int releaseType, int fileStatus, List<LatestFileHash> hashes, Instant fileDate,
-                                 int fileLength, int downloadCount, String downloadUrl, List<String> gameVersions,
-                                 List<Dependency> dependencies, int alternateFileId, boolean isServerPack,
-                                 long fileFingerprint) {
-
-            @Override
-            public String downloadUrl() {
-                if (downloadUrl == null) {
-                    // This addon is not allowed for distribution, and downloadUrl will be null.
-                    // We try to find its download url.
-                    return String.format("https://edge.forgecdn.net/files/%d/%d/%s", id / 1000, id % 1000, fileName);
-                }
-                return downloadUrl;
-            }
-
-            public RemoteAddon.Version toVersion() {
-                RemoteAddon.VersionType versionType = switch (releaseType()) {
-                    case 1 -> RemoteAddon.VersionType.Release;
-                    case 2 -> RemoteAddon.VersionType.Beta;
-                    case 3 -> RemoteAddon.VersionType.Alpha;
-                    default -> RemoteAddon.VersionType.Release;
-                };
-
-                Map<String, String> knownHashes;
-                if (hashes != null) {
-                    knownHashes = new HashMap<>();
-                    for (LatestFileHash hash : hashes) {
-                        if (hash.value != null) {
-                            switch (hash.algo) {
-                                case 1 -> knownHashes.put("sha1", hash.value);
-                                case 2 -> knownHashes.put("md5", hash.value);
-                            }
-                        }
-                    }
-                    knownHashes = Map.copyOf(knownHashes);
-                } else {
-                    knownHashes = Map.of();
-                }
-
-                return new RemoteAddon.Version(
-                        RemoteAddon.Source.CURSEFORGE,
-                        Integer.toString(id()),
-                        Integer.toString(modId()),
-                        displayName(),
-                        fileName(),
-                        fileDate(),
-                        versionType,
-                        new RemoteAddon.File(knownHashes, downloadUrl(), fileName()),
-                        dependencies.stream().map(dependency -> {
-                            if (!RELATION_TYPE.containsKey(dependency.relationType())) {
-                                throw new IllegalStateException("Broken datas.");
-                            }
-                            return RemoteAddon.Dependency.ofGeneral(RELATION_TYPE.get(dependency.relationType()), RemoteAddon.Source.CURSEFORGE, Integer.toString(dependency.modId()));
-                        }).distinct().filter(Objects::nonNull).collect(Collectors.toList()),
-                        gameVersions.stream().filter(GameVersionNumber::isKnown).toList(),
-                        gameVersions.stream()
-                                .filter(AddonLoader::mightBeLoader)
-                                .map(AddonLoader::of)
-                                .toList()
-                );
-            }
-        }
-
-        /**
-         * @see <a href="https://docs.curseforge.com/rest-api/#tocS_FileIndex">Schema</a>
-         */
-        @Immutable
-        public record LatestFileIndex(String gameVersion, int fileId, String filename, int releaseType,
-                                      int gameVersionTypeId, int modLoader) {
-        }
-
     }
 
-    @Immutable
-    public static class Category {
-        private final int id;
-        private final int gameId;
-        private final String name;
-        private final String slug;
-        private final String url;
-        private final String iconUrl;
-        private final Instant dateModified;
-        private final boolean isClass;
-        private final int classId;
-        private final int parentCategoryId;
+    /// Converts a native file using the legacy relation mapping and download-URL fallback.
+    private static RemoteAddon.Version toVersion(CurseForgeAPI.File file) {
+        RemoteAddon.VersionType versionType = switch (file.releaseType()) {
+            case 2 -> RemoteAddon.VersionType.Beta;
+            case 3 -> RemoteAddon.VersionType.Alpha;
+            default -> RemoteAddon.VersionType.Release;
+        };
+        Map<String, String> hashes = new HashMap<>();
+        if (file.hashes() != null) {
+            for (var hash : file.hashes()) {
+                if (hash.value() != null) {
+                    if (hash.algo() == 1) hashes.put("sha1", hash.value());
+                    if (hash.algo() == 2) hashes.put("md5", hash.value());
+                }
+            }
+        }
+        @Nullable String downloadUrl = file.downloadUrl();
+        if (downloadUrl == null) {
+            downloadUrl = "https://edge.forgecdn.net/files/%d/%d/%s".formatted(file.id() / 1000, file.id() % 1000, file.fileName());
+        }
+        return new RemoteAddon.Version(RemoteAddon.Source.CURSEFORGE,
+                Integer.toString(file.id()), Integer.toString(file.modId()), file.displayName(), file.fileName(), file.fileDate(), versionType,
+                new RemoteAddon.File(Map.copyOf(hashes), downloadUrl, file.fileName()),
+                file.dependencies().stream().map(dependency -> {
+                    RemoteAddon.DependencyType type = switch (dependency.relationType()) {
+                        case 1, 6 -> RemoteAddon.DependencyType.EMBEDDED;
+                        case 2, 4 -> RemoteAddon.DependencyType.OPTIONAL;
+                        case 3 -> RemoteAddon.DependencyType.REQUIRED;
+                        case 5 -> RemoteAddon.DependencyType.INCOMPATIBLE;
+                        default -> throw new IllegalStateException("Unknown CurseForge relation type: " + dependency.relationType());
+                    };
+                    return RemoteAddon.Dependency.ofGeneral(type, RemoteAddon.Source.CURSEFORGE, Integer.toString(dependency.modId()));
+                }).distinct().toList(),
+                file.gameVersions().stream().filter(GameVersionNumber::isKnown).toList(),
+                file.gameVersions().stream().filter(AddonLoader::mightBeLoader).map(AddonLoader::of).toList());
+    }
 
-        private transient final List<Category> subcategories;
+    /// Holds the mutable category tree required by the legacy repository interface.
+    public static final class Category {
+        /// The immutable native category metadata.
+        private final CurseForgeAPI.Category data;
 
-        public Category() {
-            this(0, 0, "", "", "", "", Instant.now(), false, 0, 0);
+        /// The mutable children assembled for this category tree.
+        private final List<Category> subcategories = new ArrayList<>();
+
+        /// Creates a tree node for a native category.
+        private Category(CurseForgeAPI.Category data) {
+            this.data = data;
         }
 
-        public Category(int id, int gameId, String name, String slug, String url, String iconUrl, Instant dateModified, boolean isClass, int classId, int parentCategoryId) {
-            this.id = id;
-            this.gameId = gameId;
-            this.name = name;
-            this.slug = slug;
-            this.url = url;
-            this.iconUrl = iconUrl;
-            this.dateModified = dateModified;
-            this.isClass = isClass;
-            this.classId = classId;
-            this.parentCategoryId = parentCategoryId;
-
-            this.subcategories = new ArrayList<>();
+        /// Creates an independent tree node with no children.
+        private static Category fromAPI(CurseForgeAPI.Category data) {
+            return new Category(data);
         }
 
+        /// Returns the category ID.
         public int getId() {
-            return id;
+            return data.id();
         }
 
-        public int getGameId() {
-            return gameId;
-        }
-
+        /// Returns the category display name.
         public String getName() {
-            return name;
+            return data.name();
         }
 
-        public String getSlug() {
-            return slug;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        public String getIconUrl() {
-            return iconUrl;
-        }
-
-        public Instant getDateModified() {
-            return dateModified;
-        }
-
-        public boolean isClass() {
-            return isClass;
-        }
-
-        public int getClassId() {
-            return classId;
-        }
-
+        /// Returns the parent ID, or zero if absent.
         public int getParentCategoryId() {
-            return parentCategoryId;
+            return data.parentCategoryId() == null ? 0 : data.parentCategoryId();
         }
 
+        /// Returns the mutable list used to assemble this node's children.
         public List<Category> getSubcategories() {
             return subcategories;
         }
 
+        /// Converts this node and its descendants to the legacy category model.
         public RemoteAddonRepository.Category toCategory() {
-            return new RemoteAddonRepository.Category(
-                    this,
-                    Integer.toString(id),
-                    getSubcategories().stream().map(Category::toCategory).collect(Collectors.toList()));
+            return new RemoteAddonRepository.Category(this, Integer.toString(getId()),
+                    subcategories.stream().map(Category::toCategory).toList());
         }
     }
 }

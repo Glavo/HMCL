@@ -17,11 +17,8 @@
  */
 package org.jackhuang.hmcl.game;
 
+import org.jackhuang.hmcl.addon.*;
 import org.jackhuang.hmcl.download.DownloadProvider;
-import org.jackhuang.hmcl.addon.RemoteAddon;
-import org.jackhuang.hmcl.addon.RemoteAddonRepository;
-import org.jackhuang.hmcl.addon.AddonProjectInfo;
-import org.jackhuang.hmcl.addon.AddonProjectInfoRegistry;
 import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -52,7 +49,7 @@ public abstract class LocalizedRemoteAddonRepository implements RemoteAddonRepos
     }
 
     @Override
-    public SearchResult search(DownloadProvider downloadProvider, RemoteAddon.Type type, String gameVersion, Category category, int pageOffset, int pageSize, String searchFilter, SortType sort, SortOrder sortOrder) throws IOException {
+    public SearchResult search(DownloadProvider downloadProvider, AddonType type, String gameVersion, Category category, int pageOffset, int pageSize, String searchFilter, SortType sort, SortOrder sortOrder) throws IOException {
         @Nullable AddonProjectInfoRegistry<?> registry = AddonProjectInfoRegistry.getByAddonType(type);
         if (registry == null || !StringUtils.containsChinese(searchFilter)) {
             return getBackedRemoteModRepository().search(downloadProvider, type, gameVersion, category, pageOffset, pageSize, searchFilter, sort, sortOrder);
@@ -125,7 +122,7 @@ public abstract class LocalizedRemoteAddonRepository implements RemoteAddonRepos
     }
 
     @Override
-    public Stream<Category> getCategories(RemoteAddon.Type type) throws IOException {
+    public Stream<Category> getCategories(AddonType type) throws IOException {
         return getBackedRemoteModRepository().getCategories(type);
     }
 

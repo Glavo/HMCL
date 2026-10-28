@@ -1,0 +1,79 @@
+{
+  "id": 42,
+  "gameId": 432,
+  "name": "Test project",
+  "slug": "test-project",
+  "links": {
+    "websiteUrl": "https://www.curseforge.com/minecraft/mc-mods/test-project",
+    "wikiUrl": null,
+    "issuesUrl": null,
+    "sourceUrl": null
+  },
+  "summary": "Test summary",
+  "status": 4,
+  "downloadCount": 6000000000,
+  "isFeatured": false,
+  "primaryCategoryId": 6,
+  "categories": [],
+  "classId": 6,
+  "authors": [
+    {
+      "id": 1,
+      "name": "Tester",
+      "url": "https://www.curseforge.com/members/tester"
+    }
+  ],
+  "logo": null,
+  "mainFileId": 1001,
+  "latestFiles": [
+    {
+      "id": 1001,
+      "gameId": 432,
+      "modId": 42,
+      "isAvailable": true,
+      "displayName": "Test release",
+      "fileName": "test.jar",
+      "releaseType": 1,
+      "fileStatus": 4,
+      "hashes": [
+        {
+          "value": "abc",
+          "algo": 1
+        }
+      ],
+      "fileDate": "2026-01-01T00:00:00Z",
+      "fileLength": 5000000000,
+      "downloadCount": 6000000000,
+      "downloadUrl": null,
+      "gameVersions": [
+        "1.21.1",
+        "Forge"
+      ],
+      "dependencies": [
+        {
+          "modId": 7,
+          "relationType": 4
+        }
+      ],
+      "fileFingerprint": 4294967295,
+      "isServerPack": false,
+      "serverPackFileId": 1002
+    }
+  ],
+  "latestFilesIndexes": [
+    {
+      "gameVersion": "1.21.1",
+      "fileId": 1001,
+      "filename": "test.jar",
+      "releaseType": 1,
+      "modLoader": 1
+    }
+  ],
+  "dateCreated": "2026-01-01T00:00:00Z",
+  "dateModified": "2026-01-01T00:00:00Z",
+  "dateReleased": "2026-01-01T00:00:00Z",
+  "allowModDistribution": null,
+  "gamePopularityRank": 3,
+  "isAvailable": true,
+  "thumbsUpCount": 10
+}

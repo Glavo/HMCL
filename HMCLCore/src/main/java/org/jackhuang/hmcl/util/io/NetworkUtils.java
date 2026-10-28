@@ -18,10 +18,11 @@
 package org.jackhuang.hmcl.util.io;
 
 import org.glavo.url.WebURL;
-import org.jackhuang.hmcl.addon.repository.CurseForgeRemoteAddonRepository;
+import org.jackhuang.hmcl.download.addon.curseforge.CurseForgeAPI;
 import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.io.*;
 import java.net.*;
@@ -180,15 +181,16 @@ public final class NetworkUtils {
         return WebURL.newBuilder(u).setRawQuery(null).setRawFragment(null).build();
     }
 
-    private static final List<Pair<String, String>> API_KEYS;
+    /// The immutable API key mappings used for trusted download hosts.
+    private static final @Unmodifiable List<Pair<String, String>> API_KEYS;
 
     static {
-        if (CurseForgeRemoteAddonRepository.API_KEY.isEmpty()) {
+        if (CurseForgeAPI.API_KEY.isEmpty()) {
             API_KEYS = List.of();
         } else {
             API_KEYS = List.of(
-                    pair("api.curseforge.com", CurseForgeRemoteAddonRepository.API_KEY),
-                    pair("forgecdn.net", CurseForgeRemoteAddonRepository.API_KEY)
+                    pair("api.curseforge.com", CurseForgeAPI.API_KEY),
+                    pair("forgecdn.net", CurseForgeAPI.API_KEY)
             );
         }
     }

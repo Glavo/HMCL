@@ -29,14 +29,10 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
-import org.jackhuang.hmcl.addon.AddonLoader;
-import org.jackhuang.hmcl.addon.AddonProjectInfo;
-import org.jackhuang.hmcl.addon.AddonProjectInfoRegistry;
+import org.jackhuang.hmcl.addon.*;
 import org.jackhuang.hmcl.download.DownloadProvider;
 import org.jackhuang.hmcl.game.*;
 import org.jackhuang.hmcl.addon.mod.ModLoaderType;
-import org.jackhuang.hmcl.addon.RemoteAddon;
-import org.jackhuang.hmcl.addon.RemoteAddonRepository;
 import org.jackhuang.hmcl.task.FileDownloadTask;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
@@ -73,7 +69,7 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
     private final HMCLGameInstance.Optional instanceReference;
     private final DownloadCallback callback;
     private final DownloadListPage page;
-    private final RemoteAddon.Type type;
+    private final AddonType type;
 
     private SimpleMultimap<String, RemoteAddon.Version, List<RemoteAddon.Version>> versions;
 
@@ -284,7 +280,7 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
 
                                 resolve:
                                 for (RemoteAddon.Version addonVersion : addonVersions) {
-                                    if (getSkinnable().type == RemoteAddon.Type.MOD) {
+                                    if (getSkinnable().type == AddonType.MOD) {
                                         for (AddonLoader loader : addonVersion.loaders()) {
                                             if (loader.type() instanceof ModLoaderType modLoaderType && targetLoaders.contains(modLoaderType)) {
                                                 list.getContent().addAll(
@@ -304,7 +300,7 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
                                 }
                             }
                         }
-                    } else if (getSkinnable().type == RemoteAddon.Type.MODPACK) {
+                    } else if (getSkinnable().type == AddonType.MODPACK) {
                         control.versions
                                 .keys()
                                 .stream()
@@ -404,7 +400,7 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
             pane.getChildren().setAll(imageView, content);
             FXUtils.setLimitHeight(this, 60);
 
-            RemoteAddon.Type type = addon.type();
+            AddonType type = addon.type();
             DownloadCallback callback = type == null ? null : switch (type) {
                 case MOD -> org.jackhuang.hmcl.ui.download.DownloadPage.FOR_MOD;
                 case RESOURCE_PACK -> org.jackhuang.hmcl.ui.download.DownloadPage.FOR_RESOURCE_PACK;
@@ -503,7 +499,7 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
 
     private static final class AddonVersion extends JFXDialogLayout {
         public AddonVersion(RemoteAddon mod, RemoteAddon.Version version, AddonDownloadPage selfPage) {
-            RemoteAddon.Type type = selfPage.type;
+            AddonType type = selfPage.type;
 
             String title = switch (type) {
                 case WORLD -> "world.download.title";
@@ -551,10 +547,10 @@ public class AddonDownloadPage extends Control implements DecoratorPage {
 
             JFXButton downloadButton = null;
             if (selfPage.callback != null) {
-                downloadButton = new JFXButton(type == RemoteAddon.Type.MODPACK ? i18n("install.modpack") : i18n("mods.install"));
+                downloadButton = new JFXButton(type == AddonType.MODPACK ? i18n("install.modpack") : i18n("mods.install"));
                 downloadButton.getStyleClass().add("dialog-accept");
                 downloadButton.setOnAction(e -> {
-                    if (type == RemoteAddon.Type.MODPACK || !spinnerPane.isLoading() && spinnerPane.getFailedReason() == null) {
+                    if (type == AddonType.MODPACK || !spinnerPane.isLoading() && spinnerPane.getFailedReason() == null) {
                         fireEvent(new DialogCloseEvent());
                     }
                     selfPage.download(mod, version);

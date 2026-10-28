@@ -49,10 +49,10 @@ class AddonProjectInfoRegistryTest {
     /// Unsupported types have no registry rather than an empty implementation.
     @Test
     void selectsOnlySupportedRegistries() {
-        assertSame(AddonProjectInfoRegistry.MOD, AddonProjectInfoRegistry.getByAddonType(RemoteAddon.Type.MOD));
-        assertSame(AddonProjectInfoRegistry.MODPACK, AddonProjectInfoRegistry.getByAddonType(RemoteAddon.Type.MODPACK));
+        assertSame(AddonProjectInfoRegistry.MOD, AddonProjectInfoRegistry.getByAddonType(AddonType.MOD));
+        assertSame(AddonProjectInfoRegistry.MODPACK, AddonProjectInfoRegistry.getByAddonType(AddonType.MODPACK));
         assertNull(AddonProjectInfoRegistry.getByAddonType(null));
-        assertNull(AddonProjectInfoRegistry.getByAddonType(RemoteAddon.Type.RESOURCE_PACK));
+        assertNull(AddonProjectInfoRegistry.getByAddonType(AddonType.RESOURCE_PACK));
     }
 
     /// Name matches require a compatible ID; duplicate IDs keep the first entry.

@@ -21,4 +21,15 @@ import org.jetbrains.annotations.NotNullByDefault;
 
 @NotNullByDefault
 public interface AddonRemoteProject {
+
+    
+
+    @NotNullByDefault
+    enum SortType {
+        RELEVANCY,
+        POPULARITY,
+        DATE_CREATED,
+        LAST_UPDATED,
+        TOTAL_DOWNLOADS
+    }
 }

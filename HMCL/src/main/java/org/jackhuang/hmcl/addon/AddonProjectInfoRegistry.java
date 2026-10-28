@@ -84,7 +84,7 @@ public abstract class AddonProjectInfoRegistry<I extends AddonProjectInfo> {
     };
 
     /// Returns the registry for the addon type, or `null` for null or unsupported types.
-    public static @Nullable AddonProjectInfoRegistry<?> getByAddonType(@Nullable RemoteAddon.Type type) {
+    public static @Nullable AddonProjectInfoRegistry<?> getByAddonType(@Nullable AddonType type) {
         if (type == null) return null;
         return switch (type) {
             case MOD -> MOD;

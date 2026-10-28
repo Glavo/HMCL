@@ -19,7 +19,7 @@ package org.jackhuang.hmcl.ui.instances;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import org.jackhuang.hmcl.addon.RemoteAddon;
+import org.jackhuang.hmcl.addon.AddonType;
 import org.jackhuang.hmcl.game.LocalizedRemoteAddonRepository;
 import org.jackhuang.hmcl.addon.RemoteAddonRepository;
 import org.jackhuang.hmcl.addon.repository.CurseForgeRemoteAddonRepository;
@@ -34,28 +34,28 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 public final class HMCLLocalizedDownloadListPage extends DownloadListPage {
     public static DownloadListPage ofMod(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
-        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, RemoteAddon.Type.MOD, true, true);
+        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, AddonType.MOD, true, true);
     }
 
     public static DownloadListPage ofModrinthMod(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
-        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, RemoteAddon.Type.MOD, false, true);
+        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, AddonType.MOD, false, true);
     }
 
     public static DownloadListPage ofModPack(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
-        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, RemoteAddon.Type.MODPACK, true, true);
+        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, AddonType.MODPACK, true, true);
     }
 
     public static DownloadListPage ofResourcePack(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
-        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, RemoteAddon.Type.RESOURCE_PACK, true, true);
+        return new HMCLLocalizedDownloadListPage(callback, instanceSelection, AddonType.RESOURCE_PACK, true, true);
     }
 
     public static DownloadListPage ofShaderPack(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
-        var page = new HMCLLocalizedDownloadListPage(callback, instanceSelection, RemoteAddon.Type.SHADER_PACK, true, true);
+        var page = new HMCLLocalizedDownloadListPage(callback, instanceSelection, AddonType.SHADER_PACK, true, true);
         page.supportChinese.set(false);
         return page;
     }
 
-    private HMCLLocalizedDownloadListPage(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection, RemoteAddon.Type type, boolean curseForge, boolean modrinth) {
+    private HMCLLocalizedDownloadListPage(AddonDownloadPage.DownloadCallback callback, boolean instanceSelection, AddonType type, boolean curseForge, boolean modrinth) {
         super(type, new Repository(), callback, instanceSelection);
         ((Repository) repository).downloadSource.bind(downloadSource);
 

@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 public record RemoteAddon(String slug, String author, String title, String description, List<String> categories,
-                          String pageUrl, String iconUrl, IAddon data, @Nullable Type type) {
+                          String pageUrl, String iconUrl, IAddon data, @Nullable AddonType type) {
 
     public static final RemoteAddon BROKEN = new RemoteAddon("", "", "RemoteAddon.BROKEN", "", Collections.emptyList(), "", "", new IAddon() {
         @Override
@@ -44,7 +44,7 @@ public record RemoteAddon(String slug, String author, String title, String descr
         public Stream<Version> loadVersions(RemoteAddonRepository repo, DownloadProvider downloadProvider) throws IOException {
             throw new IOException();
         }
-    }, Type.MOD);
+    }, AddonType.MOD);
 
     public enum VersionType {
         Release,
@@ -152,15 +152,6 @@ public record RemoteAddon(String slug, String author, String title, String descr
         Source(RemoteAddonRepository repo) {
             this.repo = repo;
         }
-    }
-
-    public enum Type {
-        MOD,
-        MODPACK,
-        RESOURCE_PACK,
-        SHADER_PACK,
-        WORLD,
-        CUSTOMIZATION
     }
 
     public interface IAddon {

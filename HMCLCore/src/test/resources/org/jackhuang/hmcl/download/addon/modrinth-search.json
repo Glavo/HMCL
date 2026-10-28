@@ -1,0 +1,36 @@
+{
+  "hits": [
+    {
+      "project_id": "P1",
+      "slug": "test-project",
+      "title": "Test project",
+      "description": "Test summary",
+      "author": "Tester",
+      "project_type": "mod",
+      "categories": [
+        "utility",
+        "fabric"
+      ],
+      "display_categories": [
+        "utility",
+        "fabric"
+      ],
+      "versions": [
+        "1.21.1"
+      ],
+      "downloads": 6000000000,
+      "follows": 3,
+      "icon_url": null,
+      "date_created": "2026-01-01T00:00:00Z",
+      "date_modified": "2026-01-01T00:00:00Z",
+      "latest_version": "V1",
+      "client_side": "required",
+      "server_side": "optional",
+      "license": "MIT",
+      "gallery": []
+    }
+  ],
+  "offset": 20,
+  "limit": 10,
+  "total_hits": 91
+}

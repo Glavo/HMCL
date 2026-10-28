@@ -37,10 +37,7 @@ import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
-import org.jackhuang.hmcl.addon.RemoteAddon;
-import org.jackhuang.hmcl.addon.AddonProjectInfo;
-import org.jackhuang.hmcl.addon.AddonProjectInfoRegistry;
-import org.jackhuang.hmcl.addon.RemoteAddonRepository;
+import org.jackhuang.hmcl.addon.*;
 import org.jackhuang.hmcl.addon.repository.ModrinthRemoteAddonRepository;
 import org.jackhuang.hmcl.download.DownloadCandidates;
 import org.jackhuang.hmcl.download.DownloadProvider;
@@ -88,16 +85,16 @@ public class DownloadListPage extends Control implements DecoratorPage {
     private final WeakListenerHolder listenerHolder = new WeakListenerHolder();
     private int searchID = 0;
     protected final RemoteAddonRepository repository;
-    protected final @NotNull RemoteAddon.Type type;
+    protected final @NotNull AddonType type;
     private final DownloadProvider downloadProvider;
 
     private Runnable retrySearch;
 
-    public DownloadListPage(@NotNull RemoteAddon.Type type, RemoteAddonRepository repository) {
+    public DownloadListPage(@NotNull AddonType type, RemoteAddonRepository repository) {
         this(type, repository, null, false);
     }
 
-    public DownloadListPage(@NotNull RemoteAddon.Type type, RemoteAddonRepository repository, AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
+    public DownloadListPage(@NotNull AddonType type, RemoteAddonRepository repository, AddonDownloadPage.DownloadCallback callback, boolean instanceSelection) {
         this.type = Objects.requireNonNull(type);
         this.repository = repository;
         this.callback = callback;

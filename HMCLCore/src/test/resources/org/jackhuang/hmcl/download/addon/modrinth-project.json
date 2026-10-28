@@ -1,0 +1,38 @@
+{
+  "id": "P1",
+  "slug": "test-project",
+  "title": "Test project",
+  "description": "Test summary",
+  "body": "# Description",
+  "project_type": "mod",
+  "team": "T1",
+  "status": "approved",
+  "client_side": "required",
+  "server_side": "optional",
+  "categories": [
+    "technology"
+  ],
+  "additional_categories": [
+    "utility"
+  ],
+  "versions": [
+    "V1"
+  ],
+  "game_versions": [
+    "1.21.1"
+  ],
+  "loaders": [
+    "fabric"
+  ],
+  "downloads": 6000000000,
+  "followers": 3,
+  "icon_url": null,
+  "published": "2026-01-01T00:00:00Z",
+  "updated": "2026-01-01T00:00:00Z",
+  "license": {
+    "id": "MIT",
+    "name": "MIT License",
+    "url": null
+  },
+  "gallery": []
+}
