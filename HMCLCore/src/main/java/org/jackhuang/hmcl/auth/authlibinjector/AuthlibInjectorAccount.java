@@ -8,123 +8,30 @@ import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilAccount;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
-import org.jackhuang.hmcl.game.Arguments;
-import org.jackhuang.hmcl.game.LaunchOptions;
 import org.jackhuang.hmcl.util.ToStringBuilder;
-import org.jackhuang.hmcl.util.function.ExceptionalSupplier;
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.*;
+
 import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableSet;
 
+/// Stores a Yggdrasil account associated with an authlib-injector server.
+@NotNullByDefault
 public class AuthlibInjectorAccount extends YggdrasilAccount {
+    /// The authentication server associated with this account.
     private final AuthlibInjectorServer server;
-    private AuthlibInjectorArtifactProvider downloader;
 
-    public AuthlibInjectorAccount(AuthlibInjectorServer server, AuthlibInjectorArtifactProvider downloader, String username, String password, CharacterSelector selector) throws AuthenticationException {
-        super(server.getYggdrasilService(), username, password, selector);
-        this.server = server;
-        this.downloader = downloader;
-    }
-
+    /// Creates an account from a session with a selected profile.
     public AuthlibInjectorAccount(
             AccountID accountID,
             AuthlibInjectorServer server,
-            AuthlibInjectorArtifactProvider downloader,
             String username,
             YggdrasilSession session) {
         super(accountID, server.getYggdrasilService(), username, session);
         this.server = server;
-        this.downloader = downloader;
-    }
-
-    @Override
-    public synchronized AuthInfo logIn() throws AuthenticationException {
-        return inject(super::logIn);
-    }
-
-    @Override
-    public synchronized AuthInfo logInWithPassword(String password) throws AuthenticationException {
-        return inject(() -> super.logInWithPassword(password));
-    }
-
-    @Override
-    public AuthInfo playOffline() throws AuthenticationException {
-        AuthInfo auth = super.playOffline();
-        Optional<AuthlibInjectorArtifactInfo> artifact = downloader.getArtifactInfoImmediately();
-        Optional<String> prefetchedMeta = server.getMetadataResponse();
-
-        if (artifact.isPresent() && prefetchedMeta.isPresent()) {
-            return new AuthlibInjectorAuthInfo(auth, artifact.get(), server, prefetchedMeta.get());
-        } else {
-            throw new NotLoggedInException();
-        }
-    }
-
-    private AuthInfo inject(ExceptionalSupplier<AuthInfo, AuthenticationException> loginAction) throws AuthenticationException {
-        CompletableFuture<String> prefetchedMetaTask = CompletableFuture.supplyAsync(() -> {
-            try {
-                return server.fetchMetadataResponse();
-            } catch (IOException e) {
-                throw new CompletionException(new ServerDisconnectException(e));
-            }
-        });
-
-        CompletableFuture<AuthlibInjectorArtifactInfo> artifactTask = CompletableFuture.supplyAsync(() -> {
-            try {
-                return downloader.getArtifactInfo();
-            } catch (IOException e) {
-                throw new CompletionException(new AuthlibInjectorDownloadException(e));
-            }
-        });
-
-        AuthInfo auth = loginAction.get();
-        String prefetchedMeta;
-        AuthlibInjectorArtifactInfo artifact;
-
-        try {
-            prefetchedMeta = prefetchedMetaTask.get();
-            artifact = artifactTask.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AuthenticationException(e);
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof AuthenticationException) {
-                throw (AuthenticationException) e.getCause();
-            } else {
-                throw new AuthenticationException(e.getCause());
-            }
-        }
-
-        return new AuthlibInjectorAuthInfo(auth, artifact, server, prefetchedMeta);
-    }
-
-    private static class AuthlibInjectorAuthInfo extends AuthInfo {
-
-        private final AuthlibInjectorArtifactInfo artifact;
-        private final AuthlibInjectorServer server;
-        private final String prefetchedMeta;
-
-        public AuthlibInjectorAuthInfo(AuthInfo authInfo, AuthlibInjectorArtifactInfo artifact, AuthlibInjectorServer server, String prefetchedMeta) {
-            super(authInfo.getUsername(), authInfo.getUUID(), authInfo.getAccessToken(), authInfo.getUserType(), authInfo.getUserProperties());
-
-            this.artifact = artifact;
-            this.server = server;
-            this.prefetchedMeta = prefetchedMeta;
-        }
-
-        @Override
-        public Arguments getLaunchArguments(LaunchOptions options) {
-            return new Arguments().addJVMArguments(
-                    "-javaagent:" + artifact.location().toString() + "=" + server.getUrl(),
-                    "-Dauthlibinjector.side=client",
-                    "-Dauthlibinjector.yggdrasil.prefetched=" + Base64.getEncoder().encodeToString(prefetchedMeta.getBytes(UTF_8)));
-        }
     }
 
     @Override
@@ -139,6 +46,7 @@ public class AuthlibInjectorAccount extends YggdrasilAccount {
         server.invalidateMetadataCache();
     }
 
+    /// Returns the authentication server associated with this account.
     public AuthlibInjectorServer getServer() {
         return server;
     }
@@ -153,8 +61,9 @@ public class AuthlibInjectorAccount extends YggdrasilAccount {
                 .toString();
     }
 
-    public static Set<TextureType> getUploadableTextures(CompleteGameProfile profile) {
-        String prop = profile.getProperties().get("uploadableTextures");
+    /// Returns an immutable set of recognized texture types advertised as uploadable by the profile.
+    public static @Unmodifiable Set<TextureType> getUploadableTextures(CompleteGameProfile profile) {
+        @Nullable String prop = profile.getProperties().get("uploadableTextures");
         if (prop == null)
             return emptySet();
         Set<TextureType> result = EnumSet.noneOf(TextureType.class);

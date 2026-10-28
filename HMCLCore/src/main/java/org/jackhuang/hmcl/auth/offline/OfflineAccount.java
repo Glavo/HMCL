@@ -5,50 +5,41 @@ package org.jackhuang.hmcl.auth.offline;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import javafx.beans.binding.ObjectBinding;
-import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
-import org.jackhuang.hmcl.auth.AuthInfo;
-import org.jackhuang.hmcl.auth.AuthenticationException;
-import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorArtifactInfo;
-import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorArtifactProvider;
-import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorDownloadException;
 import org.jackhuang.hmcl.auth.yggdrasil.Texture;
 import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
-import org.jackhuang.hmcl.game.Arguments;
-import org.jackhuang.hmcl.game.LaunchOptions;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.ToStringBuilder;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- *
- * @author huang
- */
+/// Stores an offline player identity and optional skin configuration.
+@NotNullByDefault
 public class OfflineAccount extends Account {
 
-    private final AuthlibInjectorArtifactProvider downloader;
+    /// The nonblank player name.
     private final String profileName;
+    /// The player UUID used for launching.
     private final UUID profileID;
-    private Skin skin;
+    /// The optional offline skin configuration.
+    private @Nullable Skin skin;
 
+    /// Creates an offline identity with an optional skin.
+    ///
+    /// @throws IllegalArgumentException if the profile name is blank
     protected OfflineAccount(
             AccountID accountID,
-            AuthlibInjectorArtifactProvider downloader,
             String profileName,
             UUID profileID,
-            Skin skin) {
+            @Nullable Skin skin) {
         super(accountID);
-        this.downloader = requireNonNull(downloader);
         this.profileName = requireNonNull(profileName);
         this.profileID = requireNonNull(profileID);
         this.skin = skin;
@@ -56,10 +47,6 @@ public class OfflineAccount extends Account {
         if (StringUtils.isBlank(profileName)) {
             throw new IllegalArgumentException("Profile name cannot be blank");
         }
-    }
-
-    public AuthlibInjectorArtifactProvider getDownloader() {
-        return downloader;
     }
 
     @Override
@@ -72,105 +59,15 @@ public class OfflineAccount extends Account {
         return profileName;
     }
 
-    public Skin getSkin() {
+    /// Returns the skin configuration, or `null` for the default skin.
+    public @Nullable Skin getSkin() {
         return skin;
     }
 
-    public void setSkin(Skin skin) {
+    /// Replaces the skin configuration and schedules an account change notification.
+    public void setSkin(@Nullable Skin skin) {
         this.skin = skin;
         invalidate();
-    }
-
-    protected boolean loadAuthlibInjector(Skin skin) {
-        return skin != null && skin.type() != Skin.Type.DEFAULT;
-    }
-
-    public AuthInfo logInWithoutSkin() throws AuthenticationException {
-        // Using "legacy" user type here because "mojang" user type may cause "invalid session token" or "disconnected" when connecting to a game server.
-        return new AuthInfo(profileName, profileID, UUIDs.toCompactString(UUID.randomUUID()), AuthInfo.USER_TYPE_MSA, "{}");
-    }
-
-    @Override
-    public AuthInfo logIn() throws AuthenticationException {
-        AuthInfo authInfo = logInWithoutSkin();
-
-        if (loadAuthlibInjector(skin)) {
-            CompletableFuture<AuthlibInjectorArtifactInfo> artifactTask = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return downloader.getArtifactInfo();
-                } catch (IOException e) {
-                    throw new CompletionException(new AuthlibInjectorDownloadException(e));
-                }
-            });
-
-            AuthlibInjectorArtifactInfo artifact;
-            try {
-                artifact = artifactTask.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new AuthenticationException(e);
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof AuthenticationException) {
-                    throw (AuthenticationException) e.getCause();
-                } else {
-                    throw new AuthenticationException(e.getCause());
-                }
-            }
-
-            try {
-                return new OfflineAuthInfo(authInfo, artifact);
-            } catch (Exception e) {
-                throw new AuthenticationException(e);
-            }
-        } else {
-            return authInfo;
-        }
-    }
-
-    private class OfflineAuthInfo extends AuthInfo {
-        private final AuthlibInjectorArtifactInfo artifact;
-        private YggdrasilServer server;
-
-        public OfflineAuthInfo(AuthInfo authInfo, AuthlibInjectorArtifactInfo artifact) {
-            super(authInfo.getUsername(), authInfo.getUUID(), authInfo.getAccessToken(), USER_TYPE_MSA, authInfo.getUserProperties());
-
-            this.artifact = artifact;
-        }
-
-        @Override
-        public Arguments getLaunchArguments(LaunchOptions options) throws IOException {
-            if (!options.isDaemon()) return null;
-
-            server = new YggdrasilServer(0);
-            server.start();
-
-            try {
-                server.addCharacter(new YggdrasilServer.Character(profileID, profileName,
-                        skin != null ? skin.load(profileName).run() : null));
-            } catch (IOException e) {
-                // ignore
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-
-            return new Arguments().addJVMArguments(
-                    "-javaagent:" + artifact.location().toString() + "=" + "http://localhost:" + server.getListeningPort(),
-                    "-Dauthlibinjector.side=client"
-            );
-        }
-
-        @Override
-        public void close() throws Exception {
-            super.close();
-
-            if (server != null)
-                server.stop();
-        }
-    }
-
-    @Override
-    public AuthInfo playOffline() throws AuthenticationException {
-        return logIn();
     }
 
     @Override

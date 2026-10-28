@@ -87,7 +87,7 @@ public class ClassicAccountLoginDialog extends StackPane {
         String password = txtPassword.getText();
         progressBar.setVisible(true);
         lblCreationWarning.setText("");
-        Task.supplyAsync(() -> oldAccount.logInWithPassword(password))
+        Task.supplyAsync(() -> Accounts.logInWithPassword(oldAccount, password))
                 .whenComplete(Schedulers.javafx(), authInfo -> {
                     success.accept(authInfo);
                     fireEvent(new DialogCloseEvent());

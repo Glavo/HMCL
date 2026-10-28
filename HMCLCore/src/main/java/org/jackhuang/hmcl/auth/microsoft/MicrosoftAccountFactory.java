@@ -12,14 +12,20 @@ import org.jackhuang.hmcl.auth.OAuth;
 import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.GameProfile;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
 
+/// Creates or restores Microsoft accounts using a caller-configured protocol service.
+@NotNullByDefault
 public class MicrosoftAccountFactory extends AccountFactory<MicrosoftAccount> {
 
+    /// The service used for initial authentication and restored accounts.
     private final MicrosoftService service;
 
+    /// Creates a factory using the supplied Microsoft authentication service.
     public MicrosoftAccountFactory(MicrosoftService service) {
         this.service = service;
     }
@@ -30,8 +36,12 @@ public class MicrosoftAccountFactory extends AccountFactory<MicrosoftAccount> {
     }
 
     @Override
-    public MicrosoftAccount create(CharacterSelector selector, String username, String password, ProgressCallback progressCallback, Object additionalData) throws AuthenticationException {
-        return new MicrosoftAccount(service, (OAuth.GrantFlow) additionalData);
+    public MicrosoftAccount create(@Nullable CharacterSelector selector, @Nullable String username, @Nullable String password, @Nullable ProgressCallback progressCallback, Object additionalData) throws AuthenticationException {
+        MicrosoftSession session = service.authenticate((OAuth.GrantFlow) additionalData);
+        if (session.profile() == null) {
+            session = service.refresh(session);
+        }
+        return new MicrosoftAccount(AccountID.generate(), service, session, true);
     }
 
     @Override
@@ -51,6 +61,6 @@ public class MicrosoftAccountFactory extends AccountFactory<MicrosoftAccount> {
             profileRepository.invalidate(profile.id());
         }
 
-        return new MicrosoftAccount(accountID, service, session);
+        return new MicrosoftAccount(accountID, service, session, false);
     }
 }

@@ -20,16 +20,12 @@ import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- *
- * @author huangyuhui
- */
+/// Stores an account identity and exposes observable profile and persistence state.
 @NotNullByDefault
 public abstract class Account implements Observable {
     /// The serialized account ID property name.
@@ -50,37 +46,11 @@ public abstract class Account implements Observable {
         return accountID;
     }
 
-    /**
-     * @return the profile name
-     */
+    /// Returns the cached player profile name.
     public abstract String getProfileName();
 
-    /**
-     * @return the profile ID
-     */
+    /// Returns the player profile UUID.
     public abstract UUID getProfileID();
-
-    /**
-     * Login with stored credentials.
-     *
-     * @throws CredentialExpiredException when the stored credentials has expired, in which case a password login will be performed
-     */
-    public abstract AuthInfo logIn() throws AuthenticationException;
-
-    /**
-     * Play offline.
-     *
-     * @return the specific offline player's info.
-     */
-    public abstract AuthInfo playOffline() throws AuthenticationException;
-
-    public boolean canUploadSkin() {
-        return false;
-    }
-
-    public void uploadSkin(boolean isSlim, Path file) throws AuthenticationException, UnsupportedOperationException {
-        throw new UnsupportedOperationException("Unsupported Operation");
-    }
 
     /// Writes public account metadata into the target JSON object.
     ///
@@ -103,19 +73,24 @@ public abstract class Account implements Observable {
     public void writePrivateData(JsonObject privateData) {
     }
 
+    /// Invalidates cached authentication or profile data maintained by this account.
     public void clearCache() {
     }
 
+    /// Whether this account is stored with the local launcher configuration.
     private final BooleanProperty portable = new SimpleBooleanProperty(false);
 
+    /// Returns the mutable property selecting local account storage.
     public BooleanProperty portableProperty() {
         return portable;
     }
 
+    /// Returns whether this account is stored with the local launcher configuration.
     public boolean isPortable() {
         return portable.get();
     }
 
+    /// Selects local or shared account storage.
     public void setPortable(boolean value) {
         this.portable.set(value);
     }
@@ -151,6 +126,7 @@ public abstract class Account implements Observable {
         return AccountID.parse(accountID);
     }
 
+    /// Dispatches account invalidation notifications.
     private final ObservableHelper helper = new ObservableHelper(this);
 
     @Override
@@ -163,14 +139,13 @@ public abstract class Account implements Observable {
         helper.removeListener(listener);
     }
 
-    /**
-     * Called when the account has changed.
-     * This method can be called from any thread.
-     */
+    /// Schedules an account change notification on the JavaFX application thread.
+    /// This method may be called from any thread after the JavaFX runtime has started.
     protected void invalidate() {
         Platform.runLater(helper::invalidate);
     }
 
+    /// Returns an observable binding for cached profile textures, or an empty optional when unavailable.
     public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures() {
         return Bindings.createObjectBinding(Optional::empty);
     }

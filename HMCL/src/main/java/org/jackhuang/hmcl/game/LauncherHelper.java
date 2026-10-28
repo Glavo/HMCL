@@ -17,6 +17,7 @@ import org.jackhuang.hmcl.launch.*;
 import org.jackhuang.hmcl.modpack.ModpackCompletionException;
 import org.jackhuang.hmcl.modpack.ModpackConfiguration;
 import org.jackhuang.hmcl.modpack.ModpackProvider;
+import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.setting.GameSettings;
 import org.jackhuang.hmcl.setting.JavaVersionType;
 import org.jackhuang.hmcl.setting.LauncherVisibility;
@@ -763,9 +764,9 @@ public final class LauncherHelper {
         return Task.composeAsync(() -> {
             try {
                 if (disableOfflineSkin && account instanceof OfflineAccount offlineAccount)
-                    return Task.completed(offlineAccount.logInWithoutSkin());
+                    return Task.completed(Accounts.logInWithoutSkin(offlineAccount));
                 else
-                    return Task.completed(account.logIn());
+                    return Task.completed(Accounts.logIn(account));
             } catch (CredentialExpiredException e) {
                 LOG.info("Credential has expired", e);
 
@@ -778,7 +779,7 @@ public final class LauncherHelper {
                     JFXButton loginOfflineButton = new JFXButton(i18n("account.login.skip"));
                     loginOfflineButton.setOnAction(event -> {
                         try {
-                            future.complete(Task.completed(account.playOffline()));
+                            future.complete(Task.completed(Accounts.playOffline(account)));
                         } catch (AuthenticationException e2) {
                             future.completeExceptionally(e2);
                         }

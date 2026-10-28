@@ -314,7 +314,7 @@ public class MicrosoftAccountLoginPane extends JFXDialogLayout implements Dialog
 
         if (loginCallback != null) {
             try {
-                loginCallback.accept(account.logIn());
+                loginCallback.accept(Accounts.logIn(account));
             } catch (AuthenticationException e) {
                 this.step.set(new Step.LoginFailed(Accounts.localizeErrorMessage(e)));
                 return;

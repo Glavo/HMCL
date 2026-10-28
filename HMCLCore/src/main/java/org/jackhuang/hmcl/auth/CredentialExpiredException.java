@@ -7,7 +7,6 @@ package org.jackhuang.hmcl.auth;
  * This exception indicates that a password login should be performed.
  *
  * @author yushijinhun
- * @see Account#logIn()
  */
 public class CredentialExpiredException extends AuthenticationException {
 

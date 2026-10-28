@@ -4,25 +4,31 @@ package org.jackhuang.hmcl.auth.yggdrasil;
 
 import com.google.gson.JsonObject;
 import javafx.beans.binding.ObjectBinding;
-import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.auth.*;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.javafx.BindingMapping;
+import org.jetbrains.annotations.NotNullByDefault;
 
-import java.nio.file.Path;
 import java.util.*;
 
 import static java.util.Objects.requireNonNull;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
+/// Stores a Yggdrasil identity, its current session, and cached profile properties.
+@NotNullByDefault
 public abstract class YggdrasilAccount extends ClassicAccount {
 
+    /// The protocol service used for profile and skin operations.
     protected final YggdrasilService service;
+    /// The fixed Minecraft profile ID.
     protected final UUID profileID;
+    /// The login name accepted by the authentication server.
     protected final String loginName;
 
+    /// The current credentials and selected profile.
     private YggdrasilSession session;
 
+    /// Creates an account from a session with a selected profile and non-null profile ID.
     protected YggdrasilAccount(AccountID accountID, YggdrasilService service, String loginName, YggdrasilSession session) {
         super(accountID);
         this.service = requireNonNull(service);
@@ -33,34 +39,10 @@ public abstract class YggdrasilAccount extends ClassicAccount {
         addProfilePropertiesListener();
     }
 
-    protected YggdrasilAccount(YggdrasilService service, String loginName, String password, CharacterSelector selector) throws AuthenticationException {
-        super(AccountID.generate());
-        this.service = requireNonNull(service);
-        this.loginName = requireNonNull(loginName);
-
-        YggdrasilSession acquiredSession = service.authenticate(loginName, password, randomClientToken());
-        if (acquiredSession.getSelectedProfile() == null) {
-            if (acquiredSession.getAvailableProfiles() == null || acquiredSession.getAvailableProfiles().isEmpty()) {
-                throw new NoCharacterException();
-            }
-
-            GameProfile characterToSelect = selector.select(service, acquiredSession.getAvailableProfiles());
-
-            session = service.refresh(
-                    acquiredSession.getAccessToken(),
-                    acquiredSession.getClientToken(),
-                    characterToSelect);
-            // response validity has been checked in refresh()
-        } else {
-            session = acquiredSession;
-        }
-
-        profileID = session.getSelectedProfile().getId();
-
-        addProfilePropertiesListener();
-    }
-
+    /// Keeps profile cache change notifications reachable.
     private ObjectBinding<Optional<CompleteGameProfile>> profilePropertiesBinding;
+
+    /// Forwards profile cache changes to account observers.
     private void addProfilePropertiesListener() {
         // binding() is thread-safe
         // hold the binding so that it won't be garbage-collected
@@ -84,73 +66,24 @@ public abstract class YggdrasilAccount extends ClassicAccount {
         return session.getSelectedProfile().getId();
     }
 
-    /// Returns authentication information after validating the current token.
-    /// Refreshes the session if the profile name is missing or the token is invalid.
-    @Override
-    public synchronized AuthInfo logIn() throws AuthenticationException {
-        if (!session.hasProfileName() || !service.validate(session.getAccessToken(), session.getClientToken())) {
-            YggdrasilSession acquiredSession;
-            try {
-                acquiredSession = service.refresh(session.getAccessToken(), session.getClientToken(), null);
-            } catch (RemoteAuthenticationException e) {
-                if ("ForbiddenOperationException".equals(e.getRemoteName())) {
-                    throw new CredentialExpiredException(e);
-                } else {
-                    throw e;
-                }
-            }
-            if (acquiredSession.getSelectedProfile() == null ||
-                    !acquiredSession.getSelectedProfile().getId().equals(profileID)) {
-                throw new ServerResponseMalformedException("Selected profile changed");
-            }
-            if (!acquiredSession.hasProfileName()) {
-                throw new ServerResponseMalformedException("Profile name is missing");
-            }
-
-            session = acquiredSession;
-
-            invalidate();
-        }
-        return session.toAuthInfo();
+    /// Returns the current session without validating or refreshing its credentials.
+    public synchronized YggdrasilSession getSession() {
+        return session;
     }
 
-    @Override
-    public synchronized AuthInfo logInWithPassword(String password) throws AuthenticationException {
-        YggdrasilSession acquiredSession = service.authenticate(loginName, password, randomClientToken());
-
-        if (acquiredSession.getSelectedProfile() == null) {
-            if (acquiredSession.getAvailableProfiles() == null || acquiredSession.getAvailableProfiles().isEmpty()) {
-                throw new CharacterDeletedException();
-            }
-
-            GameProfile characterToSelect = acquiredSession.getAvailableProfiles().stream()
-                    .filter(charatcer -> charatcer.getId().equals(profileID))
-                    .findFirst()
-                    .orElseThrow(CharacterDeletedException::new);
-
-            session = service.refresh(
-                    acquiredSession.getAccessToken(),
-                    acquiredSession.getClientToken(),
-                    characterToSelect);
-
-        } else {
-            if (!acquiredSession.getSelectedProfile().getId().equals(profileID)) {
-                throw new CharacterDeletedException();
-            }
-            session = acquiredSession;
+    /// Installs a session for the same profile and schedules an account change notification.
+    ///
+    /// @throws ServerResponseMalformedException if the selected profile differs or its name is missing;
+    ///         the current session is retained
+    public synchronized void updateSession(YggdrasilSession session) throws ServerResponseMalformedException {
+        if (session.getSelectedProfile() == null || !profileID.equals(session.getSelectedProfile().getId())) {
+            throw new ServerResponseMalformedException("Selected profile changed");
         }
-
-        invalidate();
-        return session.toAuthInfo();
-    }
-
-    @Override
-    public AuthInfo playOffline() throws AuthenticationException {
         if (!session.hasProfileName()) {
-            throw new CredentialExpiredException("Profile name is missing");
+            throw new ServerResponseMalformedException("Profile name is missing");
         }
-
-        return session.toAuthInfo();
+        this.session = session;
+        invalidate();
     }
 
     @Override
@@ -168,6 +101,7 @@ public abstract class YggdrasilAccount extends ClassicAccount {
                 privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
     }
 
+    /// Returns the protocol service associated with this account.
     public YggdrasilService getYggdrasilService() {
         return service;
     }
@@ -189,20 +123,6 @@ public abstract class YggdrasilAccount extends ClassicAccount {
                     }
                 }));
 
-    }
-
-    @Override
-    public boolean canUploadSkin() {
-        return true;
-    }
-
-    @Override
-    public void uploadSkin(boolean isSlim, Path file) throws AuthenticationException, UnsupportedOperationException {
-        service.uploadSkin(profileID, session.getAccessToken(), isSlim, file);
-    }
-
-    private static String randomClientToken() {
-        return UUIDs.toCompactString(UUID.randomUUID());
     }
 
     @Override

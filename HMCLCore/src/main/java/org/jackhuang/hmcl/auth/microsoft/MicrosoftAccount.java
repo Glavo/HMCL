@@ -11,52 +11,47 @@ import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.javafx.BindingMapping;
+import org.jetbrains.annotations.NotNullByDefault;
 
-import java.nio.file.Path;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
+/// Stores a Microsoft identity, its current session, and cached profile properties.
+@NotNullByDefault
 public final class MicrosoftAccount extends OAuthAccount {
 
+    /// The protocol service used for profile and skin operations.
     protected final MicrosoftService service;
+    /// The fixed Minecraft profile ID.
     protected final UUID profileID;
 
-    private boolean authenticated = false;
+    /// Whether the current session has been authenticated in this process.
+    private boolean authenticated;
+    /// The current credentials and profile.
     private MicrosoftSession session;
 
-    protected MicrosoftAccount(AccountID accountID, MicrosoftService service, MicrosoftSession session) {
+    /// Creates an account from a session with a non-null profile ID.
+    ///
+    /// @param authenticated whether the caller has already authenticated this session
+    protected MicrosoftAccount(AccountID accountID, MicrosoftService service, MicrosoftSession session, boolean authenticated) {
         super(accountID);
         this.service = requireNonNull(service);
         this.session = requireNonNull(session);
+        this.authenticated = authenticated;
         this.profileID = requireNonNull(session.profile().id());
 
         addProfilePropertiesListener();
     }
 
-    protected MicrosoftAccount(MicrosoftService service, OAuth.GrantFlow flow) throws AuthenticationException {
-        super(AccountID.generate());
-        this.service = requireNonNull(service);
-
-        MicrosoftSession acquiredSession = service.authenticate(flow);
-        if (acquiredSession.profile() == null) {
-            session = service.refresh(acquiredSession);
-        } else {
-            session = acquiredSession;
-        }
-
-        profileID = session.profile().id();
-        authenticated = true;
-
-        addProfilePropertiesListener();
-    }
-
+    /// Keeps profile cache change notifications reachable.
     @SuppressWarnings("FieldCanBeLocal")
     private ObjectBinding<Optional<CompleteGameProfile>> profilePropertiesBinding;
+
+    /// Forwards profile cache changes to account observers.
     private void addProfilePropertiesListener() {
         // binding() is thread-safe
         // hold the binding so that it won't be garbage-collected
@@ -75,66 +70,34 @@ public final class MicrosoftAccount extends OAuthAccount {
         return session.profile().id();
     }
 
-    @Override
-    public AuthInfo logIn() throws AuthenticationException {
-        if (!authenticated || !session.hasProfileName() || System.currentTimeMillis() > session.notAfter()) {
-            if (session.hasProfileName()
-                    && service.validate(session.notAfter(), session.tokenType(), session.accessToken())) {
-                authenticated = true;
-            } else {
-                MicrosoftSession acquiredSession = service.refresh(session);
-                if (!Objects.equals(acquiredSession.profile().id(), session.profile().id())) {
-                    throw new ServerResponseMalformedException("Selected profile changed");
-                }
-                if (!acquiredSession.hasProfileName()) {
-                    throw new ServerResponseMalformedException("Profile name is missing");
-                }
-
-                session = acquiredSession;
-
-                authenticated = true;
-                invalidate();
-            }
-        }
-
-        return session.toAuthInfo();
+    /// Returns the current session without validating or refreshing its credentials.
+    public synchronized MicrosoftSession getSession() {
+        return session;
     }
 
-    @Override
-    public AuthInfo logInWhenCredentialsExpired() throws AuthenticationException {
-        MicrosoftSession acquiredSession = service.authenticate(OAuth.GrantFlow.DEVICE);
-        if (!Objects.equals(profileID, acquiredSession.profile().id())) {
-            throw new WrongAccountException(profileID, acquiredSession.profile().id());
-        }
-
-        if (acquiredSession.profile() == null) {
-            session = service.refresh(acquiredSession);
-        } else {
-            session = acquiredSession;
-        }
-
-        authenticated = true;
-        invalidate();
-        return session.toAuthInfo();
+    /// Returns whether this session has been authenticated since loading or clearing the cache.
+    public synchronized boolean isAuthenticated() {
+        return authenticated;
     }
 
-    @Override
-    public AuthInfo playOffline() throws AuthenticationException {
+    /// Installs an authenticated session for this profile and schedules a change notification.
+    /// Passing the current session marks it authenticated without scheduling a notification.
+    ///
+    /// @throws ServerResponseMalformedException if the profile differs or its name is missing;
+    ///         the current session and authentication state are retained
+    public synchronized void updateSession(MicrosoftSession session) throws ServerResponseMalformedException {
+        if (session.profile() == null || !profileID.equals(session.profile().id())) {
+            throw new ServerResponseMalformedException("Selected profile changed");
+        }
         if (!session.hasProfileName()) {
-            throw new CredentialExpiredException("Profile name is missing");
+            throw new ServerResponseMalformedException("Profile name is missing");
         }
-
-        return session.toAuthInfo();
-    }
-
-    @Override
-    public boolean canUploadSkin() {
-        return true;
-    }
-
-    @Override
-    public void uploadSkin(boolean isSlim, Path file) throws AuthenticationException, UnsupportedOperationException {
-        service.uploadSkin(session.accessToken(), isSlim, file);
+        boolean changed = this.session != session;
+        this.session = session;
+        authenticated = true;
+        if (changed) {
+            invalidate();
+        }
     }
 
     @Override
@@ -151,6 +114,7 @@ public final class MicrosoftAccount extends OAuthAccount {
                 privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
     }
 
+    /// Returns the protocol service associated with this account.
     public MicrosoftService getService() {
         return service;
     }
@@ -169,7 +133,7 @@ public final class MicrosoftAccount extends OAuthAccount {
     }
 
     @Override
-    public void clearCache() {
+    public synchronized void clearCache() {
         authenticated = false;
         service.getProfileRepository().invalidate(profileID);
     }

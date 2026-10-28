@@ -6,18 +6,19 @@ import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.auth.AccountFactory;
 import org.jackhuang.hmcl.auth.AuthenticationException;
 import org.jackhuang.hmcl.auth.CharacterSelector;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
+/// Creates or restores external accounts associated with one authentication server.
+@NotNullByDefault
 public class BoundAuthlibInjectorAccountFactory extends AccountFactory<AuthlibInjectorAccount> {
-    private final AuthlibInjectorArtifactProvider downloader;
+    /// The server used for all accounts created by this factory.
     private final AuthlibInjectorServer server;
 
-    /**
-     * @param server Authlib-Injector Server
-     */
-    public BoundAuthlibInjectorAccountFactory(AuthlibInjectorArtifactProvider downloader, AuthlibInjectorServer server) {
-        this.downloader = downloader;
+    /// Creates a factory bound to the supplied authentication server.
+    public BoundAuthlibInjectorAccountFactory(AuthlibInjectorServer server) {
         this.server = server;
     }
 
@@ -26,21 +27,22 @@ public class BoundAuthlibInjectorAccountFactory extends AccountFactory<AuthlibIn
         return AccountLoginType.USERNAME_PASSWORD;
     }
 
+    /// Returns the server to which this factory is bound.
     public AuthlibInjectorServer getServer() {
         return server;
     }
 
     @Override
-    public AuthlibInjectorAccount create(CharacterSelector selector, String username, String password, ProgressCallback progressCallback, Object additionalData) throws AuthenticationException {
+    public AuthlibInjectorAccount create(CharacterSelector selector, String username, String password, @Nullable ProgressCallback progressCallback, @Nullable Object additionalData) throws AuthenticationException {
         Objects.requireNonNull(selector);
         Objects.requireNonNull(username);
         Objects.requireNonNull(password);
 
-        return new AuthlibInjectorAccount(server, downloader, username, password, selector);
+        return AuthlibInjectorAccountFactory.authenticate(server, username, password, selector);
     }
 
     @Override
     public AuthlibInjectorAccount fromStorage(JsonObject metadata, JsonObject privateData) {
-        return AuthlibInjectorAccountFactory.fromStorage(metadata, privateData, downloader, server);
+        return AuthlibInjectorAccountFactory.fromStorage(metadata, privateData, server);
     }
 }

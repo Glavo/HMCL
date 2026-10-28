@@ -3,6 +3,7 @@
 package org.jackhuang.hmcl.ui;
 
 import org.jackhuang.hmcl.auth.*;
+import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.ui.account.ClassicAccountLoginDialog;
 import org.jackhuang.hmcl.ui.account.MicrosoftAccountLoginPane;
 
@@ -43,6 +44,6 @@ public final class DialogController {
             latch.await();
             return Optional.ofNullable(res.get()).orElseThrow(CancellationException::new);
         }
-        return account.logIn();
+        return Accounts.logIn(account);
     }
 }

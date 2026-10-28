@@ -86,7 +86,7 @@ public class AccountListItem extends RadioButton {
         return Task.runAsync(() -> {
             account.clearCache();
             try {
-                account.logIn();
+                Accounts.logIn(account);
             } catch (CredentialExpiredException e) {
                 try {
                     DialogController.logIn(account);
@@ -112,7 +112,7 @@ public class AccountListItem extends RadioButton {
                         .orElse(emptySet());
                 return uploadableTextures.contains(TextureType.SKIN);
             }, profile);
-        } else if (account instanceof OfflineAccount || account.canUploadSkin()) {
+        } else if (account instanceof OfflineAccount || Accounts.canUploadSkin(account)) {
             return createBooleanBinding(() -> true);
         } else {
             return createBooleanBinding(() -> false);
@@ -128,7 +128,7 @@ public class AccountListItem extends RadioButton {
             Controllers.dialog(new OfflineAccountSkinPane((OfflineAccount) account));
             return null;
         }
-        if (!account.canUploadSkin()) {
+        if (!Accounts.canUploadSkin(account)) {
             return null;
         }
 
@@ -157,7 +157,7 @@ public class AccountListItem extends RadioButton {
                     NormalizedSkin skin = new NormalizedSkin(skinImg);
                     String model = skin.isSlim() ? "slim" : "";
                     LOG.info("Uploading skin [" + selectedFile + "], model [" + model + "]");
-                    account.uploadSkin(skin.isSlim(), selectedFile);
+                    Accounts.uploadSkin(account, skin.isSlim(), selectedFile);
                 })
                 .thenComposeAsync(refreshAsync())
                 .whenComplete(Schedulers.javafx(), e -> {

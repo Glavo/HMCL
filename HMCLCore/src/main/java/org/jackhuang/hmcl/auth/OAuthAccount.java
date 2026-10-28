@@ -16,20 +16,6 @@ public abstract class OAuthAccount extends Account {
         super(accountID);
     }
 
-    /**
-     * Fully login.
-     *
-     * OAuth server may ask us to do fully login because too frequent action to log in, IP changed,
-     * or some other vulnerabilities detected.
-     *
-     * Difference between logIn & logInWhenCredentialsExpired.
-     * logIn only update access token by refresh token, and will not ask user to login by opening the authorization
-     * page in web browser.
-     * logInWhenCredentialsExpired will open the authorization page in web browser, asking user to select an account
-     * (and enter password or PIN if necessary).
-     */
-    public abstract AuthInfo logInWhenCredentialsExpired() throws AuthenticationException;
-
     /// Exception thrown when refreshed OAuth credentials belong to a different account.
     public static class WrongAccountException extends AuthenticationException {
         /// The expected Minecraft profile ID.

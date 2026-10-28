@@ -23,10 +23,12 @@ import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.JarUtils;
 import org.jackhuang.hmcl.util.skin.InvalidSkinException;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -48,10 +50,53 @@ public final class Accounts {
 
     private static final AuthlibInjectorArtifactProvider AUTHLIB_INJECTOR_DOWNLOADER = createAuthlibInjectorArtifactProvider();
 
+    /// Performs account operations using HMCL's injector configuration.
+    private static final AccountService ACCOUNT_SERVICE = new AccountService(AUTHLIB_INJECTOR_DOWNLOADER);
+
+    /// Logs in with stored credentials and prepares launch resources.
+    ///
+    /// @see AccountService#logIn(Account)
+    public static AuthInfo logIn(Account account) throws AuthenticationException {
+        return ACCOUNT_SERVICE.logIn(account);
+    }
+
+    /// Prepares a launch using cached credentials and available authentication resources.
+    ///
+    /// @see AccountService#playOffline(Account)
+    public static AuthInfo playOffline(Account account) throws AuthenticationException {
+        return ACCOUNT_SERVICE.playOffline(account);
+    }
+
+    /// Authenticates the existing profile with a password and prepares launch resources.
+    ///
+    /// @see AccountService#logInWithPassword(ClassicAccount, String)
+    public static AuthInfo logInWithPassword(ClassicAccount account, String password) throws AuthenticationException {
+        return ACCOUNT_SERVICE.logInWithPassword(account, password);
+    }
+
+    /// Returns offline launch information without preparing skin injection.
+    public static AuthInfo logInWithoutSkin(OfflineAccount account) {
+        return ACCOUNT_SERVICE.logInWithoutSkin(account);
+    }
+
+    /// Returns whether the launcher implements skin uploads for this account type.
+    ///
+    /// @see AccountService#canUploadSkin(Account)
+    public static boolean canUploadSkin(@NotNull Account account) {
+        return ACCOUNT_SERVICE.canUploadSkin(account);
+    }
+
+    /// Uploads a skin using the account's current session without refreshing credentials or profile caches.
+    ///
+    /// @see AccountService#uploadSkin(Account, boolean, Path)
+    public static void uploadSkin(@NotNull Account account, boolean isSlim, @NotNull Path file) throws AuthenticationException {
+        ACCOUNT_SERVICE.uploadSkin(account, isSlim, file);
+    }
+
     public static final OAuthServer.Factory OAUTH_CALLBACK = new OAuthServer.Factory();
 
-    public static final OfflineAccountFactory FACTORY_OFFLINE = new OfflineAccountFactory(AUTHLIB_INJECTOR_DOWNLOADER);
-    public static final AuthlibInjectorAccountFactory FACTORY_AUTHLIB_INJECTOR = new AuthlibInjectorAccountFactory(AUTHLIB_INJECTOR_DOWNLOADER, Accounts::getOrCreateAuthlibInjectorServer);
+    public static final OfflineAccountFactory FACTORY_OFFLINE = new OfflineAccountFactory();
+    public static final AuthlibInjectorAccountFactory FACTORY_AUTHLIB_INJECTOR = new AuthlibInjectorAccountFactory(Accounts::getOrCreateAuthlibInjectorServer);
     public static final MicrosoftAccountFactory FACTORY_MICROSOFT = new MicrosoftAccountFactory(new MicrosoftService(OAUTH_CALLBACK));
     public static final List<AccountFactory<?>> FACTORIES = List.of(FACTORY_OFFLINE, FACTORY_MICROSOFT, FACTORY_AUTHLIB_INJECTOR);
 
@@ -84,7 +129,7 @@ public final class Accounts {
     }
 
     public static BoundAuthlibInjectorAccountFactory getAccountFactoryByAuthlibInjectorServer(AuthlibInjectorServer server) {
-        return new BoundAuthlibInjectorAccountFactory(AUTHLIB_INJECTOR_DOWNLOADER, server);
+        return new BoundAuthlibInjectorAccountFactory(server);
     }
     // ====
 
@@ -398,7 +443,7 @@ public final class Accounts {
             Account finalSelected = selected;
             Schedulers.io().execute(() -> {
                 try {
-                    finalSelected.logIn();
+                    logIn(finalSelected);
                 } catch (Throwable e) {
                     LOG.warning("Failed to log " + finalSelected + " in", e);
                 }
