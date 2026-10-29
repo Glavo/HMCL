@@ -6,13 +6,8 @@ import com.google.gson.JsonObject;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import org.jackhuang.hmcl.auth.yggdrasil.Texture;
-import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.util.ToStringBuilder;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.javafx.ObservableHelper;
@@ -20,9 +15,7 @@ import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 /// Stores an account identity and exposes observable profile and persistence state.
@@ -71,10 +64,6 @@ public abstract class Account implements Observable {
     /// not retain a reference to it.
     @MustBeInvokedByOverriders
     public void writePrivateData(JsonObject privateData) {
-    }
-
-    /// Invalidates cached authentication or profile data maintained by this account.
-    public void clearCache() {
     }
 
     /// Whether this account is stored with the local launcher configuration.
@@ -143,11 +132,6 @@ public abstract class Account implements Observable {
     /// This method may be called from any thread after the JavaFX runtime has started.
     protected void invalidate() {
         Platform.runLater(helper::invalidate);
-    }
-
-    /// Returns an observable binding for cached profile textures, or an empty optional when unavailable.
-    public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures() {
-        return Bindings.createObjectBinding(Optional::empty);
     }
 
     @Override

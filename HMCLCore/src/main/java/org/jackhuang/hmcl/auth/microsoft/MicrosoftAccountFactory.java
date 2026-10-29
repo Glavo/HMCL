@@ -41,7 +41,7 @@ public class MicrosoftAccountFactory extends AccountFactory<MicrosoftAccount> {
         if (session.profile() == null) {
             session = service.refresh(session);
         }
-        return new MicrosoftAccount(AccountID.generate(), service, session, true);
+        return new MicrosoftAccount(AccountID.generate(), session, true);
     }
 
     @Override
@@ -61,6 +61,6 @@ public class MicrosoftAccountFactory extends AccountFactory<MicrosoftAccount> {
             profileRepository.invalidate(profile.id());
         }
 
-        return new MicrosoftAccount(accountID, service, session, false);
+        return new MicrosoftAccount(accountID, session, false);
     }
 }

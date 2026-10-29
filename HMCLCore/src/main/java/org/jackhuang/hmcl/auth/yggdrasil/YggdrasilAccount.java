@@ -3,23 +3,17 @@
 package org.jackhuang.hmcl.auth.yggdrasil;
 
 import com.google.gson.JsonObject;
-import javafx.beans.binding.ObjectBinding;
 import org.jackhuang.hmcl.auth.*;
-import org.jackhuang.hmcl.util.gson.JsonUtils;
-import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jetbrains.annotations.NotNullByDefault;
 
-import java.util.*;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-/// Stores a Yggdrasil identity, its current session, and cached profile properties.
+/// Stores a Yggdrasil identity and its current session.
 @NotNullByDefault
 public abstract class YggdrasilAccount extends ClassicAccount {
 
-    /// The protocol service used for profile and skin operations.
-    protected final YggdrasilService service;
     /// The fixed Minecraft profile ID.
     protected final UUID profileID;
     /// The login name accepted by the authentication server.
@@ -29,26 +23,11 @@ public abstract class YggdrasilAccount extends ClassicAccount {
     private YggdrasilSession session;
 
     /// Creates an account from a session with a selected profile and non-null profile ID.
-    protected YggdrasilAccount(AccountID accountID, YggdrasilService service, String loginName, YggdrasilSession session) {
+    protected YggdrasilAccount(AccountID accountID, String loginName, YggdrasilSession session) {
         super(accountID);
-        this.service = requireNonNull(service);
         this.loginName = requireNonNull(loginName);
         this.profileID = requireNonNull(session.getSelectedProfile().getId());
         this.session = requireNonNull(session);
-
-        addProfilePropertiesListener();
-    }
-
-    /// Keeps profile cache change notifications reachable.
-    private ObjectBinding<Optional<CompleteGameProfile>> profilePropertiesBinding;
-
-    /// Forwards profile cache changes to account observers.
-    private void addProfilePropertiesListener() {
-        // binding() is thread-safe
-        // hold the binding so that it won't be garbage-collected
-        profilePropertiesBinding = service.getProfileRepository().binding(profileID, true);
-        // and it's safe to add a listener to an ObjectBinding which does not have any listener attached before (maybe tricky)
-        profilePropertiesBinding.addListener((a, b, c) -> this.invalidate());
     }
 
     @Override
@@ -97,32 +76,6 @@ public abstract class YggdrasilAccount extends ClassicAccount {
     public void writePrivateData(JsonObject privateData) {
         super.writePrivateData(privateData);
         session.writePrivateData(privateData);
-        service.getProfileRepository().getImmediately(profileID).ifPresent(profile ->
-                privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
-    }
-
-    /// Returns the protocol service associated with this account.
-    public YggdrasilService getYggdrasilService() {
-        return service;
-    }
-
-    @Override
-    public void clearCache() {
-        service.getProfileRepository().invalidate(profileID);
-    }
-
-    @Override
-    public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures() {
-        return BindingMapping.of(service.getProfileRepository().binding(getProfileID()))
-                .map(profile -> profile.flatMap(it -> {
-                    try {
-                        return YggdrasilService.getTextures(it);
-                    } catch (ServerResponseMalformedException e) {
-                        LOG.warning("Failed to parse texture payload", e);
-                        return Optional.empty();
-                    }
-                }));
-
     }
 
     @Override

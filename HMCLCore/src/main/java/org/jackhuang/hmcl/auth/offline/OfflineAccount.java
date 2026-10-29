@@ -4,18 +4,13 @@ package org.jackhuang.hmcl.auth.offline;
 
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import javafx.beans.binding.ObjectBinding;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
-import org.jackhuang.hmcl.auth.yggdrasil.Texture;
-import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.ToStringBuilder;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -82,11 +77,6 @@ public class OfflineAccount extends Account {
             skin.writeStorage(skinStorage);
             metadata.add("skin", skinStorage);
         }
-    }
-
-    @Override
-    public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures() {
-        return super.getTextures();
     }
 
     @Override

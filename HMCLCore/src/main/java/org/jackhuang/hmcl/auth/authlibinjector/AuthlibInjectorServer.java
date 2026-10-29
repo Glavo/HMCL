@@ -8,7 +8,6 @@ import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import org.glavo.url.WebURL;
-import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
 import org.jackhuang.hmcl.util.io.HttpRequest;
 import org.jackhuang.hmcl.util.io.NetworkUtils;
 import org.jackhuang.hmcl.util.javafx.ObservableHelper;
@@ -87,19 +86,13 @@ public class AuthlibInjectorServer implements Observable {
 
     private transient boolean metadataRefreshed;
     private final transient ObservableHelper helper = new ObservableHelper(this);
-    private final transient YggdrasilService yggdrasilService;
 
     public AuthlibInjectorServer(String url) {
         this.url = url;
-        this.yggdrasilService = new YggdrasilService(new AuthlibInjectorProvider(url));
     }
 
     public String getUrl() {
         return url;
-    }
-
-    public YggdrasilService getYggdrasilService() {
-        return yggdrasilService;
     }
 
     public Optional<String> getMetadataResponse() {

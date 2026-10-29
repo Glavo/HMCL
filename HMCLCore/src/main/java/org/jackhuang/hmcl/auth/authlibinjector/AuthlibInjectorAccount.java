@@ -30,7 +30,7 @@ public class AuthlibInjectorAccount extends YggdrasilAccount {
             AuthlibInjectorServer server,
             String username,
             YggdrasilSession session) {
-        super(accountID, server.getYggdrasilService(), username, session);
+        super(accountID, username, session);
         this.server = server;
     }
 
@@ -38,12 +38,6 @@ public class AuthlibInjectorAccount extends YggdrasilAccount {
     public void writeMetadata(JsonObject metadata) {
         metadata.addProperty("serverBaseURL", server.getUrl());
         super.writeMetadata(metadata);
-    }
-
-    @Override
-    public void clearCache() {
-        super.clearCache();
-        server.invalidateMetadataCache();
     }
 
     /// Returns the authentication server associated with this account.

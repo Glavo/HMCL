@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.auth;
 
+import com.google.gson.JsonObject;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.auth.authlibinjector.*;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftSession;
+import org.jackhuang.hmcl.auth.microsoft.MicrosoftService;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.auth.offline.Skin;
 import org.jackhuang.hmcl.auth.offline.YggdrasilServer;
@@ -13,19 +17,26 @@ import org.jackhuang.hmcl.auth.yggdrasil.*;
 import org.jackhuang.hmcl.game.Arguments;
 import org.jackhuang.hmcl.game.LaunchOptions;
 import org.jackhuang.hmcl.util.function.ExceptionalSupplier;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jackhuang.hmcl.util.javafx.BindingMapping;
+import org.jackhuang.hmcl.util.javafx.ObservableOptionalCache;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// Authenticates accounts, prepares launch resources, and uploads skins.
 ///
@@ -37,16 +48,88 @@ public final class AccountService {
     /// Supplies injector artifacts for external authentication and offline skins.
     private final AuthlibInjectorArtifactProvider artifactProvider;
 
-    /// Creates an account service using the launcher's injector artifact provider.
-    public AccountService(AuthlibInjectorArtifactProvider artifactProvider) {
+    /// The launcher-configured Microsoft protocol service shared by all Microsoft accounts.
+    private final MicrosoftService microsoftService;
+
+    /// Protocol services and profile caches shared by accounts with the same external server URL.
+    private final Map<String, YggdrasilService> yggdrasilServices = new ConcurrentHashMap<>();
+
+    /// Creates an account service using the launcher's injector provider and Microsoft client configuration.
+    public AccountService(AuthlibInjectorArtifactProvider artifactProvider, MicrosoftService microsoftService) {
         this.artifactProvider = Objects.requireNonNull(artifactProvider);
+        this.microsoftService = Objects.requireNonNull(microsoftService);
+    }
+
+    /// Returns the shared protocol service for the server URL, creating it without network access if absent.
+    public YggdrasilService getYggdrasilService(AuthlibInjectorServer server) {
+        return yggdrasilServices.computeIfAbsent(server.getUrl(), url -> new YggdrasilService(new AuthlibInjectorProvider(url)));
+    }
+
+    /// Returns the profile repository for a supported online account, or `null` for other account types.
+    private @Nullable ObservableOptionalCache<UUID, CompleteGameProfile, AuthenticationException> getProfileRepository(Account account) {
+        if (account instanceof MicrosoftAccount) {
+            return microsoftService.getProfileRepository();
+        } else if (account instanceof AuthlibInjectorAccount injector) {
+            return getYggdrasilService(injector.getServer()).getProfileRepository();
+        }
+        return null;
+    }
+
+    /// Returns a binding to the account's cached profile, or an empty optional for unsupported account types.
+    ///
+    /// When `quiet` is `false`, reading an absent or invalidated profile starts an asynchronous fetch.
+    /// When `quiet` is `true`, the binding only observes cached values and never initiates a fetch.
+    /// Failed fetches retain the cached profile, if any.
+    public ObjectBinding<Optional<CompleteGameProfile>> getProfile(Account account, boolean quiet) {
+        @Nullable var repository = getProfileRepository(account);
+        return repository == null ? Bindings.createObjectBinding(Optional::empty) : repository.binding(account.getProfileID(), quiet);
+    }
+
+    /// Returns a texture binding that asynchronously fetches missing or invalidated profiles when read.
+    /// An absent profile or malformed texture payload produces an empty optional.
+    public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures(Account account) {
+        return BindingMapping.of(getProfile(account, false)).map(profile -> profile.flatMap(it -> {
+            try {
+                return YggdrasilService.getTextures(it);
+            } catch (ServerResponseMalformedException e) {
+                LOG.warning("Failed to parse texture payload", e);
+                return Optional.empty();
+            }
+        }));
+    }
+
+    /// Marks profile and external server metadata caches stale without discarding their cached values.
+    /// Microsoft accounts also require session validation on their next login.
+    /// This method does not initiate a network request itself; observing bindings may request a refresh.
+    public void clearCache(Account account) {
+        if (account instanceof MicrosoftAccount microsoft) {
+            microsoft.invalidateAuthentication();
+        }
+        @Nullable var repository = getProfileRepository(account);
+        if (repository != null) {
+            repository.invalidate(account.getProfileID());
+        }
+        if (account instanceof AuthlibInjectorAccount injector) {
+            injector.getServer().invalidateMetadataCache();
+        }
+    }
+
+    /// Writes account credentials and the currently cached profile properties to caller-owned private storage.
+    /// This method does not fetch profiles or refresh credentials and does not retain the target object.
+    public void writePrivateData(Account account, JsonObject privateData) {
+        account.writePrivateData(privateData);
+        @Nullable var repository = getProfileRepository(account);
+        if (repository != null) {
+            repository.getImmediately(account.getProfileID()).ifPresent(profile ->
+                    privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
+        }
     }
 
     /// Returns whether the launcher implements skin uploads for this account type.
     /// This does not check server permissions or credential validity.
     public boolean canUploadSkin(Account account) {
         Objects.requireNonNull(account);
-        return account instanceof MicrosoftAccount || account instanceof YggdrasilAccount;
+        return account instanceof MicrosoftAccount || account instanceof AuthlibInjectorAccount;
     }
 
     /// Uploads a skin using the account's current session without refreshing credentials or profile caches.
@@ -61,9 +144,9 @@ public final class AccountService {
         Objects.requireNonNull(account);
         Objects.requireNonNull(file);
         if (account instanceof MicrosoftAccount microsoft) {
-            microsoft.getService().uploadSkin(microsoft.getSession().accessToken(), isSlim, file);
-        } else if (account instanceof YggdrasilAccount yggdrasil) {
-            yggdrasil.getYggdrasilService().uploadSkin(yggdrasil.getProfileID(),
+            microsoftService.uploadSkin(microsoft.getSession().accessToken(), isSlim, file);
+        } else if (account instanceof AuthlibInjectorAccount yggdrasil) {
+            getYggdrasilService(yggdrasil.getServer()).uploadSkin(yggdrasil.getProfileID(),
                     yggdrasil.getSession().getAccessToken(), isSlim, file);
         } else {
             throw new UnsupportedOperationException("Skin uploads are unsupported for account type: " + account.getClass().getName());
@@ -86,8 +169,6 @@ public final class AccountService {
                 return logInMicrosoft(microsoft);
             } else if (account instanceof AuthlibInjectorAccount injector) {
                 return inject(injector, () -> logInYggdrasil(injector));
-            } else if (account instanceof YggdrasilAccount yggdrasil) {
-                return logInYggdrasil(yggdrasil);
             }
             throw new IllegalArgumentException("Unsupported account type: " + account.getClass().getName());
         }
@@ -134,13 +215,11 @@ public final class AccountService {
     ///
     /// @throws CharacterDeletedException if the authenticated account no longer offers the profile
     /// @throws AuthenticationException if authentication, profile selection, or injector preparation fails
-    /// @throws IllegalArgumentException if the account is not a Yggdrasil account
+    /// @throws IllegalArgumentException if the account is not an authlib-injector account
     public AuthInfo logInWithPassword(ClassicAccount account, String password) throws AuthenticationException {
         synchronized (account) {
             if (account instanceof AuthlibInjectorAccount injector) {
                 return inject(injector, () -> authenticateYggdrasil(injector, password));
-            } else if (account instanceof YggdrasilAccount yggdrasil) {
-                return authenticateYggdrasil(yggdrasil, password);
             }
             throw new IllegalArgumentException("Unsupported account type: " + account.getClass().getName());
         }
@@ -155,7 +234,7 @@ public final class AccountService {
     /// Validates or refreshes a Microsoft session while the account monitor is held.
     private AuthInfo logInMicrosoft(MicrosoftAccount account) throws AuthenticationException {
         MicrosoftSession session = account.getSession();
-        var service = account.getService();
+        var service = microsoftService;
         if (!account.isAuthenticated() || !session.hasProfileName() || System.currentTimeMillis() > session.notAfter()) {
             if (!session.hasProfileName() || !service.validate(session.notAfter(), session.tokenType(), session.accessToken())) {
                 session = service.refresh(session);
@@ -166,9 +245,9 @@ public final class AccountService {
     }
 
     /// Validates or refreshes a Yggdrasil session while the account monitor is held.
-    private AuthInfo logInYggdrasil(YggdrasilAccount account) throws AuthenticationException {
+    private AuthInfo logInYggdrasil(AuthlibInjectorAccount account) throws AuthenticationException {
         YggdrasilSession session = account.getSession();
-        var service = account.getYggdrasilService();
+        var service = getYggdrasilService(account.getServer());
         if (!session.hasProfileName() || !service.validate(session.getAccessToken(), session.getClientToken())) {
             try {
                 session = service.refresh(session.getAccessToken(), session.getClientToken(), null);
@@ -184,8 +263,8 @@ public final class AccountService {
     }
 
     /// Authenticates and reselects the existing Yggdrasil profile while the account monitor is held.
-    private AuthInfo authenticateYggdrasil(YggdrasilAccount account, String password) throws AuthenticationException {
-        var service = account.getYggdrasilService();
+    private AuthInfo authenticateYggdrasil(AuthlibInjectorAccount account, String password) throws AuthenticationException {
+        var service = getYggdrasilService(account.getServer());
         YggdrasilSession session = service.authenticate(account.getLoginName(), password, UUIDs.toCompactString(UUID.randomUUID()));
         if (session.getSelectedProfile() == null) {
             if (session.getAvailableProfiles() == null || session.getAvailableProfiles().isEmpty()) {

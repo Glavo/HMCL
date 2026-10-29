@@ -5,6 +5,7 @@ package org.jackhuang.hmcl.setting;
 import com.google.gson.JsonObject;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
@@ -17,7 +18,10 @@ import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccountFactory;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftService;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.auth.offline.OfflineAccountFactory;
+import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.RemoteAuthenticationException;
+import org.jackhuang.hmcl.auth.yggdrasil.Texture;
+import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -50,8 +54,14 @@ public final class Accounts {
 
     private static final AuthlibInjectorArtifactProvider AUTHLIB_INJECTOR_DOWNLOADER = createAuthlibInjectorArtifactProvider();
 
-    /// Performs account operations using HMCL's injector configuration.
-    private static final AccountService ACCOUNT_SERVICE = new AccountService(AUTHLIB_INJECTOR_DOWNLOADER);
+    /// Handles interactive OAuth and supplies the launcher-configured Microsoft client ID.
+    public static final OAuthServer.Factory OAUTH_CALLBACK = new OAuthServer.Factory();
+
+    /// The Microsoft client configuration and profile cache shared by account creation and later operations.
+    private static final MicrosoftService MICROSOFT_SERVICE = new MicrosoftService(OAUTH_CALLBACK);
+
+    /// Performs account operations using HMCL's protocol services and injector configuration.
+    private static final AccountService ACCOUNT_SERVICE = new AccountService(AUTHLIB_INJECTOR_DOWNLOADER, MICROSOFT_SERVICE);
 
     /// Logs in with stored credentials and prepares launch resources.
     ///
@@ -93,11 +103,24 @@ public final class Accounts {
         ACCOUNT_SERVICE.uploadSkin(account, isSlim, file);
     }
 
-    public static final OAuthServer.Factory OAUTH_CALLBACK = new OAuthServer.Factory();
+    /// Returns an observable profile, fetching missing or stale data asynchronously when the binding is read.
+    public static ObjectBinding<Optional<CompleteGameProfile>> getProfile(Account account) {
+        return ACCOUNT_SERVICE.getProfile(account, false);
+    }
+
+    /// Returns an observable texture map backed by the launcher's profile cache.
+    public static ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures(Account account) {
+        return ACCOUNT_SERVICE.getTextures(account);
+    }
+
+    /// Invalidates cached authentication and profile data without discarding stored credentials.
+    public static void clearCache(Account account) {
+        ACCOUNT_SERVICE.clearCache(account);
+    }
 
     public static final OfflineAccountFactory FACTORY_OFFLINE = new OfflineAccountFactory();
-    public static final AuthlibInjectorAccountFactory FACTORY_AUTHLIB_INJECTOR = new AuthlibInjectorAccountFactory(Accounts::getOrCreateAuthlibInjectorServer);
-    public static final MicrosoftAccountFactory FACTORY_MICROSOFT = new MicrosoftAccountFactory(new MicrosoftService(OAUTH_CALLBACK));
+    public static final AuthlibInjectorAccountFactory FACTORY_AUTHLIB_INJECTOR = new AuthlibInjectorAccountFactory(Accounts::getOrCreateAuthlibInjectorServer, ACCOUNT_SERVICE::getYggdrasilService);
+    public static final MicrosoftAccountFactory FACTORY_MICROSOFT = new MicrosoftAccountFactory(MICROSOFT_SERVICE);
     public static final List<AccountFactory<?>> FACTORIES = List.of(FACTORY_OFFLINE, FACTORY_MICROSOFT, FACTORY_AUTHLIB_INJECTOR);
 
     // ==== login type / account factory mapping ====
@@ -129,7 +152,7 @@ public final class Accounts {
     }
 
     public static BoundAuthlibInjectorAccountFactory getAccountFactoryByAuthlibInjectorServer(AuthlibInjectorServer server) {
-        return new BoundAuthlibInjectorAccountFactory(server);
+        return new BoundAuthlibInjectorAccountFactory(server, ACCOUNT_SERVICE.getYggdrasilService(server));
     }
     // ====
 
@@ -145,6 +168,28 @@ public final class Accounts {
     }
 
     private static final ObservableList<Account> accounts = observableArrayList(account -> new Observable[]{account});
+    /// Keeps quiet profile bindings alive while their account objects are in the account list.
+    /// Identity keys remain stable when an account's portability flag changes.
+    private static final Map<Account, ObjectBinding<Optional<CompleteGameProfile>>> profileBindings = new IdentityHashMap<>();
+
+    /// Tracks profile cache changes so refreshed private data is persisted independently of account notifications.
+    private static void observeProfile(Account account) {
+        if (profileBindings.containsKey(account)) {
+            return;
+        }
+        ObjectBinding<Optional<CompleteGameProfile>> binding = ACCOUNT_SERVICE.getProfile(account, true);
+        binding.addListener((observable, oldProfile, newProfile) -> updateAccountMetadataRecords());
+        profileBindings.put(account, binding);
+    }
+
+    /// Detaches the repository binding when an account object leaves the account list.
+    private static void stopObservingProfile(Account account) {
+        @Nullable ObjectBinding<Optional<CompleteGameProfile>> binding = profileBindings.remove(account);
+        if (binding != null) {
+            binding.dispose();
+        }
+    }
+
     private static final ObjectProperty<Account> selectedAccount = new SimpleObjectProperty<>(Accounts.class, "selectedAccount");
 
     /**
@@ -157,7 +202,7 @@ public final class Accounts {
         metadata.addProperty("type", getLoginType(getAccountFactory(account)));
         account.writeMetadata(metadata);
         JsonObject privateData = new JsonObject();
-        account.writePrivateData(privateData);
+        ACCOUNT_SERVICE.writePrivateData(account, privateData);
         return new SerializedAccount(metadata, privateData);
     }
 
@@ -338,6 +383,14 @@ public final class Accounts {
         if (accountIDNormalization.sharedChanged()) {
             SettingsManager.saveUserGameAccountMetadataRecords();
         }
+
+        accounts.forEach(Accounts::observeProfile);
+        accounts.addListener((ListChangeListener<Account>) change -> {
+            while (change.next()) {
+                change.getRemoved().forEach(Accounts::stopObservingProfile);
+                change.getAddedSubList().forEach(Accounts::observeProfile);
+            }
+        });
 
         // load accounts
         Account selected = null;

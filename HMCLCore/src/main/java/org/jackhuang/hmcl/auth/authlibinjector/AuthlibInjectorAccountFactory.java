@@ -13,6 +13,7 @@ import org.jackhuang.hmcl.auth.NoCharacterException;
 import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.GameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
+import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.javafx.ObservableOptionalCache;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -29,9 +30,14 @@ public class AuthlibInjectorAccountFactory extends AccountFactory<AuthlibInjecto
     /// Resolves persisted server URLs to server objects.
     private final Function<String, AuthlibInjectorServer> serverLookup;
 
-    /// Creates a factory that resolves persisted server URLs with the supplied lookup.
-    public AuthlibInjectorAccountFactory(Function<String, AuthlibInjectorServer> serverLookup) {
-        this.serverLookup = serverLookup;
+    /// Resolves servers to launcher-managed protocol services.
+    private final Function<AuthlibInjectorServer, YggdrasilService> serviceLookup;
+
+    /// Creates a factory using the supplied server and protocol service lookups.
+    public AuthlibInjectorAccountFactory(Function<String, AuthlibInjectorServer> serverLookup,
+                                         Function<AuthlibInjectorServer, YggdrasilService> serviceLookup) {
+        this.serverLookup = Objects.requireNonNull(serverLookup);
+        this.serviceLookup = Objects.requireNonNull(serviceLookup);
     }
 
     @Override
@@ -47,16 +53,15 @@ public class AuthlibInjectorAccountFactory extends AccountFactory<AuthlibInjecto
 
         AuthlibInjectorServer server = (AuthlibInjectorServer) additionalData;
 
-        return authenticate(server, username, password, selector);
+        return authenticate(server, serviceLookup.apply(server), username, password, selector);
     }
 
     /// Authenticates a new account and selects a character when the server requires one.
     ///
     /// @throws NoCharacterException if authentication returns no selectable profiles
     /// @throws AuthenticationException if authentication or profile selection fails
-    static AuthlibInjectorAccount authenticate(AuthlibInjectorServer server, String username, String password,
+    static AuthlibInjectorAccount authenticate(AuthlibInjectorServer server, YggdrasilService service, String username, String password,
                                               CharacterSelector selector) throws AuthenticationException {
-        var service = server.getYggdrasilService();
         YggdrasilSession session = service.authenticate(username, password, UUIDs.toCompactString(UUID.randomUUID()));
         if (session.getSelectedProfile() == null) {
             if (session.getAvailableProfiles() == null || session.getAvailableProfiles().isEmpty()) {
@@ -78,14 +83,15 @@ public class AuthlibInjectorAccountFactory extends AccountFactory<AuthlibInjecto
             throw new IllegalArgumentException("storage does not have API root.");
         }
         AuthlibInjectorServer server = serverLookup.apply(apiRoot);
-        return fromStorage(metadata, privateData, server);
+        return fromStorage(metadata, privateData, server, serviceLookup.apply(server));
     }
 
     /// Restores an account and its cached profile properties for the supplied server.
     static AuthlibInjectorAccount fromStorage(
             JsonObject metadata,
             JsonObject privateData,
-            AuthlibInjectorServer server) {
+            AuthlibInjectorServer server,
+            YggdrasilService service) {
         AccountID accountID = Account.readAccountID(metadata);
         YggdrasilSession session = YggdrasilSession.fromStorage(metadata, privateData);
 
@@ -100,7 +106,7 @@ public class AuthlibInjectorAccountFactory extends AccountFactory<AuthlibInjecto
                     JsonUtils.mapTypeOf(String.class, String.class));
             GameProfile selected = session.getSelectedProfile();
             ObservableOptionalCache<UUID, CompleteGameProfile, AuthenticationException> profileRepository =
-                    server.getYggdrasilService().getProfileRepository();
+                    service.getProfileRepository();
             profileRepository.put(selected.getId(), new CompleteGameProfile(selected, properties));
             profileRepository.invalidate(selected.getId());
         }

@@ -84,7 +84,7 @@ public class AccountListItem extends RadioButton {
 
     public Task<?> refreshAsync() {
         return Task.runAsync(() -> {
-            account.clearCache();
+            Accounts.clearCache(account);
             try {
                 Accounts.logIn(account);
             } catch (CredentialExpiredException e) {
@@ -105,7 +105,7 @@ public class AccountListItem extends RadioButton {
 
     public ObservableBooleanValue canUploadSkin() {
         if (account instanceof AuthlibInjectorAccount aiAccount) {
-            ObjectBinding<Optional<CompleteGameProfile>> profile = aiAccount.getYggdrasilService().getProfileRepository().binding(aiAccount.getProfileID());
+            ObjectBinding<Optional<CompleteGameProfile>> profile = Accounts.getProfile(aiAccount);
             return createBooleanBinding(() -> {
                 Set<TextureType> uploadableTextures = profile.get()
                         .map(AuthlibInjectorAccount::getUploadableTextures)

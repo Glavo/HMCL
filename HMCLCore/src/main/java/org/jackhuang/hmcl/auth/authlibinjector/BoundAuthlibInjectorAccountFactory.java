@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.auth.AccountFactory;
 import org.jackhuang.hmcl.auth.AuthenticationException;
 import org.jackhuang.hmcl.auth.CharacterSelector;
+import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,9 +18,13 @@ public class BoundAuthlibInjectorAccountFactory extends AccountFactory<AuthlibIn
     /// The server used for all accounts created by this factory.
     private final AuthlibInjectorServer server;
 
-    /// Creates a factory bound to the supplied authentication server.
-    public BoundAuthlibInjectorAccountFactory(AuthlibInjectorServer server) {
-        this.server = server;
+    /// The launcher-managed protocol service used for authentication and cached profiles.
+    private final YggdrasilService service;
+
+    /// Creates a factory bound to the supplied server and protocol service.
+    public BoundAuthlibInjectorAccountFactory(AuthlibInjectorServer server, YggdrasilService service) {
+        this.server = Objects.requireNonNull(server);
+        this.service = Objects.requireNonNull(service);
     }
 
     @Override
@@ -38,11 +43,11 @@ public class BoundAuthlibInjectorAccountFactory extends AccountFactory<AuthlibIn
         Objects.requireNonNull(username);
         Objects.requireNonNull(password);
 
-        return AuthlibInjectorAccountFactory.authenticate(server, username, password, selector);
+        return AuthlibInjectorAccountFactory.authenticate(server, service, username, password, selector);
     }
 
     @Override
     public AuthlibInjectorAccount fromStorage(JsonObject metadata, JsonObject privateData) {
-        return AuthlibInjectorAccountFactory.fromStorage(metadata, privateData, server);
+        return AuthlibInjectorAccountFactory.fromStorage(metadata, privateData, server, service);
     }
 }

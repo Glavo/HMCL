@@ -18,6 +18,7 @@ import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.auth.offline.Skin;
 import org.jackhuang.hmcl.auth.yggdrasil.*;
+import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.setting.DownloadProviders;
 import org.jackhuang.hmcl.task.FileDownloadTask;
 import org.jackhuang.hmcl.task.Schedulers;
@@ -208,7 +209,7 @@ public final class TexturesLoader {
 
             return binding;
         } else {
-            return BindingMapping.of(account.getTextures())
+            return BindingMapping.of(Accounts.getTextures(account))
                     .asyncMap(textures -> {
                         if (textures.isPresent()) {
                             Texture texture = textures.get().get(TextureType.SKIN);

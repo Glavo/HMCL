@@ -3,29 +3,17 @@
 package org.jackhuang.hmcl.auth.microsoft;
 
 import com.google.gson.JsonObject;
-import javafx.beans.binding.ObjectBinding;
 import org.jackhuang.hmcl.auth.*;
-import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
-import org.jackhuang.hmcl.auth.yggdrasil.Texture;
-import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
-import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
-import org.jackhuang.hmcl.util.gson.JsonUtils;
-import org.jackhuang.hmcl.util.javafx.BindingMapping;
 import org.jetbrains.annotations.NotNullByDefault;
 
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-/// Stores a Microsoft identity, its current session, and cached profile properties.
+/// Stores a Microsoft identity and its current session.
 @NotNullByDefault
 public final class MicrosoftAccount extends OAuthAccount {
 
-    /// The protocol service used for profile and skin operations.
-    protected final MicrosoftService service;
     /// The fixed Minecraft profile ID.
     protected final UUID profileID;
 
@@ -37,27 +25,11 @@ public final class MicrosoftAccount extends OAuthAccount {
     /// Creates an account from a session with a non-null profile ID.
     ///
     /// @param authenticated whether the caller has already authenticated this session
-    protected MicrosoftAccount(AccountID accountID, MicrosoftService service, MicrosoftSession session, boolean authenticated) {
+    protected MicrosoftAccount(AccountID accountID, MicrosoftSession session, boolean authenticated) {
         super(accountID);
-        this.service = requireNonNull(service);
         this.session = requireNonNull(session);
         this.authenticated = authenticated;
         this.profileID = requireNonNull(session.profile().id());
-
-        addProfilePropertiesListener();
-    }
-
-    /// Keeps profile cache change notifications reachable.
-    @SuppressWarnings("FieldCanBeLocal")
-    private ObjectBinding<Optional<CompleteGameProfile>> profilePropertiesBinding;
-
-    /// Forwards profile cache changes to account observers.
-    private void addProfilePropertiesListener() {
-        // binding() is thread-safe
-        // hold the binding so that it won't be garbage-collected
-        profilePropertiesBinding = service.getProfileRepository().binding(profileID, true);
-        // and it's safe to add a listener to an ObjectBinding which does not have any listener attached before (maybe tricky)
-        profilePropertiesBinding.addListener((a, b, c) -> this.invalidate());
     }
 
     @Override
@@ -110,32 +82,11 @@ public final class MicrosoftAccount extends OAuthAccount {
     public void writePrivateData(JsonObject privateData) {
         super.writePrivateData(privateData);
         session.writePrivateData(privateData);
-        service.getProfileRepository().getImmediately(profileID).ifPresent(profile ->
-                privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
     }
 
-    /// Returns the protocol service associated with this account.
-    public MicrosoftService getService() {
-        return service;
-    }
-
-    @Override
-    public ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures() {
-        return BindingMapping.of(service.getProfileRepository().binding(getProfileID()))
-                .map(profile -> profile.flatMap(it -> {
-                    try {
-                        return YggdrasilService.getTextures(it);
-                    } catch (ServerResponseMalformedException e) {
-                        LOG.warning("Failed to parse texture payload", e);
-                        return Optional.empty();
-                    }
-                }));
-    }
-
-    @Override
-    public synchronized void clearCache() {
+    /// Marks the current session as requiring validation without changing its stored credentials.
+    public synchronized void invalidateAuthentication() {
         authenticated = false;
-        service.getProfileRepository().invalidate(profileID);
     }
 
     @Override
