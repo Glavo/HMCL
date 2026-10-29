@@ -33,7 +33,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 import static java.util.stream.Collectors.toList;
@@ -537,7 +536,7 @@ public final class Accounts {
         String authlibinjectorLocation = System.getProperty("hmcl.authlibinjector.location");
         if (authlibinjectorLocation != null) {
             LOG.info("Using specified authlib-injector: " + authlibinjectorLocation);
-            return new SimpleAuthlibInjectorArtifactProvider(Paths.get(authlibinjectorLocation));
+            return new SimpleAuthlibInjectorArtifactProvider(Path.of(authlibinjectorLocation));
         }
 
         String authlibInjectorVersion = JarUtils.getAttribute("hmcl.authlib-injector.version", null);

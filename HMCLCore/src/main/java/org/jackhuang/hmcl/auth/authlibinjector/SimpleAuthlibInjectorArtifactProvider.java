@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.auth.authlibinjector;
 
+import org.jetbrains.annotations.NotNullByDefault;
+
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
+@NotNullByDefault
 public class SimpleAuthlibInjectorArtifactProvider implements AuthlibInjectorArtifactProvider {
 
-    private Path location;
+    private final Path location;
 
     public SimpleAuthlibInjectorArtifactProvider(Path location) {
         this.location = location;
