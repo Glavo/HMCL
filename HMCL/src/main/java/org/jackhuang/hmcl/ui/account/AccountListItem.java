@@ -12,6 +12,7 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.Skin;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
+import org.jackhuang.hmcl.auth.AccountType;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AuthenticationException;
 import org.jackhuang.hmcl.auth.ClassicAccount;
@@ -55,7 +56,7 @@ public class AccountListItem extends RadioButton {
         getStyleClass().clear();
         setUserData(account);
 
-        String loginTypeName = Accounts.getLocalizedLoginTypeName(Accounts.getAccountFactory(account));
+        String loginTypeName = Accounts.getLocalizedLoginTypeName(AccountType.of(account));
         String portableSuffix = account.isPortable() ? ", " + i18n("account.portable") : "";
         if (account instanceof AuthlibInjectorAccount) {
             AuthlibInjectorServer server = ((AuthlibInjectorAccount) account).getServer();

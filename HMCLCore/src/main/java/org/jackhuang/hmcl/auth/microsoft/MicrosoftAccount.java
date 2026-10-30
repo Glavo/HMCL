@@ -25,7 +25,7 @@ public final class MicrosoftAccount extends OAuthAccount {
     /// Creates an account from a session with a non-null profile ID.
     ///
     /// @param authenticated whether the caller has already authenticated this session
-    protected MicrosoftAccount(AccountID accountID, MicrosoftSession session, boolean authenticated) {
+    public MicrosoftAccount(AccountID accountID, MicrosoftSession session, boolean authenticated) {
         super(accountID);
         this.session = requireNonNull(session);
         this.authenticated = authenticated;

@@ -14,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /// Stores an offline player identity and optional skin configuration.
 @NotNullByDefault
@@ -29,7 +30,7 @@ public class OfflineAccount extends Account {
     /// Creates an offline identity with an optional skin.
     ///
     /// @throws IllegalArgumentException if the profile name is blank
-    protected OfflineAccount(
+    public OfflineAccount(
             AccountID accountID,
             String profileName,
             UUID profileID,
@@ -42,6 +43,11 @@ public class OfflineAccount extends Account {
         if (StringUtils.isBlank(profileName)) {
             throw new IllegalArgumentException("Profile name cannot be blank");
         }
+    }
+
+    /// Derives the standard offline Minecraft UUID from the exact player name.
+    public static UUID getUUIDFromUserName(String username) {
+        return UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(UTF_8));
     }
 
     @Override

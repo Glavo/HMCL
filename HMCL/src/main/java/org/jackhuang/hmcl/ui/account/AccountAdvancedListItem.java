@@ -8,6 +8,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Tooltip;
+import org.jackhuang.hmcl.auth.AccountType;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
@@ -19,7 +20,6 @@ import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.javafx.BindingMapping;
 
 import static javafx.beans.binding.Bindings.createStringBinding;
-import static org.jackhuang.hmcl.setting.Accounts.getAccountFactory;
 import static org.jackhuang.hmcl.setting.Accounts.getLocalizedLoginTypeName;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -86,7 +86,7 @@ public class AccountAdvancedListItem extends AdvancedListItem {
         if (account instanceof AuthlibInjectorAccount) {
             return BindingMapping.of(((AuthlibInjectorAccount) account).getServer(), AuthlibInjectorServer::getName);
         } else {
-            return createStringBinding(() -> getLocalizedLoginTypeName(getAccountFactory(account)));
+            return createStringBinding(() -> getLocalizedLoginTypeName(AccountType.of(account)));
         }
     }
 

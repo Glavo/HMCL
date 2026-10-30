@@ -59,7 +59,16 @@ public class MicrosoftService {
         return profileRepository;
     }
 
+    /// Authenticates using the service's default OAuth callback.
     public MicrosoftSession authenticate(OAuth.GrantFlow flow) throws AuthenticationException {
+        return authenticate(flow, callback);
+    }
+
+    /// Authenticates using the supplied callback for this interactive operation.
+    /// The callback receives only this operation's authorization progress.
+    ///
+    /// @throws AuthenticationException if OAuth or Minecraft authentication fails
+    public MicrosoftSession authenticate(OAuth.GrantFlow flow, OAuth.Callback callback) throws AuthenticationException {
         try {
             OAuth.Result result = OAuth.MICROSOFT.authenticate(flow, new OAuth.Options(SCOPE, callback));
             return authenticateViaLiveAccessToken(result.accessToken(), result.refreshToken());

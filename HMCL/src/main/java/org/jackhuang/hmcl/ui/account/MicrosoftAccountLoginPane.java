@@ -3,125 +3,143 @@
 package org.jackhuang.hmcl.ui.account;
 
 import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXDialogLayout;
 import com.jfoenix.controls.JFXSpinner;
 import io.nayuki.qrcodegen.QrCode;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.css.PseudoClass;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.shape.SVGPath;
-import org.jackhuang.hmcl.auth.Account;
-import org.jackhuang.hmcl.auth.AuthInfo;
-import org.jackhuang.hmcl.auth.AuthenticationException;
 import org.jackhuang.hmcl.auth.OAuth;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
+import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.task.Schedulers;
-import org.jackhuang.hmcl.task.Task;
-import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.theme.Themes;
-import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.WeakListenerHolder;
 import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.upgrade.IntegrityChecker;
 import org.jackhuang.hmcl.util.QrCodeUtils;
 import org.jackhuang.hmcl.util.StringUtils;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import static org.jackhuang.hmcl.setting.SettingsManager.settings;
-import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
-public class MicrosoftAccountLoginPane extends JFXDialogLayout implements DialogAware {
-    private final Account accountToRelogin;
-    private final Consumer<AuthInfo> loginCallback;
-    private final Runnable cancelCallback;
-
-    @SuppressWarnings("FieldCanBeLocal")
+/// Presents browser and device-code authentication using a separate callback channel for each attempt.
+@NotNullByDefault
+public final class MicrosoftAccountLoginPane extends VBox implements AutoCloseable {
+    /// The original identity when renewing credentials, or `null` for a new account.
+    private final @Nullable MicrosoftAccount existing;
+    /// Holds the weak progress listeners for the current attempt.
     private final WeakListenerHolder holder = new WeakListenerHolder();
+    /// The rendered OAuth step.
+    private final ObjectProperty<Step> step = new SimpleObjectProperty<>(new Step.Init());
+    /// The operation-specific callback whose events may update this pane.
+    private @Nullable OAuthServer.Factory activeCallback;
 
-    private final ObjectProperty<Step> step = new SimpleObjectProperty<>();
+    /// The dialog's primary action, whose behavior follows the current OAuth step.
+    private final JFXButton acceptButton;
+    /// Controls the dialog's login spinner.
+    private final BooleanProperty busy;
+    /// Receives authenticated account state on the JavaFX thread.
+    private final Consumer<MicrosoftAccount> success;
+    /// The current background OAuth request, if any.
+    private @Nullable Future<?> task;
+    /// Whether this pane has been closed.
+    private boolean closed;
 
-    private TaskExecutor browserTaskExecutor;
-    private TaskExecutor deviceTaskExecutor;
-
-    private final JFXButton btnLogin;
-    private final SpinnerPane loginButtonSpinner;
-
-    public MicrosoftAccountLoginPane() {
-        this(false);
-    }
-
-    public MicrosoftAccountLoginPane(boolean bodyonly) {
-        this(null, null, null, bodyonly);
-    }
-
-    public MicrosoftAccountLoginPane(Account account, Consumer<AuthInfo> callback, Runnable onCancel, boolean bodyonly) {
-        this.accountToRelogin = account;
-        this.loginCallback = callback;
-        this.cancelCallback = onCancel;
-
+    /// Creates a Microsoft panel without starting OAuth. Call [#start()] when the dialog is shown.
+    /// The button and busy property belong to the containing dialog.
+    public MicrosoftAccountLoginPane(@Nullable MicrosoftAccount existing, JFXButton acceptButton,
+                                      BooleanProperty busy, Consumer<MicrosoftAccount> success) {
+        this.existing = existing;
+        this.acceptButton = acceptButton;
+        this.busy = busy;
+        this.success = success;
         getStyleClass().add("microsoft-login-dialog");
-        if (bodyonly) {
-            this.pseudoClassStateChanged(PseudoClass.getPseudoClass("bodyonly"), true);
-        } else {
-            Label heading = new Label(accountToRelogin != null ? i18n("account.login.refresh") : i18n("account.create.microsoft"));
-            heading.getStyleClass().add("header-label");
-            setHeading(heading);
-        }
-
-        this.setMaxWidth(650);
-
-        onEscPressed(this, this::onCancel);
-
-        btnLogin = new JFXButton(i18n("account.login"));
-        btnLogin.getStyleClass().add("dialog-accept");
-
-        loginButtonSpinner = new SpinnerPane();
-        loginButtonSpinner.getStyleClass().add("small-spinner-pane");
-        loginButtonSpinner.setContent(btnLogin);
-
-        JFXButton btnCancel = new JFXButton(i18n("button.cancel"));
-        btnCancel.getStyleClass().add("dialog-cancel");
-        btnCancel.setOnAction(e -> onCancel());
-
-        setActions(loginButtonSpinner, btnCancel);
-
-        holder.registerWeak(Accounts.OAUTH_CALLBACK.onOpenBrowserAuthorizationCode, event -> Platform.runLater(() -> {
-            if (step.get() instanceof Step.StartAuthorizationCodeLogin)
-                step.set(new Step.WaitForOpenBrowser(event.getUrl()));
-        }));
-
-        holder.registerWeak(Accounts.OAUTH_CALLBACK.onGrantDeviceCode, event -> Platform.runLater(() -> {
-            if (step.get() instanceof Step.StartDeviceCodeLogin)
-                step.set(new Step.WaitForScanQrCode(event.getUserCode(), event.getVerificationUri()));
-        }));
-
-        holder.registerWeak(Accounts.OAUTH_CALLBACK.onLoginCompletedDeviceCode, event -> Platform.runLater(() -> {
-            if (step.get() instanceof Step.WaitForScanQrCode)
-                step.set(new Step.DeviceLoginCompleted());
-        }));
-
-        this.step.set(Accounts.OAUTH_CALLBACK.getClientId().isEmpty()
-                ? new Step.Init()
-                : new Step.StartAuthorizationCodeLogin());
+        setMaxWidth(650);
+        boolean supported = !new OAuthServer.Factory().getClientId().isEmpty();
+        acceptButton.disableProperty().bind(Bindings.createBooleanBinding(() -> busy.get() || !supported, busy));
         FXUtils.onChangeAndOperate(step, this::onStep);
     }
 
+    /// Starts browser authentication when a client ID is configured and this pane is still open.
+    /// All methods on this pane must be called on the JavaFX application thread.
+    public void start() {
+        if (!closed && activeCallback == null) {
+            step.set(new OAuthServer.Factory().getClientId().isEmpty() ? new Step.Init() : new Step.StartAuthorizationCodeLogin());
+        }
+    }
+
+    /// Cancels unfinished OAuth work and ignores queued progress and results. Repeated calls have no effect.
+    @Override
+    public void close() {
+        closed = true;
+        activeCallback = null;
+        holder.clear();
+        if (task != null) task.cancel(true);
+        task = null;
+    }
+
+    /// Starts an isolated OAuth attempt and ignores progress from superseded attempts.
+    private void startAuthentication(OAuth.GrantFlow flow) {
+        if (closed) return;
+        if (task != null) task.cancel(true);
+        holder.clear();
+        OAuthServer.Factory callback = new OAuthServer.Factory();
+        activeCallback = callback;
+        holder.registerWeak(callback.onOpenBrowserAuthorizationCode, event -> Platform.runLater(() -> {
+            if (activeCallback == callback) step.set(new Step.WaitForOpenBrowser(event.getUrl()));
+        }));
+        holder.registerWeak(callback.onGrantDeviceCode, event -> Platform.runLater(() -> {
+            if (activeCallback == callback) step.set(new Step.WaitForScanQrCode(event.getUserCode(), event.getVerificationUri()));
+        }));
+        holder.registerWeak(callback.onLoginCompletedDeviceCode, event -> Platform.runLater(() -> {
+            if (activeCallback == callback) step.set(new Step.DeviceLoginCompleted());
+        }));
+        busy.set(true);
+        task = Schedulers.io().submit(() -> {
+            try {
+                MicrosoftAccount account = existing == null ? Accounts.createMicrosoftAccount(flow, callback)
+                        : Accounts.reauthenticateMicrosoftAccount(existing, flow, callback);
+                Platform.runLater(() -> {
+                    if (activeCallback != callback) return;
+                    activeCallback = null;
+                    task = null;
+                    holder.clear();
+                    step.set(new Step.Init());
+                    success.accept(account);
+                });
+            } catch (Exception exception) {
+                Platform.runLater(() -> {
+                    if (activeCallback != callback) return;
+                    activeCallback = null;
+                    task = null;
+                    holder.clear();
+                    step.set(new Step.LoginFailed(Accounts.localizeErrorMessage(exception)));
+                });
+            }
+        });
+    }
+
+    /// Renders the current OAuth step and starts work only for explicit start states.
     private void onStep(Step currentStep) {
         VBox rootContainer = new VBox(10);
-        setBody(rootContainer);
+        getChildren().setAll(rootContainer);
         rootContainer.setAlignment(Pos.TOP_CENTER);
 
         StackPane warningPane = new StackPane();
@@ -133,43 +151,36 @@ public class MicrosoftAccountLoginPane extends JFXDialogLayout implements Dialog
             warningPane.getChildren().setAll(unofficialHintPane);
         }
 
-        if (Accounts.OAUTH_CALLBACK.getClientId().isEmpty()) {
+        if (new OAuthServer.Factory().getClientId().isEmpty()) {
             HintPane snapshotHint = new HintPane(MessageDialogPane.MessageType.ERROR);
             snapshotHint.setSegment(i18n("account.methods.microsoft.snapshot"));
             warningPane.getChildren().setAll(snapshotHint);
-            btnLogin.setDisable(true);
-            loginButtonSpinner.setLoading(false);
+            busy.set(false);
         } else if (currentStep instanceof Step.Init) {
-            btnLogin.setOnAction(e -> this.step.set(new Step.StartAuthorizationCodeLogin()));
-            loginButtonSpinner.setLoading(false);
+            acceptButton.setOnAction(e -> this.step.set(new Step.StartAuthorizationCodeLogin()));
+            busy.set(false);
 
             var hintPane = new HintPane(MessageDialogPane.MessageType.INFO);
             hintPane.setText(i18n("account.methods.microsoft.hint"));
             rootContainer.getChildren().add(hintPane);
         } else if (currentStep instanceof Step.StartAuthorizationCodeLogin) {
-            loginButtonSpinner.setLoading(false);
-            cancelAllTasks();
+            busy.set(false);
 
             rootContainer.getChildren().add(new JFXSpinner());
 
-            browserTaskExecutor = Task.supplyAsync(() -> Accounts.FACTORY_MICROSOFT.create(null, null, null, null, OAuth.GrantFlow.AUTHORIZATION_CODE))
-                    .whenComplete(Schedulers.javafx(), this::onLoginCompleted)
-                    .executor(true);
+            startAuthentication(OAuth.GrantFlow.AUTHORIZATION_CODE);
         } else if (currentStep instanceof Step.StartDeviceCodeLogin) {
-            loginButtonSpinner.setLoading(true);
-            cancelAllTasks();
+            busy.set(true);
 
             rootContainer.getChildren().add(new JFXSpinner());
 
-            deviceTaskExecutor = Task.supplyAsync(() -> Accounts.FACTORY_MICROSOFT.create(null, null, null, null, OAuth.GrantFlow.DEVICE))
-                    .whenComplete(Schedulers.javafx(), this::onLoginCompleted)
-                    .executor(true);
+            startAuthentication(OAuth.GrantFlow.DEVICE);
         } else if (currentStep instanceof Step.WaitForOpenBrowser wait) {
-            btnLogin.setOnAction(e -> {
+            acceptButton.setOnAction(e -> {
                 FXUtils.openLink(wait.url());
-                loginButtonSpinner.setLoading(true);
+                busy.set(true);
             });
-            loginButtonSpinner.setLoading(false);
+            busy.set(false);
 
             HintPane hintPane = new HintPane(MessageDialogPane.MessageType.INFO);
             hintPane.setSegment(
@@ -179,7 +190,7 @@ public class MicrosoftAccountLoginPane extends JFXDialogLayout implements Dialog
 
             rootContainer.getChildren().add(hintPane);
         } else if (currentStep instanceof Step.WaitForScanQrCode wait) {
-            loginButtonSpinner.setLoading(true);
+            busy.set(true);
 
             VBox leftVBox = new VBox(6);
             leftVBox.setAlignment(Pos.CENTER);
@@ -227,16 +238,15 @@ public class MicrosoftAccountLoginPane extends JFXDialogLayout implements Dialog
 
             rootContainer.getChildren().setAll(hbox);
         } else if (currentStep instanceof Step.DeviceLoginCompleted) {
-            loginButtonSpinner.setLoading(true);
+            busy.set(true);
 
             var hintPane = new HintPane(MessageDialogPane.MessageType.INFO);
             hintPane.setSegment(i18n("account.methods.microsoft.methods.device.hint.completed"));
 
             rootContainer.getChildren().addAll(hintPane);
         } else if (currentStep instanceof Step.LoginFailed failed) {
-            btnLogin.setOnAction(e -> this.step.set(new Step.StartAuthorizationCodeLogin()));
-            loginButtonSpinner.setLoading(false);
-            cancelAllTasks();
+            acceptButton.setOnAction(e -> this.step.set(new Step.StartAuthorizationCodeLogin()));
+            busy.set(false);
 
             HintPane errHintPane = new HintPane(MessageDialogPane.MessageType.ERROR);
             errHintPane.setSegment(failed.message());
@@ -265,88 +275,44 @@ public class MicrosoftAccountLoginPane extends JFXDialogLayout implements Dialog
         linkBox.getChildren().addAll(profileLink, purchaseLink);
         rootContainer.getChildren().add(linkBox);
 
-        setBody(rootContainer);
+        getChildren().setAll(rootContainer);
     }
 
-    private void cancelAllTasks() {
-        if (browserTaskExecutor != null) browserTaskExecutor.cancel();
-        if (deviceTaskExecutor != null) deviceTaskExecutor.cancel();
-    }
-
-    private void onCancel() {
-        cancelAllTasks();
-        if (cancelCallback != null) cancelCallback.run();
-        fireEvent(new DialogCloseEvent());
-    }
-
-    private void onLoginCompleted(MicrosoftAccount account, Exception exception) {
-        if (exception == null) {
-            boolean storageReadOnly = accountToRelogin != null
-                    ? Accounts.isAccountFilesReadOnly(accountToRelogin)
-                    : Accounts.isAccountFilesReadOnly(account);
-            if (storageReadOnly) {
-                Controllers.confirmBackupAndOverwrite(i18n("account.storage.read_only"), () -> {
-                    Accounts.forceOverwriteAccountFiles(accountToRelogin != null ? accountToRelogin : account);
-                    completeLogin(account);
-                });
-                return;
-            }
-
-            completeLogin(account);
-        } else if (!(exception instanceof CancellationException)) {
-            this.step.set(new Step.LoginFailed(Accounts.localizeErrorMessage(exception)));
-        }
-    }
-
-    /// Adds the logged-in account, selects it, and completes the login callback.
-    private void completeLogin(MicrosoftAccount account) {
-        if (accountToRelogin != null) Accounts.getAccounts().remove(accountToRelogin);
-
-        int oldIndex = Accounts.getAccounts().indexOf(account);
-        if (oldIndex == -1) {
-            Accounts.getAccounts().add(account);
-        } else {
-            Accounts.getAccounts().remove(oldIndex);
-            Accounts.getAccounts().add(oldIndex, account);
-        }
-
-        Accounts.setSelectedAccount(account);
-
-        if (loginCallback != null) {
-            try {
-                loginCallback.accept(Accounts.logIn(account));
-            } catch (AuthenticationException e) {
-                this.step.set(new Step.LoginFailed(Accounts.localizeErrorMessage(e)));
-                return;
-            }
-        }
-        fireEvent(new DialogCloseEvent());
-    }
-
+    /// The visible state of the current Microsoft authentication attempt.
+    @NotNullByDefault
     private sealed interface Step {
         final class Init implements Step {
         }
 
-        final class StartAuthorizationCodeLogin implements Step {
-        }
+        /// Starting authorization-code authentication.
+        @NotNullByDefault
+        record StartAuthorizationCodeLogin() implements Step { }
 
-        record WaitForOpenBrowser(String url) implements Step {
+        /// Displays the authorization URL returned by this attempt.
+        ///
+        /// @param url the browser authorization URL
+        @NotNullByDefault
+        record WaitForOpenBrowser(String url) implements Step { }
 
-        }
+        /// Starting device-code authentication.
+        @NotNullByDefault
+        record StartDeviceCodeLogin() implements Step { }
 
-        final class StartDeviceCodeLogin implements Step {
-        }
+        /// Displays the device code and verification URL returned by this attempt.
+        ///
+        /// @param userCode the code to enter in the browser
+        /// @param verificationUri the verification page
+        @NotNullByDefault
+        record WaitForScanQrCode(String userCode, String verificationUri) implements Step { }
 
-        record WaitForScanQrCode(String userCode, String verificationUri) implements Step {
+        /// OAuth authorization completed and Minecraft authentication is continuing.
+        @NotNullByDefault
+        record DeviceLoginCompleted() implements Step { }
 
-        }
-
-        record DeviceLoginCompleted() implements Step {
-
-        }
-
-        record LoginFailed(String message) implements Step {
-        }
+        /// Displays a failed attempt and permits retrying.
+        ///
+        /// @param message the localized failure message
+        @NotNullByDefault
+        record LoginFailed(String message) implements Step { }
     }
-
 }

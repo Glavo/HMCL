@@ -7,7 +7,7 @@ import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
-import org.jackhuang.hmcl.auth.offline.OfflineAccountFactory;
+import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.theme.BuiltinBackground;
 import org.jackhuang.hmcl.theme.NetworkBackgroundImageCachePolicy;
 import org.jackhuang.hmcl.util.StringUtils;
@@ -580,7 +580,7 @@ public final class LegacyConfigMigrator {
                 if (!metadata.has("profileID")) {
                     @Nullable String profileName = JsonUtils.getString(metadata, "profileName");
                     if (profileName != null) {
-                        metadata.addProperty("profileID", OfflineAccountFactory.getUUIDFromUserName(profileName).toString());
+                        metadata.addProperty("profileID", OfflineAccount.getUUIDFromUserName(profileName).toString());
                     }
                 }
                 copyMember(account, metadata, "skin");

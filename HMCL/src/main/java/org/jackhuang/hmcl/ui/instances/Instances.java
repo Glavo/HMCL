@@ -22,7 +22,7 @@ import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.account.CreateAccountPane;
+import org.jackhuang.hmcl.ui.account.AccountDialog;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jackhuang.hmcl.ui.construct.PromptDialogPane;
@@ -372,7 +372,7 @@ public final class Instances {
         Account account = Accounts.getSelectedAccount();
         if (SettingsManager.isNewlyCreated() && !AuthlibInjectorServers.getServers().isEmpty() &&
                 !(account instanceof AuthlibInjectorAccount && AuthlibInjectorServers.getServers().contains(((AuthlibInjectorAccount) account).getServer()))) {
-            CreateAccountPane dialog = new CreateAccountPane(AuthlibInjectorServers.getServers().iterator().next());
+            AccountDialog dialog = new AccountDialog(AuthlibInjectorServers.getServers().iterator().next());
             dialog.addEventHandler(DialogCloseEvent.CLOSE, e -> {
                 Account newAccount = Accounts.getSelectedAccount();
                 if (newAccount == null) {
@@ -383,7 +383,7 @@ public final class Instances {
             });
             Controllers.dialog(dialog);
         } else if (account == null) {
-            CreateAccountPane dialog = new CreateAccountPane();
+            AccountDialog dialog = new AccountDialog();
             dialog.addEventHandler(DialogCloseEvent.CLOSE, e -> {
                 Account newAccount = Accounts.getSelectedAccount();
                 if (newAccount == null) {

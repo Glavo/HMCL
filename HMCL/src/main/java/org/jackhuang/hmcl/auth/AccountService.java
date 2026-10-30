@@ -40,7 +40,8 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// Authenticates accounts, prepares launch resources, and uploads skins.
 ///
-/// Login operations block the calling thread and serialize session changes on the account monitor.
+/// Network operations block the calling thread. Stored-credential login serializes session changes
+/// on the account monitor; interactive reauthentication returns detached state for later acceptance.
 /// Returned authentication information belongs to the caller and must be closed after use.
 /// A successful session refresh is retained even if subsequent injector preparation fails.
 @NotNullByDefault
@@ -58,6 +59,106 @@ public final class AccountService {
     public AccountService(AuthlibInjectorArtifactProvider artifactProvider, MicrosoftService microsoftService) {
         this.artifactProvider = Objects.requireNonNull(artifactProvider);
         this.microsoftService = Objects.requireNonNull(microsoftService);
+    }
+
+    /// Creates an offline identity, deriving its UUID from the name when no override is supplied.
+    public OfflineAccount createOfflineAccount(String name, @Nullable UUID uuid, @Nullable Skin skin) {
+        return new OfflineAccount(AccountID.generate(), name,
+                uuid != null ? uuid : OfflineAccount.getUUIDFromUserName(name), skin);
+    }
+
+    /// Authenticates a new Microsoft account using an operation-specific OAuth callback.
+    ///
+    /// @throws AuthenticationException if authentication fails or returns an incomplete profile
+    public MicrosoftAccount createMicrosoftAccount(OAuth.GrantFlow flow, OAuth.Callback callback) throws AuthenticationException {
+        MicrosoftSession session = microsoftService.authenticate(flow, callback);
+        if (session.profile() == null) session = microsoftService.refresh(session);
+        if (!session.hasProfileName()) throw new ServerResponseMalformedException("Profile name is missing");
+        return new MicrosoftAccount(AccountID.generate(), session, true);
+    }
+
+    /// Authenticates the existing Microsoft profile and returns detached credentials without changing the account.
+    /// The caller commits the returned session only after accepting the result.
+    ///
+    /// @throws OAuthAccount.WrongAccountException if a different Minecraft profile is selected
+    /// @throws AuthenticationException if authentication fails
+    public MicrosoftAccount reauthenticateMicrosoftAccount(MicrosoftAccount account, OAuth.GrantFlow flow,
+                                                            OAuth.Callback callback) throws AuthenticationException {
+        MicrosoftAccount authenticated = createMicrosoftAccount(flow, callback);
+        if (!account.getProfileID().equals(authenticated.getProfileID())) {
+            throw new OAuthAccount.WrongAccountException(account.getProfileID(), authenticated.getProfileID());
+        }
+        MicrosoftAccount result = new MicrosoftAccount(account.getAccountID(), authenticated.getSession(), true);
+        result.setPortable(account.isPortable());
+        return result;
+    }
+
+    /// Authenticates a new external account, asking the selector to choose a profile when necessary.
+    ///
+    /// @throws NoCharacterException if the server offers no characters
+    /// @throws AuthenticationException if authentication or profile selection fails
+    public AuthlibInjectorAccount createAuthlibInjectorAccount(AuthlibInjectorServer server, String username,
+                                                               String password, CharacterSelector selector) throws AuthenticationException {
+        YggdrasilService service = getYggdrasilService(server);
+        YggdrasilSession session = service.authenticate(username, password, UUIDs.toCompactString(UUID.randomUUID()));
+        if (session.getSelectedProfile() == null) {
+            if (session.getAvailableProfiles() == null || session.getAvailableProfiles().isEmpty()) throw new NoCharacterException();
+            GameProfile selected = selector.select(service, session.getAvailableProfiles());
+            session = service.refresh(session.getAccessToken(), session.getClientToken(), selected);
+        }
+        if (!session.hasProfileName()) throw new ServerResponseMalformedException("Profile name is missing");
+        return new AuthlibInjectorAccount(AccountID.generate(), server, username, session);
+    }
+
+    /// Authenticates the existing external profile without changing its stored credentials.
+    ///
+    /// @throws CharacterDeletedException if the original profile is no longer available
+    /// @throws AuthenticationException if authentication fails
+    public AuthlibInjectorAccount reauthenticateAuthlibInjectorAccount(AuthlibInjectorAccount account, String password)
+            throws AuthenticationException {
+        AuthlibInjectorAccount authenticated;
+        try {
+            authenticated = createAuthlibInjectorAccount(account.getServer(), account.getLoginName(), password,
+                    (service, profiles) -> profiles.stream().filter(profile -> profile.getId().equals(account.getProfileID()))
+                            .findFirst().orElseThrow(NoSelectedCharacterException::new));
+        } catch (NoSelectedCharacterException | NoCharacterException e) {
+            throw new CharacterDeletedException();
+        }
+        if (!account.getProfileID().equals(authenticated.getProfileID())) throw new CharacterDeletedException();
+        AuthlibInjectorAccount result = new AuthlibInjectorAccount(account.getAccountID(), account.getServer(),
+                account.getLoginName(), authenticated.getSession());
+        result.setPortable(account.isPortable());
+        return result;
+    }
+
+    /// Restores a persisted profile into the launcher's cache and marks it stale for the next online query.
+    /// No authentication or profile fetch is performed by this method.
+    /// Accounts without a profile repository are ignored.
+    ///
+    /// @param account the account whose cached profile is being restored
+    /// @param profile the persisted profile, whose ID must match the account's profile ID
+    public void restoreProfile(Account account, CompleteGameProfile profile) {
+        @Nullable var repository = getProfileRepository(account);
+        if (repository != null) {
+            repository.put(account.getProfileID(), profile);
+            repository.invalidate(account.getProfileID());
+        }
+    }
+
+    /// Commits detached credentials to the existing account without changing its identity or storage settings.
+    ///
+    /// @throws IllegalArgumentException if the candidate has a different account ID, type, or external server
+    /// @throws AuthenticationException if its Minecraft profile differs or is incomplete
+    public void acceptReauthentication(Account existing, Account candidate) throws AuthenticationException {
+        if (!existing.getAccountID().equals(candidate.getAccountID())) throw new IllegalArgumentException("Account ID changed");
+        if (existing instanceof MicrosoftAccount microsoft && candidate instanceof MicrosoftAccount refreshed) {
+            microsoft.updateSession(refreshed.getSession());
+        } else if (existing instanceof AuthlibInjectorAccount injector && candidate instanceof AuthlibInjectorAccount refreshed
+                && injector.getServer().equals(refreshed.getServer()) && injector.getLoginName().equals(refreshed.getLoginName())) {
+            injector.updateSession(refreshed.getSession());
+        } else {
+            throw new IllegalArgumentException("Account type or authentication server changed");
+        }
     }
 
     /// Returns the shared protocol service for the server URL, creating it without network access if absent.
@@ -211,20 +312,6 @@ public final class AccountService {
         }
     }
 
-    /// Authenticates a classic account with a password, retaining its selected profile.
-    ///
-    /// @throws CharacterDeletedException if the authenticated account no longer offers the profile
-    /// @throws AuthenticationException if authentication, profile selection, or injector preparation fails
-    /// @throws IllegalArgumentException if the account is not an authlib-injector account
-    public AuthInfo logInWithPassword(ClassicAccount account, String password) throws AuthenticationException {
-        synchronized (account) {
-            if (account instanceof AuthlibInjectorAccount injector) {
-                return inject(injector, () -> authenticateYggdrasil(injector, password));
-            }
-            throw new IllegalArgumentException("Unsupported account type: " + account.getClass().getName());
-        }
-    }
-
     /// Returns offline launch information with a fresh random token and no skin injection.
     public AuthInfo logInWithoutSkin(OfflineAccount account) {
         return new AuthInfo(account.getProfileName(), account.getProfileID(), UUIDs.toCompactString(UUID.randomUUID()),
@@ -259,25 +346,6 @@ public final class AccountService {
             }
             account.updateSession(session);
         }
-        return session.toAuthInfo();
-    }
-
-    /// Authenticates and reselects the existing Yggdrasil profile while the account monitor is held.
-    private AuthInfo authenticateYggdrasil(AuthlibInjectorAccount account, String password) throws AuthenticationException {
-        var service = getYggdrasilService(account.getServer());
-        YggdrasilSession session = service.authenticate(account.getLoginName(), password, UUIDs.toCompactString(UUID.randomUUID()));
-        if (session.getSelectedProfile() == null) {
-            if (session.getAvailableProfiles() == null || session.getAvailableProfiles().isEmpty()) {
-                throw new CharacterDeletedException();
-            }
-            GameProfile selected = session.getAvailableProfiles().stream()
-                    .filter(profile -> profile.getId().equals(account.getProfileID()))
-                    .findFirst().orElseThrow(CharacterDeletedException::new);
-            session = service.refresh(session.getAccessToken(), session.getClientToken(), selected);
-        } else if (!session.getSelectedProfile().getId().equals(account.getProfileID())) {
-            throw new CharacterDeletedException();
-        }
-        account.updateSession(session);
         return session.toAuthInfo();
     }
 

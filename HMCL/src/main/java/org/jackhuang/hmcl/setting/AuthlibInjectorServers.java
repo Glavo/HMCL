@@ -3,6 +3,7 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.JsonParseException;
+import org.jackhuang.hmcl.auth.AccountType;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.task.Task;
@@ -67,7 +68,7 @@ public final class AuthlibInjectorServers implements Validation {
             }
 
             if (!configInstance.urls.isEmpty()) {
-                settings().preferredLoginTypeProperty().set(Accounts.getLoginType(Accounts.FACTORY_AUTHLIB_INJECTOR));
+                settings().preferredLoginTypeProperty().set(AccountType.AUTHLIB_INJECTOR.id());
                 for (String url : configInstance.urls) {
                     Task.supplyAsync(Schedulers.io(), () -> AuthlibInjectorServer.locateServer(url))
                             .thenAcceptAsync(Schedulers.javafx(), server -> {

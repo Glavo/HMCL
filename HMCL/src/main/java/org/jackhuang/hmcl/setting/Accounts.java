@@ -10,18 +10,20 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.auth.*;
 import org.jackhuang.hmcl.auth.authlibinjector.*;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
-import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccountFactory;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftService;
+import org.jackhuang.hmcl.auth.microsoft.MicrosoftSession;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
-import org.jackhuang.hmcl.auth.offline.OfflineAccountFactory;
+import org.jackhuang.hmcl.auth.offline.Skin;
 import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.RemoteAuthenticationException;
 import org.jackhuang.hmcl.auth.yggdrasil.Texture;
 import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
+import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
 import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -39,8 +41,6 @@ import static java.util.stream.Collectors.toList;
 import static javafx.collections.FXCollections.observableArrayList;
 import static org.jackhuang.hmcl.setting.SettingsManager.*;
 import static org.jackhuang.hmcl.ui.FXUtils.onInvalidating;
-import static org.jackhuang.hmcl.util.Lang.mapOf;
-import static org.jackhuang.hmcl.util.Pair.pair;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
@@ -74,13 +74,6 @@ public final class Accounts {
     /// @see AccountService#playOffline(Account)
     public static AuthInfo playOffline(Account account) throws AuthenticationException {
         return ACCOUNT_SERVICE.playOffline(account);
-    }
-
-    /// Authenticates the existing profile with a password and prepares launch resources.
-    ///
-    /// @see AccountService#logInWithPassword(ClassicAccount, String)
-    public static AuthInfo logInWithPassword(ClassicAccount account, String password) throws AuthenticationException {
-        return ACCOUNT_SERVICE.logInWithPassword(account, password);
     }
 
     /// Returns offline launch information without preparing skin injection.
@@ -117,53 +110,37 @@ public final class Accounts {
         ACCOUNT_SERVICE.clearCache(account);
     }
 
-    public static final OfflineAccountFactory FACTORY_OFFLINE = new OfflineAccountFactory();
-    public static final AuthlibInjectorAccountFactory FACTORY_AUTHLIB_INJECTOR = new AuthlibInjectorAccountFactory(Accounts::getOrCreateAuthlibInjectorServer, ACCOUNT_SERVICE::getYggdrasilService);
-    public static final MicrosoftAccountFactory FACTORY_MICROSOFT = new MicrosoftAccountFactory(MICROSOFT_SERVICE);
-    public static final List<AccountFactory<?>> FACTORIES = List.of(FACTORY_OFFLINE, FACTORY_MICROSOFT, FACTORY_AUTHLIB_INJECTOR);
-
-    // ==== login type / account factory mapping ====
-    private static final Map<String, AccountFactory<?>> type2factory = new HashMap<>();
-    private static final Map<AccountFactory<?>, String> factory2type = new HashMap<>();
-
-    static {
-        type2factory.put("offline", FACTORY_OFFLINE);
-        type2factory.put("authlibInjector", FACTORY_AUTHLIB_INJECTOR);
-        type2factory.put("microsoft", FACTORY_MICROSOFT);
-
-        type2factory.forEach((type, factory) -> factory2type.put(factory, type));
+    /// Creates an offline account with an optional UUID and skin override.
+    public static OfflineAccount createOfflineAccount(String name, @Nullable UUID uuid, @Nullable Skin skin) {
+        return ACCOUNT_SERVICE.createOfflineAccount(name, uuid, skin);
     }
 
-    public static String getLoginType(AccountFactory<?> factory) {
-        String type = factory2type.get(factory);
-        if (type != null) return type;
-
-        if (factory instanceof BoundAuthlibInjectorAccountFactory) {
-            return factory2type.get(FACTORY_AUTHLIB_INJECTOR);
-        }
-
-        throw new IllegalArgumentException("Unrecognized account factory");
+    /// Authenticates a new Microsoft account using the supplied operation callback.
+    public static MicrosoftAccount createMicrosoftAccount(OAuth.GrantFlow flow, OAuth.Callback callback) throws AuthenticationException {
+        return ACCOUNT_SERVICE.createMicrosoftAccount(flow, callback);
     }
 
-    public static AccountFactory<?> getAccountFactory(String loginType) {
-        return Optional.ofNullable(type2factory.get(loginType))
-                .orElseThrow(() -> new IllegalArgumentException("Unrecognized login type"));
+    /// Authenticates a new external account and selects a character when necessary.
+    public static AuthlibInjectorAccount createAuthlibInjectorAccount(AuthlibInjectorServer server, String username,
+                                                                     String password, CharacterSelector selector) throws AuthenticationException {
+        return ACCOUNT_SERVICE.createAuthlibInjectorAccount(server, username, password, selector);
     }
 
-    public static BoundAuthlibInjectorAccountFactory getAccountFactoryByAuthlibInjectorServer(AuthlibInjectorServer server) {
-        return new BoundAuthlibInjectorAccountFactory(server, ACCOUNT_SERVICE.getYggdrasilService(server));
+    /// Obtains detached Microsoft credentials for the same profile without changing the existing account.
+    public static MicrosoftAccount reauthenticateMicrosoftAccount(MicrosoftAccount account, OAuth.GrantFlow flow,
+                                                                  OAuth.Callback callback) throws AuthenticationException {
+        return ACCOUNT_SERVICE.reauthenticateMicrosoftAccount(account, flow, callback);
     }
-    // ====
 
-    public static AccountFactory<?> getAccountFactory(Account account) {
-        if (account instanceof OfflineAccount)
-            return FACTORY_OFFLINE;
-        else if (account instanceof AuthlibInjectorAccount)
-            return FACTORY_AUTHLIB_INJECTOR;
-        else if (account instanceof MicrosoftAccount)
-            return FACTORY_MICROSOFT;
-        else
-            throw new IllegalArgumentException("Failed to determine account type: " + account);
+    /// Obtains detached external credentials for the same profile without changing the existing account.
+    public static AuthlibInjectorAccount reauthenticateAuthlibInjectorAccount(AuthlibInjectorAccount account, String password)
+            throws AuthenticationException {
+        return ACCOUNT_SERVICE.reauthenticateAuthlibInjectorAccount(account, password);
+    }
+
+    /// Commits accepted credentials to the existing account while preserving its identity and storage settings.
+    public static void acceptReauthentication(Account existing, Account candidate) throws AuthenticationException {
+        ACCOUNT_SERVICE.acceptReauthentication(existing, candidate);
     }
 
     private static final ObservableList<Account> accounts = observableArrayList(account -> new Observable[]{account});
@@ -196,9 +173,10 @@ public final class Accounts {
      */
     private static boolean initialized = false;
 
+    /// Captures public metadata and currently cached private account data without fetching profiles.
     private static SerializedAccount serializeAccount(Account account) {
         JsonObject metadata = new JsonObject();
-        metadata.addProperty("type", getLoginType(getAccountFactory(account)));
+        metadata.addProperty("type", AccountType.of(account).id());
         account.writeMetadata(metadata);
         JsonObject privateData = new JsonObject();
         ACCOUNT_SERVICE.writePrivateData(account, privateData);
@@ -336,20 +314,42 @@ public final class Accounts {
         }
     }
 
-    private static Account parseAccount(JsonObject record, boolean portable) {
-        AccountFactory<?> factory = type2factory.get(JsonUtils.getString(record, "type"));
-        if (factory == null) {
-            LOG.warning("Unrecognized account type: " + describeAccountRecord(record));
-            return null;
-        }
-
+    /// Restores an account and its cached profile, returning `null` for invalid persisted data.
+    private static @Nullable Account parseAccount(JsonObject record, boolean portable) {
         try {
             AccountID accountID = Account.readAccountID(record);
-            return factory.fromStorage(record, SettingsManager.getAccountPrivateData(accountID, portable));
+            JsonObject privateData = SettingsManager.getAccountPrivateData(accountID, portable);
+            Account account = switch (AccountType.fromId(JsonUtils.getString(record, "type"))) {
+                case OFFLINE -> {
+                    String name = requireAccountString(record, "profileName");
+                    @Nullable String uuid = JsonUtils.getString(record, "profileID");
+                    UUID profileID = uuid == null ? OfflineAccount.getUUIDFromUserName(name) : UUIDs.parse(uuid);
+                    @Nullable Skin skin = Skin.fromStorage(record.get("skin") instanceof JsonObject value ? value : null);
+                    yield new OfflineAccount(accountID, name, profileID, skin);
+                }
+                case MICROSOFT -> new MicrosoftAccount(accountID, MicrosoftSession.fromStorage(record, privateData), false);
+                case AUTHLIB_INJECTOR -> new AuthlibInjectorAccount(accountID,
+                        getOrCreateAuthlibInjectorServer(requireAccountString(record, "serverBaseURL")),
+                        requireAccountString(record, "loginName"), YggdrasilSession.fromStorage(record, privateData));
+            };
+            if (!(account instanceof OfflineAccount) && privateData.get("profileProperties") instanceof JsonObject propertiesObject) {
+                Map<String, String> properties = JsonUtils.GSON.fromJson(propertiesObject, JsonUtils.mapTypeOf(String.class, String.class));
+                ACCOUNT_SERVICE.restoreProfile(account, new CompleteGameProfile(account.getProfileID(), account.getProfileName(), properties));
+            }
+            return account;
         } catch (Exception e) {
             LOG.warning("Failed to load account: " + describeAccountRecord(record), e);
             return null;
         }
+    }
+
+    /// Reads a required primitive member of persisted account metadata as a string.
+    ///
+    /// @throws IllegalArgumentException if the member is missing, null, or cannot be read as a string
+    private static String requireAccountString(JsonObject record, String name) {
+        @Nullable String value = JsonUtils.getString(record, name);
+        if (value == null) throw new IllegalArgumentException(name + " is missing");
+        return value;
     }
 
     /// Serialized account metadata and private data.
@@ -574,17 +574,14 @@ public final class Accounts {
     }
     // ====
 
-    // ==== Login type name i18n ===
-    private static final Map<AccountFactory<?>, String> unlocalizedLoginTypeNames = mapOf(
-            pair(Accounts.FACTORY_OFFLINE, "account.methods.offline"),
-            pair(Accounts.FACTORY_AUTHLIB_INJECTOR, "account.methods.authlib_injector"),
-            pair(Accounts.FACTORY_MICROSOFT, "account.methods.microsoft"));
-
-    public static String getLocalizedLoginTypeName(AccountFactory<?> factory) {
-        return i18n(Optional.ofNullable(unlocalizedLoginTypeNames.get(factory))
-                .orElseThrow(() -> new IllegalArgumentException("Unrecognized account factory")));
+    /// Returns the localized name for a supported account type.
+    public static String getLocalizedLoginTypeName(AccountType type) {
+        return i18n(switch (type) {
+            case OFFLINE -> "account.methods.offline";
+            case MICROSOFT -> "account.methods.microsoft";
+            case AUTHLIB_INJECTOR -> "account.methods.authlib_injector";
+        });
     }
-    // ====
 
     public static String localizeErrorMessage(Exception exception) {
         if (exception instanceof NoCharacterException) {

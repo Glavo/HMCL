@@ -9,7 +9,7 @@ import com.google.gson.JsonParser;
 import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
-import org.jackhuang.hmcl.auth.offline.OfflineAccountFactory;
+import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.util.FileSaver;
 import org.jackhuang.hmcl.util.gson.JsonSchema;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -508,7 +508,7 @@ public final class AccountMetadataStoreTest {
         assertEquals(1, accountMetadata.getAccounts().size());
         assertEquals("offline", JsonUtils.getString(accountMetadata.getAccounts().get(0), "type"));
         assertEquals("Alex", JsonUtils.getString(accountMetadata.getAccounts().get(0), "profileName"));
-        assertEquals(OfflineAccountFactory.getUUIDFromUserName("Alex").toString(),
+        assertEquals(OfflineAccount.getUUIDFromUserName("Alex").toString(),
                 JsonUtils.getString(accountMetadata.getAccounts().get(0), "profileID"));
         assertEquals(legacyAccountID(false, "Alex:Alex"),
                 JsonUtils.getString(accountMetadata.getAccounts().get(0), "accountID"));
@@ -538,7 +538,7 @@ public final class AccountMetadataStoreTest {
 
         JsonObject offlineAccount = accountMetadata.getAccounts().get(0);
         assertEquals("Alex", JsonUtils.getString(offlineAccount, "profileName"));
-        assertEquals(OfflineAccountFactory.getUUIDFromUserName("Alex").toString(),
+        assertEquals(OfflineAccount.getUUIDFromUserName("Alex").toString(),
                 JsonUtils.getString(offlineAccount, "profileID"));
         assertEquals(legacyAccountID(false, "Alex:Alex"), JsonUtils.getString(offlineAccount, "accountID"));
         assertFalse(offlineAccount.has("username"));
@@ -579,18 +579,18 @@ public final class AccountMetadataStoreTest {
     /// Tests replacing duplicate account IDs across local and shared account metadata stores.
     @Test
     public void deduplicatesAccountIDsAcrossMetadataStores() {
-        String duplicateAccountID = new AccountID(OfflineAccountFactory.getUUIDFromUserName("Alex")).toString();
+        String duplicateAccountID = new AccountID(OfflineAccount.getUUIDFromUserName("Alex")).toString();
         AccountMetadataStore localAccounts = AccountMetadataStore.fromRecords(List.of(jsonObject(
                 "type", "offline",
                 "accountID", duplicateAccountID,
                 "profileName", "Alex",
-                "profileID", OfflineAccountFactory.getUUIDFromUserName("Alex").toString()
+                "profileID", OfflineAccount.getUUIDFromUserName("Alex").toString()
         )));
         AccountMetadataStore userAccounts = AccountMetadataStore.fromRecords(List.of(jsonObject(
                 "type", "offline",
                 "accountID", duplicateAccountID,
                 "profileName", "Alex",
-                "profileID", OfflineAccountFactory.getUUIDFromUserName("Alex").toString()
+                "profileID", OfflineAccount.getUUIDFromUserName("Alex").toString()
         )));
 
         Set<String> usedAccountIDs = new HashSet<>();
