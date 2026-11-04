@@ -455,8 +455,9 @@ public final class M3SwitchTest {
             M3Switch control = callOnFxThread(() -> {
                 M3Switch target = new M3Switch();
                 target.setDisableAnimation(false);
-                target.setStyle("-m3-switch-primary: #123456;");
+
                 VBox root = scene(target);
+                setPrimaryColor(target, "#123456");
                 window.setScene(root.getScene());
                 window.show();
                 Paint initial = Objects.requireNonNull(part(target, "track").getFill());
@@ -479,9 +480,10 @@ public final class M3SwitchTest {
             M3Switch target = new M3Switch();
             target.setShowSelectedIcon(true);
             target.setShowUnselectedIcon(true);
-            target.setStyle("-m3-switch-primary: #123456;");
+
             target.setDisableAnimation(true);
             scene(target);
+            setPrimaryColor(target, "#123456");
             return target;
         });
         @Unmodifiable List<Paint> off = callOnFxThread(() -> palette(control));
@@ -533,7 +535,7 @@ public final class M3SwitchTest {
             Shape handle = part(control, "handle");
             assertEquals(36, handle.getBoundsInParent().getCenterX());
             assertEquals(24, handle.getLayoutBounds().getWidth());
-            control.setStyle("-m3-switch-primary: #abcdef;");
+            setPrimaryColor(control, "#abcdef");
             control.applyCss();
             assertEquals(Color.web("#abcdef"), palette(control).get(0), "CSS must still override animated values");
             control.setDisableAnimation(false);
@@ -579,6 +581,15 @@ public final class M3SwitchTest {
     private static void key(M3Switch control, EventType<KeyEvent> type, KeyCode code, @Nullable KeyCode modifier) {
         control.fireEvent(new KeyEvent(type, "", "", code, modifier == KeyCode.SHIFT,
                 modifier == KeyCode.CONTROL, modifier == KeyCode.ALT, modifier == KeyCode.META));
+    }
+
+    /// Adds a palette override with the same universal selector used by HMCL themes.
+    private static void setPrimaryColor(M3Switch control, String color) {
+        String css = "* { -monet-primary: " + color + "; }";
+        String uri = "data:text/css;charset=UTF-8;base64," + java.util.Base64.getEncoder().encodeToString(
+                css.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        control.getScene().getStylesheets().add(uri);
+        control.applyCss();
     }
 
     /// Captures rendered paints without applying CSS, which could hide an incorrect animation result.

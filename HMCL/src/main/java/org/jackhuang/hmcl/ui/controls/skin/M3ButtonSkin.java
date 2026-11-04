@@ -2,51 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.ui.controls.skin;
 
-import javafx.scene.control.skin.ButtonSkin;
 import org.jackhuang.hmcl.ui.controls.M3ButtonBase;
 import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.Nullable;
 
-/// Adds a fading Material state layer to the native JavaFX ButtonSkin.
+/// Renders labeled Material button content with shared activation and fading feedback.
 @NotNullByDefault
-public final class M3ButtonSkin extends ButtonSkin {
-    /// Overlay; absent while the superclass constructor is initializing children.
-    private @Nullable M3StateLayer stateLayer;
-
-    /// Creates a skin preserving native keyboard, pointer, and accessibility behavior.
+public final class M3ButtonSkin extends M3LabeledButtonSkinBase<M3ButtonBase> {
+    /// Creates a skin for the supplied Material button.
     public M3ButtonSkin(M3ButtonBase control) {
         super(control);
-        stateLayer = new M3StateLayer(control);
-        getChildren().add(0, stateLayer);
-    }
-
-    /// Restores the layer when native labeled-content changes rebuild the child list.
-    @Override
-    protected void updateChildren() {
-        super.updateChildren();
-        if (stateLayer != null && !getChildren().contains(stateLayer))
-            getChildren().add(0, stateLayer);
-    }
-
-    /// Lays out native content before positioning the stationary overlay.
-    @Override
-    protected void layoutChildren(double x, double y, double width, double height) {
-        super.layoutChildren(x, y, width, height);
-        if (stateLayer != null) {
-            if (!getChildren().contains(stateLayer))
-                getChildren().add(0, stateLayer);
-            stateLayer.layoutFeedback(null);
-        }
-    }
-
-    /// Stops feedback and releases native input handlers and listeners.
-    @Override
-    public void dispose() {
-        if (stateLayer != null) {
-            stateLayer.dispose();
-            getChildren().remove(stateLayer);
-            stateLayer = null;
-        }
-        super.dispose();
     }
 }

@@ -223,7 +223,7 @@ public class M3Switch extends Control {
         }
     }
 
-    /// Returns the standalone switch stylesheet.
+    /// Returns the switch stylesheet, which uses the scene's Monet palette.
     @Override
     public String getUserAgentStylesheet() {
         return M3Styles.stylesheet("m3-switch");

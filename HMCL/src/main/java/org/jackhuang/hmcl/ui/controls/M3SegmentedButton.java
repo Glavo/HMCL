@@ -8,7 +8,7 @@ import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Skin;
-import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.paint.Paint;
 import org.jackhuang.hmcl.ui.controls.skin.M3ToggleButtonSkin;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -19,7 +19,7 @@ import java.util.List;
 
 /// A selectable segment that can belong to an M3SegmentedButtonGroup.
 @NotNullByDefault
-public class M3SegmentedButton extends ToggleButton implements M3ButtonStyle {
+public class M3SegmentedButton extends M3ToggleButtonBase implements M3ButtonStyle {
     /// Appearance and feedback properties.
     private final M3ButtonProperties properties = new M3ButtonProperties(this);
 
@@ -90,7 +90,7 @@ public class M3SegmentedButton extends ToggleButton implements M3ButtonStyle {
 
     /// Immutable metadata including the inherited JavaFX properties.
     private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS =
-            M3Styles.metadata(ToggleButton.getClassCssMetaData(), M3ButtonProperties.CSS);
+            M3Styles.metadata(ButtonBase.getClassCssMetaData(), M3ButtonProperties.CSS);
 
     /// Returns the inherited and Material CSS metadata.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
@@ -103,7 +103,7 @@ public class M3SegmentedButton extends ToggleButton implements M3ButtonStyle {
         return CSS;
     }
 
-    /// Returns the standalone Material stylesheet.
+    /// Returns the component stylesheet, which uses the scene's Monet palette.
     @Override
     public String getUserAgentStylesheet() {
         return M3Styles.stylesheet("m3-button");

@@ -9,7 +9,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ButtonBase;
-import javafx.scene.control.MenuButton;
+import org.jackhuang.hmcl.ui.controls.M3MenuButton;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
@@ -22,7 +22,7 @@ import org.jackhuang.hmcl.ui.controls.M3Control;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-/// Fades a stationary overlay without replacing the native skin's input behavior.
+/// Fades a stationary overlay using the control's interaction state.
 @NotNullByDefault
 final class M3StateLayer extends Region {
     /// Control whose interaction state drives this layer.
@@ -74,12 +74,12 @@ final class M3StateLayer extends Region {
         focusVisible.addListener(invalidation);
         options.stateLayerFillProperty().addListener(invalidation);
         options.disableAnimationProperty().addListener(invalidation);
-        if (control instanceof MenuButton menu)
+        if (control instanceof M3MenuButton menu)
             menu.showingProperty().addListener(invalidation);
         update();
     }
 
-    /// Fits the full button or a circular selection-indicator target after native layout.
+    /// Fits the full button or a circular selection-indicator target after content layout.
     void layoutFeedback(@Nullable String indicatorSelector) {
         @Nullable Node indicator = indicatorSelector == null ? null : control.lookup(indicatorSelector);
         if (indicator != null) {
@@ -109,7 +109,7 @@ final class M3StateLayer extends Region {
         Paint nextPaint = requested == null ? Color.TRANSPARENT : requested;
         double nextOpacity = control.isDisabled() || control.getScene() == null ? 0
                 : control.isArmed() || focusVisible.get() || control.isPressed() && control.isHover()
-                || control instanceof MenuButton menu && menu.isShowing() ? 0.12 : control.isHover() ? 0.08 : 0;
+                || control instanceof M3MenuButton menu && menu.isShowing() ? 0.12 : control.isHover() ? 0.08 : 0;
         boolean immediate = options.isDisableAnimation() || control.isDisabled() || control.getScene() == null;
         if (!immediate && nextPaint.equals(targetPaint) && nextOpacity == targetOpacity)
             return;
@@ -162,7 +162,7 @@ final class M3StateLayer extends Region {
         focusVisible.removeListener(invalidation);
         options.stateLayerFillProperty().removeListener(invalidation);
         options.disableAnimationProperty().removeListener(invalidation);
-        if (control instanceof MenuButton menu)
+        if (control instanceof M3MenuButton menu)
             menu.showingProperty().removeListener(invalidation);
     }
 }

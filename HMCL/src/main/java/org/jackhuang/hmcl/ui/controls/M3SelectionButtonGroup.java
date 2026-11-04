@@ -13,7 +13,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.ToggleButton;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -29,7 +28,7 @@ import java.util.Map;
 ///
 /// @param <T> the accepted toggle-button type
 @NotNullByDefault
-public abstract class M3SelectionButtonGroup<T extends ToggleButton> extends M3ButtonGroupBase<T> {
+public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> extends M3ButtonGroupBase<T> {
     /// Selection policy; null is interpreted as single selection.
     private final ObjectProperty<@Nullable SelectionMode> selectionMode =
             new SimpleObjectProperty<>(this, "selectionMode", SelectionMode.SINGLE);
@@ -154,7 +153,7 @@ public abstract class M3SelectionButtonGroup<T extends ToggleButton> extends M3B
                 @Nullable T keep = pendingSelection;
                 pendingSelection = null;
                 if (keep == null || !items.contains(keep) || !keep.isSelected())
-                    keep = items.stream().filter(ToggleButton::isSelected).findFirst().orElse(null);
+                    keep = items.stream().filter(M3ToggleButtonBase::isSelected).findFirst().orElse(null);
                 if (keep == null && !isEmptySelectionAllowed() && !items.isEmpty()) {
                     // Retain the previous choice when the user tries to clear the last selection.
                     @Nullable T previous = getSelectedItem();
@@ -167,7 +166,7 @@ public abstract class M3SelectionButtonGroup<T extends ToggleButton> extends M3B
                             item.setSelected(false);
                     }
                 }
-                @Unmodifiable List<T> next = items.stream().filter(ToggleButton::isSelected).toList();
+                @Unmodifiable List<T> next = items.stream().filter(M3ToggleButtonBase::isSelected).toList();
                 if (!selectedItems.equals(next))
                     selectedItems.setAll(next);
                 selectedItem.set(next.isEmpty() ? null : next.get(0));

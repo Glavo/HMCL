@@ -20,6 +20,7 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -52,16 +53,17 @@ import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/// Exercises Material controls in real JavaFX scenes, including CSS, native behavior, and skin replacement.
+/// Exercises Material controls in real JavaFX scenes, including CSS, activation behavior, and skin replacement.
 @NotNullByDefault
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 public final class M3ControlsTest {
-    /// Ensures every control renders without application styles and exports a themed visual fixture.
+    /// Renders every control with the shared Monet palette and exports themed visual fixtures.
     @Test
-    void standaloneAndThemedLayout() throws Exception {
+    void themedLayout() throws Exception {
         onFx(() -> {
             VBox root = gallery();
             Scene scene = new Scene(root, 920, 620);
+            theme(scene);
             layout(root);
             for (Node node : root.lookupAll(".m3-button-base")) {
                 assertTrue(node.getLayoutBounds().getWidth() > 0);
@@ -69,7 +71,6 @@ public final class M3ControlsTest {
                 assertNotNull(node.lookup(".m3-state-layer"));
             }
             assertNotNull(root.lookup(".switch-track"));
-            theme(scene);
             layout(root);
             M3Button button = (M3Button) Objects.requireNonNull(root.lookup("#filled"));
             assertEquals(Color.web("#4352a5"), button.getBackground().getFills().get(0).getFill());
@@ -92,12 +93,12 @@ public final class M3ControlsTest {
             layout(root);
             assertEquals(Color.web("#bcc2ff"), button.getBackground().getFills().get(0).getFill());
             M3MenuButton menu = (M3MenuButton) Objects.requireNonNull(root.lookup(".m3-menu-button"));
-            assertEquals(menu.getTextFill(), ((Label) Objects.requireNonNull(menu.lookup(".label"))).getTextFill());
+            assertEquals(menu.getTextFill(), ((javafx.scene.text.Text) Objects.requireNonNull(menu.lookup(".text"))).getFill());
             saveSnapshot(root, "m3-controls-dark.png");
         });
     }
 
-    /// Preserves native command activation and restores the overlay after labeled-content or skin changes.
+    /// Preserves command activation and restores the overlay after labeled-content or skin changes.
     @Test
     void commandInputAndSkinReplacement() throws Exception {
         onFx(() -> {
@@ -150,6 +151,115 @@ public final class M3ControlsTest {
             Event.fireEvent(root.getScene(), new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ESCAPE, false, false, false, false));
             assertEquals(1, confirmations.get());
             assertEquals(1, cancellations.get());
+        });
+    }
+
+    /// Cancels incomplete gestures and leaves Tab traversal and mnemonics functional.
+    @Test
+    void customBehaviorCancellationAndTraversal() throws Exception {
+        onFx(() -> {
+            M3Button first = new M3Button("_Run");
+            M3Button second = new M3Button("Next");
+            VBox root = scene(first, second);
+            AtomicInteger actions = new AtomicInteger();
+            first.setOnAction(event -> actions.incrementAndGet());
+            key(first, KeyEvent.KEY_PRESSED, KeyCode.SPACE);
+            key(first, KeyEvent.KEY_PRESSED, KeyCode.ESCAPE);
+            key(first, KeyEvent.KEY_PRESSED, KeyCode.SPACE);
+            key(first, KeyEvent.KEY_RELEASED, KeyCode.SPACE);
+            assertFalse(first.isArmed());
+            assertEquals(0, actions.get());
+            mouse(first, MouseEvent.MOUSE_PRESSED, true);
+            mouse(first, MouseEvent.MOUSE_EXITED, true);
+            mouse(first, MouseEvent.MOUSE_RELEASED, false);
+            assertEquals(0, actions.get());
+            mouse(first, MouseEvent.MOUSE_PRESSED, true);
+            mouse(first, MouseEvent.MOUSE_EXITED, true);
+            mouse(first, MouseEvent.MOUSE_ENTERED, true);
+            mouse(first, MouseEvent.MOUSE_RELEASED, false);
+            assertEquals(1, actions.get());
+            Stage stage = new Stage();
+            stage.setScene(root.getScene());
+            try {
+                stage.show();
+                first.requestFocus();
+                key(first, KeyEvent.KEY_PRESSED, KeyCode.TAB);
+                assertSame(second, root.getScene().getFocusOwner());
+                second.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.TAB, true, false, false, false));
+                assertSame(first, root.getScene().getFocusOwner());
+                var mnemonic = root.getScene().getMnemonics().values().stream().flatMap(List::stream)
+                        .filter(value -> value.getNode() == first).findFirst().orElseThrow();
+                mnemonic.fire();
+                assertEquals(2, actions.get());
+                mouse(first, MouseEvent.MOUSE_PRESSED, true);
+                first.setDisable(true);
+                mouse(first, MouseEvent.MOUSE_RELEASED, false);
+                assertFalse(first.isArmed());
+                assertEquals(2, actions.get());
+            } finally {
+                stage.hide();
+            }
+        });
+    }
+
+    /// Restores preexisting scene accelerators and removes disposed role holders.
+    @Test
+    void defaultAcceleratorOwnership() throws Exception {
+        onFx(() -> {
+            M3Button first = new M3Button("First");
+            M3Button second = new M3Button("Second");
+            VBox root = scene(first, second);
+            Scene scene = root.getScene();
+            KeyCodeCombination enter = new KeyCodeCombination(KeyCode.ENTER);
+            AtomicInteger fallbackActions = new AtomicInteger();
+            Runnable fallback = fallbackActions::incrementAndGet;
+            scene.getAccelerators().put(enter, fallback);
+            AtomicInteger firstActions = new AtomicInteger();
+            AtomicInteger secondActions = new AtomicInteger();
+            first.setOnAction(event -> firstActions.incrementAndGet());
+            second.setOnAction(event -> secondActions.incrementAndGet());
+            first.setDefaultButton(true);
+            second.setDefaultButton(true);
+            scene.getAccelerators().get(enter).run();
+            assertEquals(1, secondActions.get());
+            second.setDisable(true);
+            scene.getAccelerators().get(enter).run();
+            assertEquals(1, firstActions.get());
+            first.setSkin(null);
+            second.setSkin(null);
+            assertSame(fallback, scene.getAccelerators().get(enter));
+            scene.getAccelerators().get(enter).run();
+            assertEquals(1, fallbackActions.get());
+        });
+    }
+
+    /// Synchronizes membership changes made through either the property or group list.
+    @Test
+    void toggleGroupMembershipAndKeyboard() throws Exception {
+        onFx(() -> {
+            M3RadioButton first = new M3RadioButton("First");
+            M3RadioButton second = new M3RadioButton("Second");
+            ToggleGroup group = new ToggleGroup();
+            group.getToggles().addAll(first, second);
+            first.setSelected(true);
+            assertSame(group, first.getToggleGroup());
+            VBox root = scene(first, second);
+            first.requestFocus();
+            key(first, KeyEvent.KEY_PRESSED, KeyCode.DOWN);
+            assertSame(second, group.getSelectedToggle());
+            assertFalse(first.isSelected());
+            assertSame(second, root.getScene().getFocusOwner());
+            ToggleGroup other = new ToggleGroup();
+            second.setToggleGroup(other);
+            assertFalse(group.getToggles().contains(second));
+            assertSame(second, other.getSelectedToggle());
+            other.getToggles().remove(second);
+            assertNull(second.getToggleGroup());
+            assertNull(other.getSelectedToggle());
+            second.setToggleGroup(group);
+            group.getToggles().clear();
+            assertNull(first.getToggleGroup());
+            assertNull(second.getToggleGroup());
         });
     }
 
@@ -338,6 +448,22 @@ public final class M3ControlsTest {
                 assertTrue(split.isShowing());
                 assertEquals(1, actions.get());
                 split.hide();
+                M3Button trailing = (M3Button) Objects.requireNonNull(split.lookup(".m3-split-menu-action"));
+                mouse(trailing, MouseEvent.MOUSE_PRESSED, true);
+                mouse(trailing, MouseEvent.MOUSE_RELEASED, false);
+                assertTrue(split.isShowing());
+                assertEquals(1, actions.get(), "The trailing menu action must not bubble as the primary action");
+                split.hide();
+                key(split, KeyEvent.KEY_PRESSED, KeyCode.DOWN);
+                assertTrue(split.isShowing());
+                assertEquals(1, actions.get());
+                split.setDisable(true);
+                assertFalse(split.isShowing());
+                split.setDisable(false);
+                menu.fire();
+                assertTrue(menu.isShowing());
+                menu.setSkin(null);
+                assertFalse(menu.isShowing(), "Disposing a menu skin must hide its popup");
             } finally {
                 menu.hide();
                 split.hide();
@@ -430,10 +556,10 @@ public final class M3ControlsTest {
         return root;
     }
 
-    /// Creates a scene with Material controls using only their standalone stylesheets.
+    /// Creates a scene with Material controls and the shared Monet palette.
     private static VBox scene(Node... nodes) {
         VBox root = new VBox(8, nodes);
-        new Scene(root, 800, 400);
+        theme(new Scene(root, 800, 400));
         layout(root);
         return root;
     }
@@ -458,9 +584,10 @@ public final class M3ControlsTest {
 
     /// Dispatches a primary press or release inside a button.
     private static void mouse(ButtonBase node, javafx.event.EventType<MouseEvent> type, boolean pressed) {
-        node.fireEvent(new MouseEvent(type, 10, 10, 10, 10, MouseButton.PRIMARY, 1,
+        var point = node.localToScene(10, 10);
+        node.fireEvent(new MouseEvent(type, point.getX(), point.getY(), point.getX(), point.getY(), MouseButton.PRIMARY, 1,
                 false, false, false, false, pressed, false, false, false, false, false,
-                new PickResult(node, 10, 10)));
+                new PickResult(node, point.getX(), point.getY())));
     }
 
     /// Writes a PNG for visual inspection without requiring the JavaFX Swing module.

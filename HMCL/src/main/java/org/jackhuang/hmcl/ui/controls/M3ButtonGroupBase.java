@@ -82,7 +82,7 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
             }
             updateRoles();
         });
-        // Native toggle skins consume arrow keys, so the group handles navigation during capture.
+        // Handle group navigation before individual toggle-group navigation.
         addEventFilter(KeyEvent.KEY_PRESSED, this::navigate);
         updateRoles();
     }

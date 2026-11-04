@@ -8,7 +8,8 @@ import javafx.css.SimpleStyleableObjectProperty;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleablePropertyFactory;
-import javafx.scene.control.RadioButton;
+import javafx.scene.control.ButtonBase;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Skin;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
@@ -19,16 +20,17 @@ import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
 
-/// A Material radio button retaining JavaFX selection, action, and accessibility behavior.
+/// A Material radio button with independent or grouped selection.
+/// Activating an already selected group member has no effect. An independent radio button toggles on each activation.
 /// Selection colors use the JFoenix-style property names; CSS uses the `-m3-` prefix.
 @NotNullByDefault
-public class M3RadioButton extends RadioButton implements M3Control {
+public class M3RadioButton extends M3ToggleButtonBase implements M3Control {
     /// Shared feedback properties.
     private final M3ControlProperties properties = new M3ControlProperties(this);
 
     /// Factory for inherited metadata and indicator paints.
     private static final StyleablePropertyFactory<M3RadioButton> FACTORY = new StyleablePropertyFactory<>(
-            M3Styles.metadata(RadioButton.getClassCssMetaData(), M3ControlProperties.CSS));
+            M3Styles.metadata(ButtonBase.getClassCssMetaData(), M3ControlProperties.CSS));
 
     /// Metadata for the selected paint.
     private static final CssMetaData<M3RadioButton, Color> SELECTED = FACTORY.createColorCssMetaData(
@@ -83,14 +85,15 @@ public class M3RadioButton extends RadioButton implements M3Control {
 
     /// Creates an unselected control with optional text.
     public M3RadioButton(@Nullable String text) {
-        super(text);
+        super(text, null);
+        setAccessibleRole(AccessibleRole.RADIO_BUTTON);
         getStyleClass().setAll("m3-radio-button");
     }
 
-    /// Ignores activation when selection is bound.
+    /// Toggles independently, or selects an unselected group member, unless disabled or selection is bound.
     @Override
     public void fire() {
-        if (!selectedProperty().isBound())
+        if (getToggleGroup() == null || !isSelected())
             super.fire();
     }
 
@@ -126,7 +129,7 @@ public class M3RadioButton extends RadioButton implements M3Control {
         return CSS;
     }
 
-    /// Returns the standalone selection stylesheet.
+    /// Returns the selection stylesheet, which uses the scene's Monet palette.
     @Override
     public String getUserAgentStylesheet() {
         return M3Styles.stylesheet("m3-selection");

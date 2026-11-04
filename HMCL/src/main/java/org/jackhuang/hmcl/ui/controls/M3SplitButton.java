@@ -2,99 +2,47 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.ui.controls;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.css.CssMetaData;
-import javafx.css.Styleable;
-import javafx.css.StyleableObjectProperty;
+import javafx.event.ActionEvent;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Skin;
-import javafx.scene.control.SplitMenuButton;
-import javafx.scene.paint.Paint;
 import org.jackhuang.hmcl.ui.controls.skin.M3SplitButtonSkin;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.List;
-
-/// A split button whose primary action and menu arrow retain JavaFX SplitMenuButton behavior.
+/// A Material button with independent primary and popup actions.
+/// [#fire()] invokes only the primary action. The trailing button and Down key open the menu without firing it.
 @NotNullByDefault
-public class M3SplitButton extends SplitMenuButton implements M3ButtonStyle {
-    /// Appearance and feedback properties.
-    private final M3ButtonProperties properties = new M3ButtonProperties(this);
-
-    /// Creates an empty button.
+public class M3SplitButton extends M3MenuButton {
+    /// Creates an empty split button.
     public M3SplitButton() {
         this("", null);
     }
 
-    /// Creates a button with optional text.
+    /// Creates an empty menu with optional primary-action text.
     public M3SplitButton(@Nullable String text) {
         this(text, null);
     }
 
-    /// Creates a button with optional content and non-null menu items.
-    /// Menu items must not already belong to another menu.
+    /// Creates primary-action content and non-null menu items not owned by another menu.
     public M3SplitButton(@Nullable String text, @Nullable Node graphic, MenuItem... items) {
         super(text, graphic, items);
-        getStyleClass().setAll("m3-button-base", "m3-split-button");
+        getStyleClass().remove("m3-menu-button");
+        getStyleClass().add("m3-split-button");
+        setAccessibleRole(AccessibleRole.SPLIT_MENU_BUTTON);
     }
 
-    /// Creates the default Material skin.
+    /// Dispatches the primary action unless disabled, without changing popup visibility.
+    @Override
+    public void fire() {
+        if (!isDisabled())
+            fireEvent(new ActionEvent(this, this));
+    }
+
+    /// Creates the skin containing independent command and menu targets.
     @Override
     protected Skin<?> createDefaultSkin() {
         return new M3SplitButtonSkin(this);
-    }
-
-    /// Returns this control's animation override.
-    @Override
-    public final BooleanProperty disableAnimationProperty() {
-        return properties.feedback.disableAnimation;
-    }
-
-    /// Returns the styleable overlay paint override.
-    @Override
-    public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
-        return properties.feedback.stateLayerFill;
-    }
-
-    /// Returns the styleable visual emphasis.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonVariant> variantProperty() {
-        return properties.variant;
-    }
-
-    /// Returns the styleable size role.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonSize> sizeProperty() {
-        return properties.size;
-    }
-
-    /// Returns the styleable resting shape.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonShape> buttonShapeProperty() {
-        return properties.buttonShape;
-    }
-
-    /// Immutable metadata including the inherited JavaFX properties.
-    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS =
-            M3Styles.metadata(SplitMenuButton.getClassCssMetaData(), M3ButtonProperties.CSS);
-
-    /// Returns the inherited and Material CSS metadata.
-    public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
-        return CSS;
-    }
-
-    /// Returns the CSS metadata for this control.
-    @Override
-    public @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
-        return CSS;
-    }
-
-    /// Returns the standalone Material stylesheet.
-    @Override
-    public String getUserAgentStylesheet() {
-        return M3Styles.stylesheet("m3-button");
     }
 }
