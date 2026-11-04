@@ -13,7 +13,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import org.jackhuang.hmcl.ui.controls.M3ToggleButtonBase;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -138,7 +137,7 @@ final class M3ButtonBehavior {
 
     /// Moves selection and focus through a ToggleGroup without dispatching an action.
     private void navigateToggleGroup(KeyEvent event) {
-        if (!(control instanceof M3ToggleButtonBase toggle))
+        if (!(control instanceof Toggle toggle))
             return;
         @Nullable ToggleGroup group = toggle.getToggleGroup();
         if (group == null)

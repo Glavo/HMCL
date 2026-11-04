@@ -4,7 +4,7 @@ package org.jackhuang.hmcl.ui.controls.skin;
 
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.skin.LabeledSkinBase;
-import org.jackhuang.hmcl.ui.controls.M3ButtonBase;
+import org.jackhuang.hmcl.ui.controls.M3Button;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,7 +29,7 @@ abstract class M3LabeledButtonSkinBase<C extends ButtonBase> extends LabeledSkin
         stateLayer = new M3StateLayer(control);
         getChildren().add(0, stateLayer);
         behavior = new M3ButtonBehavior(control);
-        accelerators = control instanceof M3ButtonBase button ? new M3ButtonAccelerators(button) : null;
+        accelerators = control instanceof M3Button button ? new M3ButtonAccelerators(button) : null;
     }
 
     /// Restores the state layer after changes to labeled content rebuild the children.

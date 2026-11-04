@@ -11,9 +11,10 @@ import javafx.event.ActionEvent;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
-import javafx.scene.control.ButtonBase;
+import javafx.scene.control.Skin;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
+import org.jackhuang.hmcl.ui.controls.skin.M3ToggleButtonSkin;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 /// Direct selection changes do not fire actions. A disabled button or a button with bound selection ignores activation.
 /// Toggle-group membership must not be bound; the group's live toggle list can change this property.
 @NotNullByDefault
-public abstract class M3ToggleButtonBase extends ButtonBase implements Toggle {
+public abstract class M3ToggleButtonBase extends M3ButtonBase implements Toggle {
     /// Selected state, reflected in CSS and accessibility before group synchronization.
     private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected") {
         /// Coordinates the selected item with the group.
@@ -76,8 +77,6 @@ public abstract class M3ToggleButtonBase extends ButtonBase implements Toggle {
     /// Creates an unselected, focus-traversable button with optional labeled content.
     protected M3ToggleButtonBase(@Nullable String text, @Nullable Node graphic) {
         super(text, graphic);
-        setFocusTraversable(true);
-        setMnemonicParsing(true);
         setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
     }
 
@@ -124,6 +123,12 @@ public abstract class M3ToggleButtonBase extends ButtonBase implements Toggle {
             setSelected(!isSelected());
             fireEvent(new ActionEvent(this, this));
         }
+    }
+
+    /// Creates the default selectable-button skin.
+    @Override
+    protected Skin<?> createDefaultSkin() {
+        return new M3ToggleButtonSkin(this);
     }
 
     /// Exposes the selected state to assistive technology.

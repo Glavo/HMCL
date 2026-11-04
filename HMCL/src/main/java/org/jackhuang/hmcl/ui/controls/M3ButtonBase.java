@@ -25,9 +25,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import java.util.List;
 import java.util.Locale;
 
-/// Base for Material command buttons with action, mnemonic, and default/cancel semantics.
-/// The default skin installs Enter and Escape accelerators while the corresponding role is enabled.
-/// When several M3 buttons share a role, the most recently registered eligible button is activated.
+/// Base for Material buttons with shared appearance, interaction feedback, and action dispatch.
 /// Appearance does not change action semantics. Graphic nodes must not be shared between controls.
 @NotNullByDefault
 public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
@@ -89,12 +87,12 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
     private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
             new SimpleStyleableObjectProperty<>(STATE_LAYER_FILL, this, "stateLayerFill", null);
 
-    /// Creates an empty command button.
+    /// Creates an empty button.
     protected M3ButtonBase() {
         this("", null);
     }
 
-    /// Creates a command button with optional text and graphic.
+    /// Creates a button with optional text and graphic.
     protected M3ButtonBase(@Nullable String text, @Nullable Node graphic) {
         super(text, graphic);
         getStyleClass().setAll("m3-button-base");
@@ -106,54 +104,6 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
         updatePseudoClasses(getButtonShape(), M3ButtonShape.values());
     }
 
-    /// Whether this button supplies the scene's default action.
-    private final BooleanProperty defaultButton = new SimpleBooleanProperty(this, "defaultButton") {
-        /// Updates the semantic CSS state.
-        @Override
-        protected void invalidated() {
-            pseudoClassStateChanged(PseudoClass.getPseudoClass("default"), get());
-        }
-    };
-
-    /// Whether this button supplies the scene's cancel action.
-    private final BooleanProperty cancelButton = new SimpleBooleanProperty(this, "cancelButton") {
-        /// Updates the semantic CSS state.
-        @Override
-        protected void invalidated() {
-            pseudoClassStateChanged(PseudoClass.getPseudoClass("cancel"), get());
-        }
-    };
-
-    /// Returns the default-action property, initially false.
-    public final BooleanProperty defaultButtonProperty() {
-        return defaultButton;
-    }
-
-    /// Returns whether the button supplies a default action.
-    public final boolean isDefaultButton() {
-        return defaultButton.get();
-    }
-
-    /// Enables or disables the default action role.
-    public final void setDefaultButton(boolean value) {
-        defaultButton.set(value);
-    }
-
-    /// Returns the cancel-action property, initially false.
-    public final BooleanProperty cancelButtonProperty() {
-        return cancelButton;
-    }
-
-    /// Returns whether the button supplies a cancel action.
-    public final boolean isCancelButton() {
-        return cancelButton.get();
-    }
-
-    /// Enables or disables the cancel action role.
-    public final void setCancelButton(boolean value) {
-        cancelButton.set(value);
-    }
-
     /// Dispatches one action event unless this button is disabled.
     @Override
     public void fire() {
@@ -161,7 +111,7 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
             fireEvent(new ActionEvent(this, this));
     }
 
-    /// Creates the default labeled command-button skin.
+    /// Creates the default labeled button skin.
     @Override
     protected Skin<?> createDefaultSkin() {
         return new M3ButtonSkin(this);

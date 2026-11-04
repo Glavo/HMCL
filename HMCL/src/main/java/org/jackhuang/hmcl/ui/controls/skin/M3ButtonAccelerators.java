@@ -8,7 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import org.jackhuang.hmcl.ui.controls.M3ButtonBase;
+import org.jackhuang.hmcl.ui.controls.M3Button;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,7 @@ final class M3ButtonAccelerators {
     private static final Object REGISTRY_KEY = new Object();
 
     /// The registered command button.
-    private final M3ButtonBase button;
+    private final M3Button button;
 
     /// Registry currently owning this button, or null.
     private @Nullable Registry registry;
@@ -31,7 +31,7 @@ final class M3ButtonAccelerators {
     private final InvalidationListener changed = observable -> update();
 
     /// Observes a button's accelerator roles for the lifetime of its skin.
-    M3ButtonAccelerators(M3ButtonBase button) {
+    M3ButtonAccelerators(M3Button button) {
         this.button = button;
         button.sceneProperty().addListener(changed);
         button.defaultButtonProperty().addListener(changed);
@@ -73,7 +73,7 @@ final class M3ButtonAccelerators {
         private final Scene scene;
 
         /// Registered buttons in activation-priority order.
-        private final List<M3ButtonBase> buttons = new ArrayList<>();
+        private final List<M3Button> buttons = new ArrayList<>();
 
         /// Default-action accelerator key.
         private final KeyCombination enter = new KeyCodeCombination(KeyCode.ENTER);
@@ -103,7 +103,7 @@ final class M3ButtonAccelerators {
         /// Fires the last eligible role holder, falling back to the previous scene action.
         private void activate(boolean defaultRole) {
             for (int i = buttons.size() - 1; i >= 0; i--) {
-                M3ButtonBase candidate = buttons.get(i);
+                M3Button candidate = buttons.get(i);
                 if ((defaultRole ? candidate.isDefaultButton() : candidate.isCancelButton())
                         && !candidate.isDisabled() && visible(candidate)) {
                     candidate.fire();
@@ -125,7 +125,7 @@ final class M3ButtonAccelerators {
         }
 
         /// Releases a button and restores earlier accelerators when the registry becomes empty.
-        private void remove(M3ButtonBase button) {
+        private void remove(M3Button button) {
             buttons.remove(button);
             if (buttons.isEmpty()) {
                 restore(enter, defaultAction, previousEnter);

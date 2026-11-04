@@ -295,6 +295,46 @@ public final class M3ControlsTest {
         });
     }
 
+    /// Applies inherited appearance properties to selectable buttons without acquiring scene action roles.
+    @Test
+    void selectableButtonAppearance() throws Exception {
+        onFx(() -> {
+            M3IconToggleButton icon = new M3IconToggleButton();
+            M3SegmentedButton segment = new M3SegmentedButton("Segment");
+            assertEquals(M3ButtonVariant.TEXT, icon.getVariant());
+            assertEquals(M3ButtonVariant.OUTLINED, segment.getVariant());
+            M3Button command = new M3Button("Confirm");
+            command.setDefaultButton(true);
+            AtomicInteger actions = new AtomicInteger();
+            command.setOnAction(event -> actions.incrementAndGet());
+            VBox root = scene(command, icon, segment);
+            for (M3ButtonBase button : List.of(icon, segment)) {
+                button.setStyle("-m3-variant: tonal; -m3-size: large; -m3-shape: square; -m3-state-layer-fill: #123456;");
+                layout(root);
+                assertEquals(M3ButtonVariant.TONAL, button.getVariant());
+                assertEquals(M3ButtonSize.LARGE, button.getSize());
+                assertEquals(M3ButtonShape.SQUARE, button.getButtonShape());
+                assertEquals(Color.web("#123456"), button.getStateLayerFill());
+                assertTrue(button.getPseudoClassStates().contains(PseudoClass.getPseudoClass("tonal")));
+                SimpleObjectProperty<@Nullable M3ButtonVariant> variant = new SimpleObjectProperty<>(M3ButtonVariant.TEXT);
+                button.variantProperty().bind(variant);
+                assertTrue(button.getPseudoClassStates().contains(PseudoClass.getPseudoClass("text")));
+                assertFalse(button.getPseudoClassStates().contains(PseudoClass.getPseudoClass("tonal")));
+                variant.set(null);
+                assertEquals(M3ButtonVariant.FILLED, button.getVariant());
+                assertTrue(button.getPseudoClassStates().contains(PseudoClass.getPseudoClass("filled")));
+                button.setDisableAnimation(true);
+                button.arm();
+                assertEquals(0.12, Objects.requireNonNull(button.lookup(".m3-state-layer")).getOpacity(), 0.001);
+                button.disarm();
+            }
+            root.getScene().getAccelerators().get(new KeyCodeCombination(KeyCode.ENTER)).run();
+            assertEquals(1, actions.get());
+            assertFalse(icon.isSelected());
+            assertFalse(segment.isSelected());
+        });
+    }
+
     /// Preserves ToggleGroup, radio-button, and tri-state semantics while guarding bound state.
     @Test
     void selectionAndBindingContracts() throws Exception {
@@ -320,6 +360,19 @@ public final class M3ControlsTest {
             radio.fire();
             assertEquals(1, actions.get());
             assertTrue(radio.isSelected());
+            radio.setToggleGroup(null);
+            radio.fire();
+            assertFalse(radio.isSelected());
+            assertEquals(2, actions.get());
+            radio.setDisable(true);
+            radio.fire();
+            assertFalse(radio.isSelected());
+            assertEquals(2, actions.get());
+            radio.setDisable(false);
+            radio.selectedProperty().bind(new SimpleBooleanProperty(true));
+            radio.fire();
+            assertTrue(radio.isSelected());
+            assertEquals(2, actions.get());
             M3CheckBox check = new M3CheckBox();
             check.setAllowIndeterminate(true);
             check.fire();

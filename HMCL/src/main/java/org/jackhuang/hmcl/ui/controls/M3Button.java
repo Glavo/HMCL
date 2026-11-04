@@ -2,13 +2,66 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.ui.controls;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.css.PseudoClass;
 import javafx.scene.Node;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 /// A Material command button with JavaFX Button semantics.
+/// The default skin installs Enter and Escape accelerators while the corresponding role is enabled.
+/// When several M3 buttons share a role, the most recently registered eligible button is activated.
 @NotNullByDefault
 public class M3Button extends M3ButtonBase {
+    /// Whether this button supplies the scene's default action.
+    private final BooleanProperty defaultButton = new SimpleBooleanProperty(this, "defaultButton") {
+        /// Updates the semantic CSS state.
+        @Override
+        protected void invalidated() {
+            pseudoClassStateChanged(PseudoClass.getPseudoClass("default"), get());
+        }
+    };
+
+    /// Whether this button supplies the scene's cancel action.
+    private final BooleanProperty cancelButton = new SimpleBooleanProperty(this, "cancelButton") {
+        /// Updates the semantic CSS state.
+        @Override
+        protected void invalidated() {
+            pseudoClassStateChanged(PseudoClass.getPseudoClass("cancel"), get());
+        }
+    };
+
+    /// Returns the default-action property, initially false.
+    public final BooleanProperty defaultButtonProperty() {
+        return defaultButton;
+    }
+
+    /// Returns whether the button supplies a default action.
+    public final boolean isDefaultButton() {
+        return defaultButton.get();
+    }
+
+    /// Enables or disables the default action role.
+    public final void setDefaultButton(boolean value) {
+        defaultButton.set(value);
+    }
+
+    /// Returns the cancel-action property, initially false.
+    public final BooleanProperty cancelButtonProperty() {
+        return cancelButton;
+    }
+
+    /// Returns whether the button supplies a cancel action.
+    public final boolean isCancelButton() {
+        return cancelButton.get();
+    }
+
+    /// Enables or disables the cancel action role.
+    public final void setCancelButton(boolean value) {
+        cancelButton.set(value);
+    }
+
     /// Creates an empty button.
     public M3Button() {
         this("", null);
