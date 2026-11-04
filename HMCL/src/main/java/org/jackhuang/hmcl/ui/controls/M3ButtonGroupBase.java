@@ -40,26 +40,6 @@ import java.util.Objects;
 @DefaultProperty("items")
 @NotNullByDefault
 public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
-    /// Property-map key used to prevent simultaneous membership in two groups.
-    private static final Object OWNER_KEY = new Object();
-
-    /// Buttons in presentation order.
-    private final ObservableList<T> items = new ItemList();
-
-    /// Layout direction; null is interpreted as horizontal.
-    private final ObjectProperty<@Nullable Orientation> orientation =
-            new SimpleObjectProperty<>(this, "orientation", Orientation.HORIZONTAL);
-
-    /// Spacing between adjacent buttons, in logical pixels.
-    private final DoubleProperty spacing = new SimpleDoubleProperty(this, "spacing", 8);
-
-    /// Arrangement style; null is interpreted as standard.
-    private final ObjectProperty<@Nullable M3ButtonGroupVariant> variant =
-            new SimpleObjectProperty<>(this, "variant", M3ButtonGroupVariant.STANDARD);
-
-    /// Refreshes corner roles when items enter or leave layout.
-    private final InvalidationListener layoutInvalidation = observable -> updateRoles();
-
     /// Creates an empty horizontal group.
     protected M3ButtonGroupBase() {
         getStyleClass().setAll("m3-button-group");
@@ -87,14 +67,21 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
         updateRoles();
     }
 
+    /// Buttons in presentation order.
+    private final ObservableList<T> items = new ItemList();
+
     /// Returns the live item list. Nulls, duplicate identities, and items owned elsewhere are rejected.
     public final ObservableList<T> getItems() {
         return items;
     }
 
-    /// Returns the layout orientation property; null means horizontal.
-    public final ObjectProperty<@Nullable Orientation> orientationProperty() {
-        return orientation;
+    /// Layout direction; null is interpreted as horizontal.
+    private final ObjectProperty<@Nullable Orientation> orientation =
+            new SimpleObjectProperty<>(this, "orientation", Orientation.HORIZONTAL);
+
+    /// Sets the layout orientation, or null for horizontal.
+    public final void setOrientation(@Nullable Orientation value) {
+        orientation.set(value);
     }
 
     /// Returns the effective layout orientation.
@@ -103,14 +90,17 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
         return value == null ? Orientation.HORIZONTAL : value;
     }
 
-    /// Sets the layout orientation, or null for horizontal.
-    public final void setOrientation(@Nullable Orientation value) {
-        orientation.set(value);
+    /// Returns the layout orientation property; null means horizontal.
+    public final ObjectProperty<@Nullable Orientation> orientationProperty() {
+        return orientation;
     }
 
-    /// Returns the inter-button spacing; negative or nonfinite values are laid out as zero.
-    public final DoubleProperty spacingProperty() {
-        return spacing;
+    /// Spacing between adjacent buttons, in logical pixels.
+    private final DoubleProperty spacing = new SimpleDoubleProperty(this, "spacing", 8);
+
+    /// Sets the requested spacing in logical pixels.
+    public final void setSpacing(double value) {
+        spacing.set(value);
     }
 
     /// Returns the requested spacing in logical pixels.
@@ -118,14 +108,18 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
         return spacing.get();
     }
 
-    /// Sets the requested spacing in logical pixels.
-    public final void setSpacing(double value) {
-        spacing.set(value);
+    /// Returns the inter-button spacing; negative or nonfinite values are laid out as zero.
+    public final DoubleProperty spacingProperty() {
+        return spacing;
     }
 
-    /// Returns the arrangement style property; null means standard.
-    public final ObjectProperty<@Nullable M3ButtonGroupVariant> variantProperty() {
-        return variant;
+    /// Arrangement style; null is interpreted as standard.
+    private final ObjectProperty<@Nullable M3ButtonGroupVariant> variant =
+            new SimpleObjectProperty<>(this, "variant", M3ButtonGroupVariant.STANDARD);
+
+    /// Sets the arrangement style without modifying spacing or selection.
+    public final void setVariant(@Nullable M3ButtonGroupVariant value) {
+        variant.set(value);
     }
 
     /// Returns the effective arrangement style.
@@ -134,9 +128,9 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
         return value == null ? M3ButtonGroupVariant.STANDARD : value;
     }
 
-    /// Sets the arrangement style without modifying spacing or selection.
-    public final void setVariant(@Nullable M3ButtonGroupVariant value) {
-        variant.set(value);
+    /// Returns the arrangement style property; null means standard.
+    public final ObjectProperty<@Nullable M3ButtonGroupVariant> variantProperty() {
+        return variant;
     }
 
     /// Checks subclass-specific membership requirements before insertion.
@@ -154,11 +148,11 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
         return new M3ButtonGroupSkin<>(this);
     }
 
-    /// Returns the standalone group stylesheet.
-    @Override
-    public String getUserAgentStylesheet() {
-        return M3Styles.stylesheet("m3-button-group");
-    }
+    /// Property-map key used to prevent simultaneous membership in two groups.
+    private static final Object OWNER_KEY = new Object();
+
+    /// Refreshes corner roles when items enter or leave layout.
+    private final InvalidationListener layoutInvalidation = observable -> updateRoles();
 
     /// Updates logical corner roles and orientation styling.
     private void updateRoles() {
@@ -299,5 +293,11 @@ public abstract class M3ButtonGroupBase<T extends ButtonBase> extends Control {
             old.getProperties().remove(OWNER_KEY);
             return old;
         }
+    }
+
+    /// Returns the standalone group stylesheet.
+    @Override
+    public String getUserAgentStylesheet() {
+        return M3Styles.stylesheet("m3-button-group");
     }
 }

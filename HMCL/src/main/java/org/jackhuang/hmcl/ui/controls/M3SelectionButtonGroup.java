@@ -29,34 +29,6 @@ import java.util.Map;
 /// @param <T> the accepted toggle-button type
 @NotNullByDefault
 public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> extends M3ButtonGroupBase<T> {
-    /// Selection policy; null is interpreted as single selection.
-    private final ObjectProperty<@Nullable SelectionMode> selectionMode =
-            new SimpleObjectProperty<>(this, "selectionMode", SelectionMode.SINGLE);
-
-    /// Whether the last selected item may be cleared.
-    private final BooleanProperty emptySelectionAllowed = new SimpleBooleanProperty(this, "emptySelectionAllowed", true);
-
-    /// Selected items in presentation order.
-    private final ObservableList<T> selectedItems = FXCollections.observableArrayList();
-
-    /// Read-only live view of selected items.
-    private final @UnmodifiableView ObservableList<T> selectedItemsView = FXCollections.unmodifiableObservableList(selectedItems);
-
-    /// First selected item in presentation order, or null.
-    private final ReadOnlyObjectWrapper<@Nullable T> selectedItem = new ReadOnlyObjectWrapper<>(this, "selectedItem");
-
-    /// Per-item selection listeners, released on removal.
-    private final Map<T, ChangeListener<Boolean>> listeners = new IdentityHashMap<>();
-
-    /// Prevents recursive normalization while selection is being repaired.
-    private boolean updating;
-
-    /// Whether a synchronous observer changed selection during the current reconciliation.
-    private boolean selectionDirty;
-
-    /// Most recently selected item awaiting reconciliation.
-    private @Nullable T pendingSelection;
-
     /// Creates an empty group allowing empty single selection.
     protected M3SelectionButtonGroup() {
         selectionMode.addListener(observable -> normalize(null));
@@ -78,9 +50,13 @@ public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> exten
         });
     }
 
-    /// Returns the selection-mode property; null means single selection.
-    public final ObjectProperty<@Nullable SelectionMode> selectionModeProperty() {
-        return selectionMode;
+    /// Selection policy; null is interpreted as single selection.
+    private final ObjectProperty<@Nullable SelectionMode> selectionMode =
+            new SimpleObjectProperty<>(this, "selectionMode", SelectionMode.SINGLE);
+
+    /// Sets the policy; switching to single mode retains the first selected item in presentation order.
+    public final void setSelectionMode(@Nullable SelectionMode value) {
+        selectionMode.set(value);
     }
 
     /// Returns the effective selection mode.
@@ -88,14 +64,17 @@ public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> exten
         return selectionMode.get() == SelectionMode.MULTIPLE ? SelectionMode.MULTIPLE : SelectionMode.SINGLE;
     }
 
-    /// Sets the policy; switching to single mode retains the first selected item in presentation order.
-    public final void setSelectionMode(@Nullable SelectionMode value) {
-        selectionMode.set(value);
+    /// Returns the selection-mode property; null means single selection.
+    public final ObjectProperty<@Nullable SelectionMode> selectionModeProperty() {
+        return selectionMode;
     }
 
-    /// Returns whether an existing selection may be cleared; the default is true.
-    public final BooleanProperty emptySelectionAllowedProperty() {
-        return emptySelectionAllowed;
+    /// Whether the last selected item may be cleared.
+    private final BooleanProperty emptySelectionAllowed = new SimpleBooleanProperty(this, "emptySelectionAllowed", true);
+
+    /// Changes the empty-selection policy, selecting the first item if necessary.
+    public final void setEmptySelectionAllowed(boolean value) {
+        emptySelectionAllowed.set(value);
     }
 
     /// Returns whether empty selection is permitted.
@@ -103,15 +82,24 @@ public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> exten
         return emptySelectionAllowed.get();
     }
 
-    /// Changes the empty-selection policy, selecting the first item if necessary.
-    public final void setEmptySelectionAllowed(boolean value) {
-        emptySelectionAllowed.set(value);
+    /// Returns whether an existing selection may be cleared; the default is true.
+    public final BooleanProperty emptySelectionAllowedProperty() {
+        return emptySelectionAllowed;
     }
+
+    /// Selected items in presentation order.
+    private final ObservableList<T> selectedItems = FXCollections.observableArrayList();
+
+    /// Read-only live view of selected items.
+    private final @UnmodifiableView ObservableList<T> selectedItemsView = FXCollections.unmodifiableObservableList(selectedItems);
 
     /// Returns a live, unmodifiable view of selected items in presentation order.
     public final @UnmodifiableView ObservableList<T> getSelectedItems() {
         return selectedItemsView;
     }
+
+    /// First selected item in presentation order, or null.
+    private final ReadOnlyObjectWrapper<@Nullable T> selectedItem = new ReadOnlyObjectWrapper<>(this, "selectedItem");
 
     /// Returns the first selected item, or null if selection is empty.
     public final @Nullable T getSelectedItem() {
@@ -137,6 +125,18 @@ public abstract class M3SelectionButtonGroup<T extends M3ToggleButtonBase> exten
         if (getSelectionMode() == SelectionMode.SINGLE)
             item.setSelected(true);
     }
+
+    /// Per-item selection listeners, released on removal.
+    private final Map<T, ChangeListener<Boolean>> listeners = new IdentityHashMap<>();
+
+    /// Prevents recursive normalization while selection is being repaired.
+    private boolean updating;
+
+    /// Whether a synchronous observer changed selection during the current reconciliation.
+    private boolean selectionDirty;
+
+    /// Most recently selected item awaiting reconciliation.
+    private @Nullable T pendingSelection;
 
     /// Reconciles selection after an item or policy change, preferring a newly selected item.
     private void normalize(@Nullable T preferred) {

@@ -35,7 +35,6 @@ import java.util.List;
 /// supply an accessible text description. Size and colors are configurable through CSS.
 @NotNullByDefault
 public class M3Switch extends Control {
-
     /// Creates an unselected switch.
     public M3Switch() {
         getStyleClass().setAll("m3-switch");
@@ -116,7 +115,7 @@ public class M3Switch extends Control {
     }
 
     /// The requested track height in logical pixels.
-    private final StyleableDoubleProperty size = new SimpleStyleableDoubleProperty(SIZE, this, "size", 32.0) {
+    private final StyleableDoubleProperty size = new SimpleStyleableDoubleProperty(StyleableProperties.SIZE, this, "size", 32.0) {
         /// Validates the size and requests layout.
         @Override
         protected void invalidated() {
@@ -223,12 +222,6 @@ public class M3Switch extends Control {
         }
     }
 
-    /// Returns the switch stylesheet, which uses the scene's Monet palette.
-    @Override
-    public String getUserAgentStylesheet() {
-        return M3Styles.stylesheet("m3-switch");
-    }
-
     /// Creates the default switch skin.
     @Override
     protected Skin<?> createDefaultSkin() {
@@ -254,21 +247,35 @@ public class M3Switch extends Control {
     /// Indicates a pending activation.
     private static final PseudoClass ARMED = PseudoClass.getPseudoClass("armed");
 
-    /// Factory for switch CSS metadata.
-    private static final StyleablePropertyFactory<M3Switch> STYLEABLES =
-            new StyleablePropertyFactory<>(Control.getClassCssMetaData());
+    /// Returns the switch stylesheet, which uses the scene's Monet palette.
+    @Override
+    public String getUserAgentStylesheet() {
+        return M3Styles.stylesheet("m3-switch");
+    }
 
-    /// CSS metadata for track height.
-    private static final CssMetaData<M3Switch, Number> SIZE =
-            STYLEABLES.createSizeCssMetaData("-m3-size", control -> control.size, 32.0);
+    /// CSS metadata for this control and its inherited properties.
+    @NotNullByDefault
+    private static final class StyleableProperties {
+        /// Prevents instantiation.
+        private StyleableProperties() {
+        }
 
-    /// Switch and inherited CSS metadata.
-    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS_META_DATA =
-            List.copyOf(STYLEABLES.getCssMetaData());
+        /// Factory for switch CSS metadata.
+        private static final StyleablePropertyFactory<M3Switch> STYLEABLES =
+                new StyleablePropertyFactory<>(Control.getClassCssMetaData());
+
+        /// CSS metadata for track height.
+        private static final CssMetaData<M3Switch, Number> SIZE =
+                STYLEABLES.createSizeCssMetaData("-m3-size", control -> control.size, 32.0);
+
+        /// Switch and inherited CSS metadata.
+        private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS_META_DATA =
+                List.copyOf(STYLEABLES.getCssMetaData());
+    }
 
     /// Returns immutable CSS metadata, including inherited control properties.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
-        return CSS_META_DATA;
+        return StyleableProperties.CSS_META_DATA;
     }
 
     /// Returns the metadata used to style this switch.

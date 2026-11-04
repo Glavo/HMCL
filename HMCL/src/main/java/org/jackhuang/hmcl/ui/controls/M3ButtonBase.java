@@ -29,64 +29,6 @@ import java.util.Locale;
 /// Appearance does not change action semantics. Graphic nodes must not be shared between controls.
 @NotNullByDefault
 public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
-    /// Factory for inherited button appearance and overlay metadata.
-    private static final StyleablePropertyFactory<M3ButtonBase> FACTORY = new StyleablePropertyFactory<>(
-            ButtonBase.getClassCssMetaData());
-
-    /// CSS metadata for the visual emphasis.
-    private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonVariant> VARIANT = FACTORY.createEnumCssMetaData(
-            M3ButtonVariant.class, "-m3-variant", control -> control.variantProperty(), M3ButtonVariant.FILLED);
-
-    /// The visual emphasis; null uses [M3ButtonVariant#FILLED].
-    private final StyleableObjectProperty<@Nullable M3ButtonVariant> variant =
-            new SimpleStyleableObjectProperty<>(VARIANT, this, "variant", M3ButtonVariant.FILLED) {
-                /// Reflects the effective value in CSS, including changes from bindings.
-                @Override
-                protected void invalidated() {
-                    updatePseudoClasses(getVariant(), M3ButtonVariant.values());
-                }
-            };
-
-    /// CSS metadata for the size role.
-    private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonSize> SIZE = FACTORY.createEnumCssMetaData(
-            M3ButtonSize.class, "-m3-size", control -> control.sizeProperty(), M3ButtonSize.SMALL);
-
-    /// The size role; null uses [M3ButtonSize#SMALL].
-    private final StyleableObjectProperty<@Nullable M3ButtonSize> size =
-            new SimpleStyleableObjectProperty<>(SIZE, this, "size", M3ButtonSize.SMALL) {
-                /// Reflects the effective value in CSS, including changes from bindings.
-                @Override
-                protected void invalidated() {
-                    updatePseudoClasses(getSize(), M3ButtonSize.values());
-                }
-            };
-
-    /// CSS metadata for the resting shape.
-    private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonShape> BUTTON_SHAPE = FACTORY.createEnumCssMetaData(
-            M3ButtonShape.class, "-m3-shape", control -> control.buttonShapeProperty(), M3ButtonShape.ROUND);
-
-    /// The resting shape; null uses [M3ButtonShape#ROUND].
-    private final StyleableObjectProperty<@Nullable M3ButtonShape> buttonShape =
-            new SimpleStyleableObjectProperty<>(BUTTON_SHAPE, this, "buttonShape", M3ButtonShape.ROUND) {
-                /// Reflects the effective value in CSS, including changes from bindings.
-                @Override
-                protected void invalidated() {
-                    updatePseudoClasses(getButtonShape(), M3ButtonShape.values());
-                }
-            };
-
-    /// CSS override for the state-layer paint; null follows the content paint.
-    private static final CssMetaData<M3ButtonBase, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
-            "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
-
-    /// Animation override, initially the inverse of the global animation setting.
-    private final BooleanProperty disableAnimation =
-            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
-
-    /// Optional paint used by the stationary interaction layer.
-    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
-            new SimpleStyleableObjectProperty<>(STATE_LAYER_FILL, this, "stateLayerFill", null);
-
     /// Creates an empty button.
     protected M3ButtonBase() {
         this("", null);
@@ -104,6 +46,74 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
         updatePseudoClasses(getButtonShape(), M3ButtonShape.values());
     }
 
+    /// The visual emphasis; null uses [M3ButtonVariant#FILLED].
+    private final StyleableObjectProperty<@Nullable M3ButtonVariant> variant =
+            new SimpleStyleableObjectProperty<>(StyleableProperties.VARIANT, this, "variant", M3ButtonVariant.FILLED) {
+                /// Reflects the effective value in CSS, including changes from bindings.
+                @Override
+                protected void invalidated() {
+                    updatePseudoClasses(getVariant(), M3ButtonVariant.values());
+                }
+            };
+
+    /// Returns the styleable visual emphasis.
+    @Override
+    public final StyleableObjectProperty<@Nullable M3ButtonVariant> variantProperty() {
+        return variant;
+    }
+
+    /// The size role; null uses [M3ButtonSize#SMALL].
+    private final StyleableObjectProperty<@Nullable M3ButtonSize> size =
+            new SimpleStyleableObjectProperty<>(StyleableProperties.SIZE, this, "size", M3ButtonSize.SMALL) {
+                /// Reflects the effective value in CSS, including changes from bindings.
+                @Override
+                protected void invalidated() {
+                    updatePseudoClasses(getSize(), M3ButtonSize.values());
+                }
+            };
+
+    /// Returns the styleable size role.
+    @Override
+    public final StyleableObjectProperty<@Nullable M3ButtonSize> sizeProperty() {
+        return size;
+    }
+
+    /// The resting shape; null uses [M3ButtonShape#ROUND].
+    private final StyleableObjectProperty<@Nullable M3ButtonShape> buttonShape =
+            new SimpleStyleableObjectProperty<>(StyleableProperties.BUTTON_SHAPE, this, "buttonShape", M3ButtonShape.ROUND) {
+                /// Reflects the effective value in CSS, including changes from bindings.
+                @Override
+                protected void invalidated() {
+                    updatePseudoClasses(getButtonShape(), M3ButtonShape.values());
+                }
+            };
+
+    /// Returns the styleable resting shape.
+    @Override
+    public final StyleableObjectProperty<@Nullable M3ButtonShape> buttonShapeProperty() {
+        return buttonShape;
+    }
+
+    /// Animation override, initially the inverse of the global animation setting.
+    private final BooleanProperty disableAnimation =
+            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
+
+    /// Returns this control's animation override.
+    @Override
+    public final BooleanProperty disableAnimationProperty() {
+        return disableAnimation;
+    }
+
+    /// Optional paint used by the stationary interaction layer.
+    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
+            new SimpleStyleableObjectProperty<>(StyleableProperties.STATE_LAYER_FILL, this, "stateLayerFill", null);
+
+    /// Returns the styleable overlay paint override.
+    @Override
+    public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
+        return stateLayerFill;
+    }
+
     /// Dispatches one action event unless this button is disabled.
     @Override
     public void fire() {
@@ -117,36 +127,6 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
         return new M3ButtonSkin(this);
     }
 
-    /// Returns this control's animation override.
-    @Override
-    public final BooleanProperty disableAnimationProperty() {
-        return disableAnimation;
-    }
-
-    /// Returns the styleable overlay paint override.
-    @Override
-    public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
-        return stateLayerFill;
-    }
-
-    /// Returns the styleable visual emphasis.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonVariant> variantProperty() {
-        return variant;
-    }
-
-    /// Returns the styleable size role.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonSize> sizeProperty() {
-        return size;
-    }
-
-    /// Returns the styleable resting shape.
-    @Override
-    public final StyleableObjectProperty<@Nullable M3ButtonShape> buttonShapeProperty() {
-        return buttonShape;
-    }
-
     /// Activates one pseudo-class in an appearance family and refreshes layout.
     private <E extends Enum<E>> void updatePseudoClasses(E value, E[] values) {
         for (E candidate : values)
@@ -155,24 +135,52 @@ public abstract class M3ButtonBase extends ButtonBase implements M3ButtonStyle {
         requestLayout();
     }
 
-    /// Immutable metadata including the inherited JavaFX properties.
-    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS =
-            List.copyOf(FACTORY.getCssMetaData());
+    /// Returns the component stylesheet, which uses the scene's Monet palette.
+    @Override
+    public String getUserAgentStylesheet() {
+        return M3Styles.stylesheet("m3-button");
+    }
+
+    /// CSS metadata for this control and its inherited properties.
+    @NotNullByDefault
+    private static final class StyleableProperties {
+        /// Prevents instantiation.
+        private StyleableProperties() {
+        }
+
+        /// Factory for inherited button appearance and overlay metadata.
+        private static final StyleablePropertyFactory<M3ButtonBase> FACTORY = new StyleablePropertyFactory<>(
+                ButtonBase.getClassCssMetaData());
+
+        /// CSS metadata for the visual emphasis.
+        private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonVariant> VARIANT = FACTORY.createEnumCssMetaData(
+                M3ButtonVariant.class, "-m3-variant", control -> control.variantProperty(), M3ButtonVariant.FILLED);
+
+        /// CSS metadata for the size role.
+        private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonSize> SIZE = FACTORY.createEnumCssMetaData(
+                M3ButtonSize.class, "-m3-size", control -> control.sizeProperty(), M3ButtonSize.SMALL);
+
+        /// CSS metadata for the resting shape.
+        private static final CssMetaData<M3ButtonBase, @Nullable M3ButtonShape> BUTTON_SHAPE = FACTORY.createEnumCssMetaData(
+                M3ButtonShape.class, "-m3-shape", control -> control.buttonShapeProperty(), M3ButtonShape.ROUND);
+
+        /// CSS override for the state-layer paint; null follows the content paint.
+        private static final CssMetaData<M3ButtonBase, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
+                "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
+
+        /// Immutable metadata including the inherited JavaFX properties.
+        private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS =
+                List.copyOf(FACTORY.getCssMetaData());
+    }
 
     /// Returns the inherited and Material CSS metadata.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
-        return CSS;
+        return StyleableProperties.CSS;
     }
 
     /// Returns the CSS metadata for this control.
     @Override
     public @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
-        return CSS;
-    }
-
-    /// Returns the component stylesheet, which uses the scene's Monet palette.
-    @Override
-    public String getUserAgentStylesheet() {
-        return M3Styles.stylesheet("m3-button");
+        return StyleableProperties.CSS;
     }
 }

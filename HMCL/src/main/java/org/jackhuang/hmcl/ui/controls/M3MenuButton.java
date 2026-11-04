@@ -25,15 +25,6 @@ import org.jetbrains.annotations.Nullable;
 /// Activation toggles the popup and then fires an action event. Popup auto-hide updates [#showingProperty()].
 @NotNullByDefault
 public class M3MenuButton extends M3ButtonBase {
-    /// Popup composed by this control; it owns the menu item list.
-    private final ContextMenu popup = new ContextMenu();
-
-    /// Actual popup visibility.
-    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
-
-    /// Preferred popup placement; null is interpreted as below the button.
-    private final ObjectProperty<@Nullable Side> popupSide = new SimpleObjectProperty<>(this, "popupSide", Side.BOTTOM);
-
     /// Creates an empty menu button.
     public M3MenuButton() {
         this("", null);
@@ -66,10 +57,16 @@ public class M3MenuButton extends M3ButtonBase {
         sceneProperty().addListener(observable -> hide());
     }
 
+    /// Popup composed by this control; it owns the menu item list.
+    private final ContextMenu popup = new ContextMenu();
+
     /// Returns the live menu-item list owned by this popup.
     public final ObservableList<MenuItem> getItems() {
         return popup.getItems();
     }
+
+    /// Actual popup visibility.
+    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
 
     /// Returns whether the popup is actually visible.
     public final boolean isShowing() {
@@ -81,9 +78,12 @@ public class M3MenuButton extends M3ButtonBase {
         return showing.getReadOnlyProperty();
     }
 
-    /// Returns the preferred placement property; null means bottom.
-    public final ObjectProperty<@Nullable Side> popupSideProperty() {
-        return popupSide;
+    /// Preferred popup placement; null is interpreted as below the button.
+    private final ObjectProperty<@Nullable Side> popupSide = new SimpleObjectProperty<>(this, "popupSide", Side.BOTTOM);
+
+    /// Sets the preferred side for the next popup opening.
+    public final void setPopupSide(@Nullable Side side) {
+        popupSide.set(side);
     }
 
     /// Returns the effective popup side.
@@ -92,9 +92,9 @@ public class M3MenuButton extends M3ButtonBase {
         return side == null ? Side.BOTTOM : side;
     }
 
-    /// Sets the preferred side for the next popup opening.
-    public final void setPopupSide(@Nullable Side side) {
-        popupSide.set(side);
+    /// Returns the preferred placement property; null means bottom.
+    public final ObjectProperty<@Nullable Side> popupSideProperty() {
+        return popupSide;
     }
 
     /// Opens the popup if this button is enabled and belongs to a showing window.
@@ -121,6 +121,12 @@ public class M3MenuButton extends M3ButtonBase {
         }
     }
 
+    /// Creates the Material labeled menu skin.
+    @Override
+    protected Skin<?> createDefaultSkin() {
+        return new M3MenuButtonSkin(this);
+    }
+
     /// Exposes popup expansion to assistive technology.
     @Override
     public @Nullable Object queryAccessibleAttribute(AccessibleAttribute attribute, @Nullable Object... parameters) {
@@ -135,11 +141,5 @@ public class M3MenuButton extends M3ButtonBase {
             case COLLAPSE -> hide();
             default -> super.executeAccessibleAction(action, parameters);
         }
-    }
-
-    /// Creates the Material labeled menu skin.
-    @Override
-    protected Skin<?> createDefaultSkin() {
-        return new M3MenuButtonSkin(this);
     }
 }

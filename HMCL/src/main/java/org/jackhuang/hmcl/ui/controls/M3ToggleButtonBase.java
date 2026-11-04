@@ -23,6 +23,12 @@ import org.jetbrains.annotations.Nullable;
 /// Toggle-group membership must not be bound; the group's live toggle list can change this property.
 @NotNullByDefault
 public abstract class M3ToggleButtonBase extends M3ButtonBase implements Toggle {
+    /// Creates an unselected, focus-traversable button with optional labeled content.
+    protected M3ToggleButtonBase(@Nullable String text, @Nullable Node graphic) {
+        super(text, graphic);
+        setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
+    }
+
     /// Selected state, reflected in CSS and accessibility before group synchronization.
     private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected") {
         /// Coordinates the selected item with the group.
@@ -41,6 +47,24 @@ public abstract class M3ToggleButtonBase extends M3ButtonBase implements Toggle 
             }
         }
     };
+
+    /// Changes selection without firing an action.
+    @Override
+    public final void setSelected(boolean value) {
+        selected.set(value);
+    }
+
+    /// Returns whether this button is selected.
+    @Override
+    public final boolean isSelected() {
+        return selected.get();
+    }
+
+    /// Returns the selected-state property, initially false.
+    @Override
+    public final BooleanProperty selectedProperty() {
+        return selected;
+    }
 
     /// Group synchronized with this toggle's membership property.
     private @Nullable ToggleGroup registeredGroup;
@@ -74,34 +98,10 @@ public abstract class M3ToggleButtonBase extends M3ButtonBase implements Toggle 
         }
     };
 
-    /// Creates an unselected, focus-traversable button with optional labeled content.
-    protected M3ToggleButtonBase(@Nullable String text, @Nullable Node graphic) {
-        super(text, graphic);
-        setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
-    }
-
-    /// Returns the selected-state property, initially false.
+    /// Transfers this toggle to a group, or removes group membership when null.
     @Override
-    public final BooleanProperty selectedProperty() {
-        return selected;
-    }
-
-    /// Returns whether this button is selected.
-    @Override
-    public final boolean isSelected() {
-        return selected.get();
-    }
-
-    /// Changes selection without firing an action.
-    @Override
-    public final void setSelected(boolean value) {
-        selected.set(value);
-    }
-
-    /// Returns the group-membership property, initially null.
-    @Override
-    public final ObjectProperty<@Nullable ToggleGroup> toggleGroupProperty() {
-        return toggleGroup;
+    public final void setToggleGroup(@Nullable ToggleGroup value) {
+        toggleGroup.set(value);
     }
 
     /// Returns the selection group, or null for independent selection.
@@ -110,10 +110,10 @@ public abstract class M3ToggleButtonBase extends M3ButtonBase implements Toggle 
         return toggleGroup.get();
     }
 
-    /// Transfers this toggle to a group, or removes group membership when null.
+    /// Returns the group-membership property, initially null.
     @Override
-    public final void setToggleGroup(@Nullable ToggleGroup value) {
-        toggleGroup.set(value);
+    public final ObjectProperty<@Nullable ToggleGroup> toggleGroupProperty() {
+        return toggleGroup;
     }
 
     /// Toggles selection and fires an action unless disabled or selection is bound.

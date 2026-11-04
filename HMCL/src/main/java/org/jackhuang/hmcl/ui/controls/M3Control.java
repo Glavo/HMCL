@@ -12,30 +12,30 @@ import org.jetbrains.annotations.Nullable;
 /// All properties must be accessed on the JavaFX application thread.
 @NotNullByDefault
 public interface M3Control {
-    /// Returns the animation override, initially the inverse of the global animation setting.
-    BooleanProperty disableAnimationProperty();
+    /// Enables or disables visual transitions; disabling settles the current state immediately.
+    default void setDisableAnimation(boolean value) {
+        disableAnimationProperty().set(value);
+    }
 
     /// Returns whether visual transitions are disabled.
     default boolean isDisableAnimation() {
         return disableAnimationProperty().get();
     }
 
-    /// Enables or disables visual transitions; disabling settles the current state immediately.
-    default void setDisableAnimation(boolean value) {
-        disableAnimationProperty().set(value);
-    }
+    /// Returns the animation override, initially the inverse of the global animation setting.
+    BooleanProperty disableAnimationProperty();
 
-    /// Returns the overlay paint, styled with `-m3-state-layer-fill`.
-    /// A null value uses the labeled control's text paint. The layer fades as a whole and never expands.
-    StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty();
+    /// Sets the overlay paint, or null to follow the text paint.
+    default void setStateLayerFill(@Nullable Paint value) {
+        stateLayerFillProperty().set(value);
+    }
 
     /// Returns the explicit overlay paint, or null to follow the text paint.
     default @Nullable Paint getStateLayerFill() {
         return stateLayerFillProperty().get();
     }
 
-    /// Sets the overlay paint, or null to follow the text paint.
-    default void setStateLayerFill(@Nullable Paint value) {
-        stateLayerFillProperty().set(value);
-    }
+    /// Returns the overlay paint, styled with `-m3-state-layer-fill`.
+    /// A null value uses the labeled control's text paint. The layer fades as a whole and never expands.
+    StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty();
 }

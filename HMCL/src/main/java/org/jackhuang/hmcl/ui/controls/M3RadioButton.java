@@ -36,6 +36,20 @@ import java.util.List;
 /// Selection colors use the JFoenix-style property names; CSS uses the `-m3-` prefix.
 @NotNullByDefault
 public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
+    /// Creates an empty, unselected control.
+    public M3RadioButton() {
+        this("");
+    }
+
+    /// Creates an unselected control with optional text.
+    public M3RadioButton(@Nullable String text) {
+        super(text, null);
+        setFocusTraversable(true);
+        setMnemonicParsing(true);
+        setAccessibleRole(AccessibleRole.RADIO_BUTTON);
+        getStyleClass().setAll("m3-radio-button");
+    }
+
     /// Selected state, reflected in CSS and accessibility before group synchronization.
     private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected") {
         /// Coordinates the selected item with the group.
@@ -54,6 +68,24 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
             }
         }
     };
+
+    /// Changes selection without firing an action.
+    @Override
+    public final void setSelected(boolean value) {
+        selected.set(value);
+    }
+
+    /// Returns whether this button is selected.
+    @Override
+    public final boolean isSelected() {
+        return selected.get();
+    }
+
+    /// Returns the selected-state property, initially false.
+    @Override
+    public final BooleanProperty selectedProperty() {
+        return selected;
+    }
 
     /// Group synchronized with this toggle's membership property.
     private @Nullable ToggleGroup registeredGroup;
@@ -87,28 +119,10 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
         }
     };
 
-    /// Returns the selected-state property, initially false.
+    /// Transfers this toggle to a group, or removes group membership when null.
     @Override
-    public final BooleanProperty selectedProperty() {
-        return selected;
-    }
-
-    /// Returns whether this button is selected.
-    @Override
-    public final boolean isSelected() {
-        return selected.get();
-    }
-
-    /// Changes selection without firing an action.
-    @Override
-    public final void setSelected(boolean value) {
-        selected.set(value);
-    }
-
-    /// Returns the group-membership property, initially null.
-    @Override
-    public final ObjectProperty<@Nullable ToggleGroup> toggleGroupProperty() {
-        return toggleGroup;
+    public final void setToggleGroup(@Nullable ToggleGroup value) {
+        toggleGroup.set(value);
     }
 
     /// Returns the selection group, or null for independent selection.
@@ -117,45 +131,19 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
         return toggleGroup.get();
     }
 
-    /// Transfers this toggle to a group, or removes group membership when null.
+    /// Returns the group-membership property, initially null.
     @Override
-    public final void setToggleGroup(@Nullable ToggleGroup value) {
-        toggleGroup.set(value);
+    public final ObjectProperty<@Nullable ToggleGroup> toggleGroupProperty() {
+        return toggleGroup;
     }
-
-    /// Exposes the selected state to assistive technology.
-    @Override
-    public @Nullable Object queryAccessibleAttribute(AccessibleAttribute attribute, @Nullable Object... parameters) {
-        return attribute == AccessibleAttribute.SELECTED ? isSelected() : super.queryAccessibleAttribute(attribute, parameters);
-    }
-
-    /// Factory for inherited metadata and indicator paints.
-    private static final StyleablePropertyFactory<M3RadioButton> FACTORY = new StyleablePropertyFactory<>(
-            ButtonBase.getClassCssMetaData());
-
-    /// CSS override for the state-layer paint; null follows the content paint.
-    private static final CssMetaData<M3RadioButton, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
-            "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
-
-    /// Animation override, initially the inverse of the global animation setting.
-    private final BooleanProperty disableAnimation =
-            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
-
-    /// Optional paint used by the stationary interaction layer.
-    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
-            new SimpleStyleableObjectProperty<>(STATE_LAYER_FILL, this, "stateLayerFill", null);
-
-    /// Metadata for the selected paint.
-    private static final CssMetaData<M3RadioButton, Color> SELECTED = FACTORY.createColorCssMetaData(
-            "-m3-selected-color", control -> control.selectedColorProperty(), Color.DARKSLATEBLUE);
 
     /// The selected indicator paint.
     private final StyleableObjectProperty<@Nullable Color> selectedColor =
-            new SimpleStyleableObjectProperty<>(SELECTED, this, "selectedColor", Color.DARKSLATEBLUE);
+            new SimpleStyleableObjectProperty<>(StyleableProperties.SELECTED, this, "selectedColor", Color.DARKSLATEBLUE);
 
-    /// Returns the selected paint property; null renders as transparent.
-    public final StyleableObjectProperty<@Nullable Color> selectedColorProperty() {
-        return selectedColor;
+    /// Sets the selected paint, or null for transparent.
+    public final void setSelectedColor(@Nullable Color value) {
+        selectedColor.set(value);
     }
 
     /// Returns the selected paint, or null for transparent.
@@ -163,22 +151,18 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
         return selectedColor.get();
     }
 
-    /// Sets the selected paint, or null for transparent.
-    public final void setSelectedColor(@Nullable Color value) {
-        selectedColor.set(value);
+    /// Returns the selected paint property; null renders as transparent.
+    public final StyleableObjectProperty<@Nullable Color> selectedColorProperty() {
+        return selectedColor;
     }
-
-    /// Metadata for the unselected paint.
-    private static final CssMetaData<M3RadioButton, Color> UNSELECTED = FACTORY.createColorCssMetaData(
-            "-m3-unselected-color", control -> control.unSelectedColorProperty(), Color.GRAY);
 
     /// The unselected indicator paint.
     private final StyleableObjectProperty<@Nullable Color> unSelectedColor =
-            new SimpleStyleableObjectProperty<>(UNSELECTED, this, "unSelectedColor", Color.GRAY);
+            new SimpleStyleableObjectProperty<>(StyleableProperties.UNSELECTED, this, "unSelectedColor", Color.GRAY);
 
-    /// Returns the unselected paint property; null renders as transparent.
-    public final StyleableObjectProperty<@Nullable Color> unSelectedColorProperty() {
-        return unSelectedColor;
+    /// Sets the unselected paint, or null for transparent.
+    public final void setUnSelectedColor(@Nullable Color value) {
+        unSelectedColor.set(value);
     }
 
     /// Returns the unselected paint, or null for transparent.
@@ -186,23 +170,29 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
         return unSelectedColor.get();
     }
 
-    /// Sets the unselected paint, or null for transparent.
-    public final void setUnSelectedColor(@Nullable Color value) {
-        unSelectedColor.set(value);
+    /// Returns the unselected paint property; null renders as transparent.
+    public final StyleableObjectProperty<@Nullable Color> unSelectedColorProperty() {
+        return unSelectedColor;
     }
 
-    /// Creates an empty, unselected control.
-    public M3RadioButton() {
-        this("");
+    /// Animation override, initially the inverse of the global animation setting.
+    private final BooleanProperty disableAnimation =
+            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
+
+    /// Returns this control's animation override.
+    @Override
+    public final BooleanProperty disableAnimationProperty() {
+        return disableAnimation;
     }
 
-    /// Creates an unselected control with optional text.
-    public M3RadioButton(@Nullable String text) {
-        super(text, null);
-        setFocusTraversable(true);
-        setMnemonicParsing(true);
-        setAccessibleRole(AccessibleRole.RADIO_BUTTON);
-        getStyleClass().setAll("m3-radio-button");
+    /// Optional paint used by the stationary interaction layer.
+    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
+            new SimpleStyleableObjectProperty<>(StyleableProperties.STATE_LAYER_FILL, this, "stateLayerFill", null);
+
+    /// Returns the styleable overlay paint override.
+    @Override
+    public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
+        return stateLayerFill;
     }
 
     /// Toggles independently, or selects an unselected group member, unless disabled or selection is bound.
@@ -220,35 +210,53 @@ public class M3RadioButton extends ButtonBase implements Toggle, M3Control {
         return new M3RadioButtonSkin(this);
     }
 
-    /// Returns this control's animation override.
+    /// Returns the selection stylesheet, which uses the scene's Monet palette.
     @Override
-    public final BooleanProperty disableAnimationProperty() {
-        return disableAnimation;
+    public String getUserAgentStylesheet() {
+        return M3Styles.stylesheet("m3-selection");
     }
 
-    /// Returns the styleable overlay paint override.
-    @Override
-    public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
-        return stateLayerFill;
-    }
+    /// CSS metadata for this control and its inherited properties.
+    @NotNullByDefault
+    private static final class StyleableProperties {
+        /// Prevents instantiation.
+        private StyleableProperties() {
+        }
 
-    /// Immutable metadata for this control.
-    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS = List.copyOf(FACTORY.getCssMetaData());
+        /// Factory for inherited metadata and indicator paints.
+        private static final StyleablePropertyFactory<M3RadioButton> FACTORY = new StyleablePropertyFactory<>(
+                ButtonBase.getClassCssMetaData());
+
+        /// CSS override for the state-layer paint; null follows the content paint.
+        private static final CssMetaData<M3RadioButton, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
+                "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
+
+        /// Metadata for the selected paint.
+        private static final CssMetaData<M3RadioButton, Color> SELECTED = FACTORY.createColorCssMetaData(
+                "-m3-selected-color", control -> control.selectedColorProperty(), Color.DARKSLATEBLUE);
+
+        /// Metadata for the unselected paint.
+        private static final CssMetaData<M3RadioButton, Color> UNSELECTED = FACTORY.createColorCssMetaData(
+                "-m3-unselected-color", control -> control.unSelectedColorProperty(), Color.GRAY);
+
+        /// Immutable metadata for this control.
+        private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS = List.copyOf(FACTORY.getCssMetaData());
+    }
 
     /// Returns inherited metadata and Material feedback and indicator properties.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
-        return CSS;
+        return StyleableProperties.CSS;
     }
 
     /// Returns this control's CSS metadata.
     @Override
     public @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
-        return CSS;
+        return StyleableProperties.CSS;
     }
 
-    /// Returns the selection stylesheet, which uses the scene's Monet palette.
+    /// Exposes the selected state to assistive technology.
     @Override
-    public String getUserAgentStylesheet() {
-        return M3Styles.stylesheet("m3-selection");
+    public @Nullable Object queryAccessibleAttribute(AccessibleAttribute attribute, @Nullable Object... parameters) {
+        return attribute == AccessibleAttribute.SELECTED ? isSelected() : super.queryAccessibleAttribute(attribute, parameters);
     }
 }

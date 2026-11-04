@@ -12,34 +12,6 @@ import org.jetbrains.annotations.Nullable;
 /// An icon toggle with JavaFX ToggleGroup and selection semantics.
 @NotNullByDefault
 public class M3IconToggleButton extends M3ToggleButtonBase {
-    /// Semantic width role; null selects the default width.
-    private final ObjectProperty<@Nullable M3IconButtonWidth> widthRole =
-            new SimpleObjectProperty<>(this, "widthRole", M3IconButtonWidth.DEFAULT) {
-                /// Updates mutually exclusive width pseudo-classes.
-                @Override
-                protected void invalidated() {
-                    M3IconButtonWidth value = getWidthRole();
-                    pseudoClassStateChanged(PseudoClass.getPseudoClass("narrow"), value == M3IconButtonWidth.NARROW);
-                    pseudoClassStateChanged(PseudoClass.getPseudoClass("wide"), value == M3IconButtonWidth.WIDE);
-                }
-            };
-
-    /// Returns the width-role property; null means the default square width.
-    public final ObjectProperty<@Nullable M3IconButtonWidth> widthRoleProperty() {
-        return widthRole;
-    }
-
-    /// Returns the effective icon-button width role.
-    public final M3IconButtonWidth getWidthRole() {
-        @Nullable M3IconButtonWidth value = widthRole.get();
-        return value == null ? M3IconButtonWidth.DEFAULT : value;
-    }
-
-    /// Sets the width role, or null for the default square width.
-    public final void setWidthRole(@Nullable M3IconButtonWidth value) {
-        widthRole.set(value);
-    }
-
     /// Creates an empty button.
     public M3IconToggleButton() {
         this("", null);
@@ -60,5 +32,33 @@ public class M3IconToggleButton extends M3ToggleButtonBase {
         super(text, graphic);
         getStyleClass().setAll("m3-button-base", "m3-icon-toggle-button");
         setVariant(M3ButtonVariant.TEXT);
+    }
+
+    /// Semantic width role; null selects the default width.
+    private final ObjectProperty<@Nullable M3IconButtonWidth> widthRole =
+            new SimpleObjectProperty<>(this, "widthRole", M3IconButtonWidth.DEFAULT) {
+                /// Updates mutually exclusive width pseudo-classes.
+                @Override
+                protected void invalidated() {
+                    M3IconButtonWidth value = getWidthRole();
+                    pseudoClassStateChanged(PseudoClass.getPseudoClass("narrow"), value == M3IconButtonWidth.NARROW);
+                    pseudoClassStateChanged(PseudoClass.getPseudoClass("wide"), value == M3IconButtonWidth.WIDE);
+                }
+            };
+
+    /// Sets the width role, or null for the default square width.
+    public final void setWidthRole(@Nullable M3IconButtonWidth value) {
+        widthRole.set(value);
+    }
+
+    /// Returns the effective icon-button width role.
+    public final M3IconButtonWidth getWidthRole() {
+        @Nullable M3IconButtonWidth value = widthRole.get();
+        return value == null ? M3IconButtonWidth.DEFAULT : value;
+    }
+
+    /// Returns the width-role property; null means the default square width.
+    public final ObjectProperty<@Nullable M3IconButtonWidth> widthRoleProperty() {
+        return widthRole;
     }
 }
