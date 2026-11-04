@@ -3,20 +3,21 @@
 package org.jackhuang.hmcl.ui.controls;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
 import javafx.css.SimpleStyleableObjectProperty;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleablePropertyFactory;
-import javafx.scene.control.ButtonBase;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.control.Skin;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
+import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.controls.skin.M3CheckBoxSkin;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -30,12 +31,21 @@ import java.util.List;
 /// Selection colors use the JFoenix-style property names; CSS uses the `-m3-` prefix.
 @NotNullByDefault
 public class M3CheckBox extends ButtonBase implements M3Control {
-    /// Shared feedback properties.
-    private final M3ControlProperties properties = new M3ControlProperties(this);
-
     /// Factory for inherited metadata and indicator paints.
     private static final StyleablePropertyFactory<M3CheckBox> FACTORY = new StyleablePropertyFactory<>(
-            M3Styles.metadata(ButtonBase.getClassCssMetaData(), M3ControlProperties.CSS));
+            ButtonBase.getClassCssMetaData());
+
+    /// CSS override for the state-layer paint; null follows the content paint.
+    private static final CssMetaData<M3CheckBox, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
+            "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
+
+    /// Animation override, initially the inverse of the global animation setting.
+    private final BooleanProperty disableAnimation =
+            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
+
+    /// Optional paint used by the stationary interaction layer.
+    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
+            new SimpleStyleableObjectProperty<>(STATE_LAYER_FILL, this, "stateLayerFill", null);
 
     /// Metadata for the checked paint.
     private static final CssMetaData<M3CheckBox, Paint> CHECKED = FACTORY.createPaintCssMetaData(
@@ -205,13 +215,13 @@ public class M3CheckBox extends ButtonBase implements M3Control {
     /// Returns this control's animation override.
     @Override
     public final BooleanProperty disableAnimationProperty() {
-        return properties.disableAnimation;
+        return disableAnimation;
     }
 
     /// Returns the styleable overlay paint override.
     @Override
     public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
-        return properties.stateLayerFill;
+        return stateLayerFill;
     }
 
     /// Immutable metadata for this control.

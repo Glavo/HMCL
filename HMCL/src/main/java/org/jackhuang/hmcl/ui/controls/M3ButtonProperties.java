@@ -20,7 +20,7 @@ import java.util.Locale;
 @NotNullByDefault
 final class M3ButtonProperties {
     /// Factory for appearance metadata.
-    private static final StyleablePropertyFactory<Control> FACTORY = new StyleablePropertyFactory<>(M3ControlProperties.CSS);
+    private static final StyleablePropertyFactory<Control> FACTORY = new StyleablePropertyFactory<>(List.of());
 
     /// CSS metadata for the visual emphasis.
     private static final CssMetaData<Control, M3ButtonVariant> VARIANT = FACTORY.createEnumCssMetaData(
@@ -34,11 +34,8 @@ final class M3ButtonProperties {
     private static final CssMetaData<Control, M3ButtonShape> BUTTONSHAPE = FACTORY.createEnumCssMetaData(
             M3ButtonShape.class, "-m3-shape", control -> ((M3ButtonStyle) control).buttonShapeProperty(), M3ButtonShape.ROUND);
 
-    /// Additional appearance and feedback metadata.
+    /// Additional button appearance metadata.
     static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS = List.copyOf(FACTORY.getCssMetaData());
-
-    /// Shared feedback properties.
-    final M3ControlProperties feedback;
 
     /// The visual emphasis.
     final StyleableObjectProperty<@Nullable M3ButtonVariant> variant;
@@ -51,7 +48,6 @@ final class M3ButtonProperties {
 
     /// Creates properties and initializes their pseudo-classes.
     M3ButtonProperties(Control control) {
-        feedback = new M3ControlProperties(control);
         variant = new SimpleStyleableObjectProperty<>(VARIANT, control, "variant", M3ButtonVariant.FILLED);
         variant.addListener(observable -> update(control, variant.get(), M3ButtonVariant.FILLED, M3ButtonVariant.values()));
         update(control, variant.get(), M3ButtonVariant.FILLED, M3ButtonVariant.values());

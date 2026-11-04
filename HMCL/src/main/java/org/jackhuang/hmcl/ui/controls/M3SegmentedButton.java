@@ -3,13 +3,17 @@
 package org.jackhuang.hmcl.ui.controls;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.css.CssMetaData;
+import javafx.css.SimpleStyleableObjectProperty;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
+import javafx.css.StyleablePropertyFactory;
 import javafx.scene.Node;
-import javafx.scene.control.Skin;
 import javafx.scene.control.ButtonBase;
+import javafx.scene.control.Skin;
 import javafx.scene.paint.Paint;
+import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.controls.skin.M3ToggleButtonSkin;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -20,8 +24,24 @@ import java.util.List;
 /// A selectable segment that can belong to an M3SegmentedButtonGroup.
 @NotNullByDefault
 public class M3SegmentedButton extends M3ToggleButtonBase implements M3ButtonStyle {
-    /// Appearance and feedback properties.
+    /// Button appearance properties.
     private final M3ButtonProperties properties = new M3ButtonProperties(this);
+
+    /// Factory for inherited button appearance and overlay metadata.
+    private static final StyleablePropertyFactory<M3SegmentedButton> FACTORY = new StyleablePropertyFactory<>(
+            M3Styles.metadata(ButtonBase.getClassCssMetaData(), M3ButtonProperties.CSS));
+
+    /// CSS override for the state-layer paint; null follows the content paint.
+    private static final CssMetaData<M3SegmentedButton, @Nullable Paint> STATE_LAYER_FILL = FACTORY.createPaintCssMetaData(
+            "-m3-state-layer-fill", control -> control.stateLayerFillProperty(), null);
+
+    /// Animation override, initially the inverse of the global animation setting.
+    private final BooleanProperty disableAnimation =
+            new SimpleBooleanProperty(this, "disableAnimation", !AnimationUtils.isAnimationEnabled());
+
+    /// Optional paint used by the stationary interaction layer.
+    private final StyleableObjectProperty<@Nullable Paint> stateLayerFill =
+            new SimpleStyleableObjectProperty<>(STATE_LAYER_FILL, this, "stateLayerFill", null);
 
     /// Creates an empty button.
     public M3SegmentedButton() {
@@ -61,13 +81,13 @@ public class M3SegmentedButton extends M3ToggleButtonBase implements M3ButtonSty
     /// Returns this control's animation override.
     @Override
     public final BooleanProperty disableAnimationProperty() {
-        return properties.feedback.disableAnimation;
+        return disableAnimation;
     }
 
     /// Returns the styleable overlay paint override.
     @Override
     public final StyleableObjectProperty<@Nullable Paint> stateLayerFillProperty() {
-        return properties.feedback.stateLayerFill;
+        return stateLayerFill;
     }
 
     /// Returns the styleable visual emphasis.
@@ -90,7 +110,7 @@ public class M3SegmentedButton extends M3ToggleButtonBase implements M3ButtonSty
 
     /// Immutable metadata including the inherited JavaFX properties.
     private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS =
-            M3Styles.metadata(ButtonBase.getClassCssMetaData(), M3ButtonProperties.CSS);
+            List.copyOf(FACTORY.getCssMetaData());
 
     /// Returns the inherited and Material CSS metadata.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
