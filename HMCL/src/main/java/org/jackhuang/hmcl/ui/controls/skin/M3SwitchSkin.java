@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
-package com.jfoenix.skins;
+package org.jackhuang.hmcl.ui.controls.skin;
 
-import com.jfoenix.controls.JFXSwitch;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -33,6 +32,7 @@ import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,11 +43,11 @@ import java.util.function.Consumer;
 /// Renders a Material Design 3 switch and handles input.
 /// Geometry uses unscaled MD3 units and is mirrored in RTL layouts.
 @NotNullByDefault
-public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
+public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Track width in unscaled MD3 artwork coordinates.
     private static final double TRACK_WIDTH = 52;
 
-    /// Track height corresponding to the control's default `-jfx-size`.
+    /// Track height corresponding to the control's default `-m3-size`.
     private static final double TRACK_HEIGHT = 32;
 
     /// Unscaled interaction target height.
@@ -81,7 +81,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     private static final PseudoClass VISUAL_FOCUSED = PseudoClass.getPseudoClass("visual-focused");
 
     /// The rendered switch.
-    private final JFXSwitch control;
+    private final M3Switch control;
 
     /// Unmanaged switch artwork.
     private final Pane artwork = new Pane();
@@ -97,6 +97,9 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
 
     /// Switch handle.
     private final Circle handle = new Circle(OFF_CENTER, CENTER_Y, OFF_DIAMETER / 2);
+
+    /// Animates the whole state layer when CSS changes its opacity.
+    private final M3StateLayerOpacity stateLayerOpacity;
 
     /// Optional handle icon.
     private @Nullable SVGPath icon;
@@ -156,9 +159,11 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     private double pressCenter;
 
     /// Creates a skin for the switch.
-    public JFXSwitchSkin(JFXSwitch control) {
+    public M3SwitchSkin(M3Switch control) {
         super(control);
         this.control = control;
+        stateLayerOpacity = new M3StateLayerOpacity(stateLayer.opacityProperty(),
+                () -> control.isDisableAnimation() || control.isDisabled() || control.getScene() == null);
         artwork.getStyleClass().setAll("switch-artwork");
         track.getStyleClass().setAll("switch-track");
         stateLayer.getStyleClass().setAll("switch-state-layer");
@@ -196,14 +201,17 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
 
     /// Updates icon and animation options, optionally settling active animations.
     public void updateOptions(boolean finishAnimation) {
-        if (finishAnimation)
+        if (finishAnimation) {
             finishColors();
+            stateLayerOpacity.finish();
+        }
         update(finishAnimation);
     }
 
     /// Stops animations and removes artwork, event handlers, and listeners.
     @Override
     public void dispose() {
+        stateLayerOpacity.dispose();
         control.removeEventFilter(MouseEvent.ANY, mouseHandler);
         control.removeEventFilter(KeyEvent.ANY, keyHandler);
         cancelGesture();
@@ -378,6 +386,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
 
     /// Cancels input without changing selection.
     private void cancelGesture() {
+        stateLayerOpacity.finish();
         finishColors();
         mouseDown = false;
         keyDown = false;
@@ -452,7 +461,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
             icon.getStyleClass().setAll("switch-icon");
             icon.setManaged(false);
             // The first CSS fill should appear immediately, without a transition from default black.
-            icon.setFill(null);
+            ((StyleableProperty<Paint>) icon.fillProperty()).applyStyle(null, null);
             if (!colors.isEmpty())
                 colors.add(new CssColor(icon.fillProperty()));
             artwork.getChildren().add(icon);
@@ -514,6 +523,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     }
 
     /// Animates a solid paint while preserving CSS precedence.
+    @NotNullByDefault
     private final class CssColor implements ChangeListener<@Nullable Paint> {
 
         /// The animated paint property.

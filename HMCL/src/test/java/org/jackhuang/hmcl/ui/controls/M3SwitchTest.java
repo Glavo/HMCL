@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
-package com.jfoenix.controls;
+package org.jackhuang.hmcl.ui.controls;
 
-import com.jfoenix.skins.JFXSwitchSkin;
+import org.jackhuang.hmcl.ui.controls.skin.M3SwitchSkin;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -60,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @NotNullByDefault
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 @Isolated("Temporarily supplies settings while initializing the cached animation policy")
-public final class JFXSwitchTest {
+public final class M3SwitchTest {
 
     /// Initializes the cached animation policy without loading or changing persisted settings.
     @BeforeAll
@@ -94,7 +94,7 @@ public final class JFXSwitchTest {
             VBox root = new VBox(row);
             applyStylesheets(new Scene(root, 300, 100));
             layout(root);
-            JFXSwitch control = (JFXSwitch) Objects.requireNonNull(row.lookup(".jfx-switch"));
+            M3Switch control = (M3Switch) Objects.requireNonNull(row.lookup(".m3-switch"));
             assertEquals(30, control.getHeight());
             assertEquals(50, row.getHeight());
             control.setDisableAnimation(true);
@@ -115,8 +115,8 @@ public final class JFXSwitchTest {
     @CsvSource({"false, 32, 16", "true, 24, 4"})
     void handleDragging(boolean rtl, double size, double pressX) throws Exception {
         onFxThread(() -> {
-            JFXSwitch control = new JFXSwitch();
-            control.setStyle("-jfx-size: " + size + ";");
+            M3Switch control = new M3Switch();
+            control.setStyle("-m3-size: " + size + ";");
             control.setDisableAnimation(true);
             VBox root = scene(control);
             root.setNodeOrientation(rtl ? NodeOrientation.RIGHT_TO_LEFT : NodeOrientation.LEFT_TO_RIGHT);
@@ -162,7 +162,7 @@ public final class JFXSwitchTest {
     @Test
     void canceledDragRelease() throws Exception {
         onFxThread(() -> {
-            JFXSwitch control = new JFXSwitch();
+            M3Switch control = new M3Switch();
             control.setDisableAnimation(true);
             scene(control);
             AtomicInteger actions = new AtomicInteger();
@@ -185,11 +185,11 @@ public final class JFXSwitchTest {
     @Test
     void styleableSize() throws Exception {
         onFxThread(() -> {
-            JFXSwitch control = new JFXSwitch();
+            M3Switch control = new M3Switch();
             VBox root = scene(control);
             assertEquals(52, control.prefWidth(-1));
             assertEquals(48, control.prefHeight(-1));
-            control.setStyle("-jfx-size: 24px;");
+            control.setStyle("-m3-size: 24px;");
             layout(root);
             assertEquals(39, control.prefWidth(-1));
             assertEquals(36, control.prefHeight(-1));
@@ -199,7 +199,7 @@ public final class JFXSwitchTest {
 
             SimpleDoubleProperty boundSize = new SimpleDoubleProperty(40);
             control.sizeProperty().bind(boundSize);
-            control.setStyle("-jfx-size: 28px;");
+            control.setStyle("-m3-size: 28px;");
             layout(root);
             assertEquals(65, control.prefWidth(-1));
             boundSize.set(Double.NaN);
@@ -213,7 +213,7 @@ public final class JFXSwitchTest {
     @Test
     void keyboardAndAccessibility() throws Exception {
         onFxThread(() -> {
-            JFXSwitch control = new JFXSwitch();
+            M3Switch control = new M3Switch();
             control.setAccessibleText("Wi-Fi");
             control.setDisableAnimation(true);
             VBox root = scene(control);
@@ -266,7 +266,7 @@ public final class JFXSwitchTest {
             VBox root = new VBox(row);
             applyStylesheets(new Scene(root, 300, 100));
             layout(root);
-            JFXSwitch control = (JFXSwitch) Objects.requireNonNull(row.lookup(".jfx-switch"));
+            M3Switch control = (M3Switch) Objects.requireNonNull(row.lookup(".m3-switch"));
             assertEquals(30, control.getHeight());
             assertEquals(50, row.getHeight());
             control.setDisableAnimation(true);
@@ -305,7 +305,7 @@ public final class JFXSwitchTest {
     @Test
     void inputLifecycle() throws Exception {
         onFxThread(() -> {
-            var control = new JFXSwitch() {
+            var control = new M3Switch() {
                 /// Exercises focus cancellation without depending on native window activation.
                 void changeFocus(boolean focused) {
                     setFocused(focused);
@@ -383,7 +383,7 @@ public final class JFXSwitchTest {
 
             key(control, KeyEvent.KEY_PRESSED, KeyCode.SPACE);
             control.setSkin(null);
-            control.setSkin(new JFXSwitchSkin(control));
+            control.setSkin(new M3SwitchSkin(control));
             key(control, KeyEvent.KEY_RELEASED, KeyCode.SPACE);
             assertEquals(2, actions.get());
             assertFalse(control.isArmed());
@@ -413,7 +413,7 @@ public final class JFXSwitchTest {
     @Test
     void optionUpdatesAcrossSkinReplacement() throws Exception {
         onFxThread(() -> {
-            JFXSwitch control = new JFXSwitch();
+            M3Switch control = new M3Switch();
             assertEquals(!AnimationUtils.isAnimationEnabled(), control.isDisableAnimation());
             SimpleBooleanProperty immediate = new SimpleBooleanProperty(true);
             control.disableAnimationProperty().bind(immediate);
@@ -431,7 +431,7 @@ public final class JFXSwitchTest {
             control.setSkin(new SkinBase<>(control) {});
             assertNull(oldArtwork.getParent(), "Replacing the skin must detach its artwork");
             selectedIcon.set(true);
-            control.setSkin(new JFXSwitchSkin(control));
+            control.setSkin(new M3SwitchSkin(control));
             layout(root);
             assertEquals(1, control.lookupAll(".switch-artwork").size());
             assertTrue(part(control, "icon").isVisible());
@@ -452,10 +452,10 @@ public final class JFXSwitchTest {
     void selectionColorsOnPulse() throws Exception {
         Stage window = callOnFxThread(Stage::new);
         try {
-            JFXSwitch control = callOnFxThread(() -> {
-                JFXSwitch target = new JFXSwitch();
+            M3Switch control = callOnFxThread(() -> {
+                M3Switch target = new M3Switch();
                 target.setDisableAnimation(false);
-                target.setStyle("-jfx-switch-primary: #123456;");
+                target.setStyle("-m3-switch-primary: #123456;");
                 VBox root = scene(target);
                 window.setScene(root.getScene());
                 window.show();
@@ -475,11 +475,11 @@ public final class JFXSwitchTest {
     /// Checks reversal continuity, eventual completion, theme overrides, and immediate completion.
     @Test
     void selectionColorTransitions() throws Exception {
-        JFXSwitch control = callOnFxThread(() -> {
-            JFXSwitch target = new JFXSwitch();
+        M3Switch control = callOnFxThread(() -> {
+            M3Switch target = new M3Switch();
             target.setShowSelectedIcon(true);
             target.setShowUnselectedIcon(true);
-            target.setStyle("-jfx-switch-primary: #123456;");
+            target.setStyle("-m3-switch-primary: #123456;");
             target.setDisableAnimation(true);
             scene(target);
             return target;
@@ -533,7 +533,7 @@ public final class JFXSwitchTest {
             Shape handle = part(control, "handle");
             assertEquals(36, handle.getBoundsInParent().getCenterX());
             assertEquals(24, handle.getLayoutBounds().getWidth());
-            control.setStyle("-jfx-switch-primary: #abcdef;");
+            control.setStyle("-m3-switch-primary: #abcdef;");
             control.applyCss();
             assertEquals(Color.web("#abcdef"), palette(control).get(0), "CSS must still override animated values");
             control.setDisableAnimation(false);
@@ -542,24 +542,24 @@ public final class JFXSwitchTest {
             control.applyCss();
             @Unmodifiable List<Paint> disabled = palette(control);
             control.setSkin(null);
-            control.setSkin(new JFXSwitchSkin(control));
+            control.setSkin(new M3SwitchSkin(control));
             control.applyCss();
             assertEquals(disabled, palette(control), "Disabling must settle to the same palette as a fresh skin");
         });
     }
 
     /// Dispatches a primary pointer event at a position in the unscaled switch artwork.
-    private static void mouse(JFXSwitch control, EventType<MouseEvent> type, double x, boolean down) {
+    private static void mouse(M3Switch control, EventType<MouseEvent> type, double x, boolean down) {
         mouse(control, type, x, MouseButton.PRIMARY, down);
     }
 
     /// Dispatches a pointer event while preserving the primary button's independent state.
-    private static void mouse(JFXSwitch control, EventType<MouseEvent> type, double x, MouseButton button, boolean down) {
+    private static void mouse(M3Switch control, EventType<MouseEvent> type, double x, MouseButton button, boolean down) {
         mouse(control, type, x, button, down, null);
     }
 
     /// Dispatches a pointer event with an optional keyboard modifier.
-    private static void mouse(JFXSwitch control, EventType<MouseEvent> type, double x, MouseButton button,
+    private static void mouse(M3Switch control, EventType<MouseEvent> type, double x, MouseButton button,
                               boolean down, @Nullable KeyCode modifier) {
         Point2D scenePoint = Objects.requireNonNull(control.lookup(".switch-artwork")).localToScene(x, 24);
         control.fireEvent(new MouseEvent(type, scenePoint.getX(), scenePoint.getY(),
@@ -571,18 +571,18 @@ public final class JFXSwitchTest {
     }
 
     /// Dispatches an unmodified key event to the switch.
-    private static void key(JFXSwitch control, EventType<KeyEvent> type, KeyCode code) {
+    private static void key(M3Switch control, EventType<KeyEvent> type, KeyCode code) {
         key(control, type, code, null);
     }
 
     /// Dispatches a key event with an optional modifier.
-    private static void key(JFXSwitch control, EventType<KeyEvent> type, KeyCode code, @Nullable KeyCode modifier) {
+    private static void key(M3Switch control, EventType<KeyEvent> type, KeyCode code, @Nullable KeyCode modifier) {
         control.fireEvent(new KeyEvent(type, "", "", code, modifier == KeyCode.SHIFT,
                 modifier == KeyCode.CONTROL, modifier == KeyCode.ALT, modifier == KeyCode.META));
     }
 
     /// Captures rendered paints without applying CSS, which could hide an incorrect animation result.
-    private static @Unmodifiable List<Paint> palette(JFXSwitch control) {
+    private static @Unmodifiable List<Paint> palette(M3Switch control) {
         return List.of(part(control, "track").getFill(),
                 part(control, "track").getStroke(),
                 part(control, "handle").getFill(),
@@ -591,7 +591,7 @@ public final class JFXSwitchTest {
     }
 
     /// Attaches a switch to a scene with the application theme and component stylesheet.
-    private static VBox scene(JFXSwitch control) {
+    private static VBox scene(M3Switch control) {
         VBox root = new VBox(control);
         applyStylesheets(new Scene(root, 300, 100));
         layout(root);
@@ -601,8 +601,8 @@ public final class JFXSwitchTest {
     /// Loads the same shared component styles and color palette used by the application.
     private static void applyStylesheets(Scene scene) {
         scene.getStylesheets().addAll(
-                Objects.requireNonNull(JFXSwitchTest.class.getResource("/assets/css/blue.css")).toExternalForm(),
-                Objects.requireNonNull(JFXSwitchTest.class.getResource("/assets/css/root.css")).toExternalForm());
+                Objects.requireNonNull(M3SwitchTest.class.getResource("/assets/css/blue.css")).toExternalForm(),
+                Objects.requireNonNull(M3SwitchTest.class.getResource("/assets/css/root.css")).toExternalForm());
     }
 
     /// Applies pending CSS changes and synchronously lays out the given subtree.
@@ -612,7 +612,7 @@ public final class JFXSwitchTest {
     }
 
     /// Returns a required shape from the default skin.
-    private static Shape part(JFXSwitch control, String name) {
+    private static Shape part(M3Switch control, String name) {
         return (Shape) Objects.requireNonNull(control.lookup(".switch-" + name));
     }
 

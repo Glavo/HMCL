@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL */
+.m3-button-group { -fx-padding: 0; }
+.m3-button-group:connected > .m3-group-container > .m3-button-base:group-first {
+    -fx-background-radius: 999 4 4 999;
+    -fx-border-radius: 999 4 4 999;
+}
+.m3-button-group:connected > .m3-group-container > .m3-button-base:group-middle {
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+}
+.m3-button-group:connected > .m3-group-container > .m3-button-base:group-last {
+    -fx-background-radius: 4 999 999 4;
+    -fx-border-radius: 4 999 999 4;
+}
+.m3-button-group:connected:vertical > .m3-group-container > .m3-button-base:group-first {
+    -fx-background-radius: 999 999 4 4;
+    -fx-border-radius: 999 999 4 4;
+}
+.m3-button-group:connected:vertical > .m3-group-container > .m3-button-base:group-last {
+    -fx-background-radius: 4 4 999 999;
+    -fx-border-radius: 4 4 999 999;
+}

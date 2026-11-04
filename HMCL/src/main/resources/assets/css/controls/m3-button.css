@@ -1,0 +1,105 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL */
+@import "m3-common.css";
+@import "m3-button-group.css";
+
+.m3-button-base {
+    -fx-alignment: center;
+    -fx-content-display: left;
+    -fx-graphic-text-gap: 8;
+    -fx-padding: 10 24;
+    -fx-min-height: 40;
+    -fx-background-color: -m3-primary;
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 999;
+    -fx-border-width: 1;
+    -fx-text-fill: -m3-on-primary;
+    -fx-font-size: 14;
+    -fx-cursor: hand;
+    -fx-effect: null;
+}
+.m3-button-base:tonal {
+    -fx-background-color: -m3-secondary-container;
+    -fx-text-fill: -m3-on-secondary-container;
+}
+.m3-button-base:outlined {
+    -fx-background-color: transparent;
+    -fx-border-color: -m3-outline;
+    -fx-text-fill: -m3-primary;
+}
+.m3-button-base:text {
+    -fx-background-color: transparent;
+    -fx-text-fill: -m3-primary;
+    -fx-padding: 10 12;
+}
+.m3-button-base:elevated {
+    -fx-background-color: -m3-surface-container-low;
+    -fx-text-fill: -m3-primary;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 4, 0, 0, 2);
+}
+.m3-button-base:square {
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+.m3-button-base:extra-small { -fx-min-height: 32; -fx-padding: 6 16; }
+.m3-button-base:medium { -fx-min-height: 56; -fx-padding: 16 24; -fx-font-size: 16; }
+.m3-button-base:large { -fx-min-height: 80; -fx-padding: 24 32; -fx-font-size: 24; }
+.m3-button-base:extra-large { -fx-min-height: 96; -fx-padding: 28 40; -fx-font-size: 32; }
+.m3-button-base:disabled { -fx-opacity: 0.38; -fx-cursor: default; -fx-effect: null; }
+.m3-button-base:default { -fx-font-weight: bold; }
+
+.m3-icon-button, .m3-icon-toggle-button {
+    -fx-padding: 8;
+    -fx-min-width: 40;
+    -fx-pref-width: 40;
+    -fx-max-width: -fx-pref-width;
+    -fx-content-display: graphic-only;
+}
+.m3-icon-button:extra-small, .m3-icon-toggle-button:extra-small { -fx-min-width: 32; -fx-pref-width: 32; }
+.m3-icon-button:medium, .m3-icon-toggle-button:medium { -fx-min-width: 56; -fx-pref-width: 56; }
+.m3-icon-button:large, .m3-icon-toggle-button:large { -fx-min-width: 80; -fx-pref-width: 80; }
+.m3-icon-button:extra-large, .m3-icon-toggle-button:extra-large { -fx-min-width: 96; -fx-pref-width: 96; }
+.m3-icon-button:narrow, .m3-icon-toggle-button:narrow { -fx-min-width: 32; -fx-pref-width: 32; }
+.m3-icon-button:wide, .m3-icon-toggle-button:wide { -fx-min-width: 56; -fx-pref-width: 56; }
+.m3-icon-toggle-button:selected, .m3-segmented-button:selected {
+    -fx-background-color: -m3-secondary-container;
+    -fx-text-fill: -m3-on-secondary-container;
+}
+.m3-fab {
+    -fx-min-width: 56;
+    -fx-min-height: 56;
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-background-color: -m3-primary-container;
+    -fx-text-fill: -m3-on-primary-container;
+    -fx-padding: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 6, 0, 0, 3);
+}
+.m3-fab:small { -fx-min-height: 56; }
+.m3-fab:large { -fx-min-width: 96; -fx-min-height: 96; -fx-background-radius: 28; -fx-border-radius: 28; }
+
+/* Native menu skins retain their label and arrow-button structure. */
+.m3-menu-button, .m3-split-button { -fx-padding: 0; }
+.m3-menu-button > .label, .m3-split-button > .label {
+    -fx-padding: 10 16;
+    -fx-background-color: transparent;
+    -fx-text-fill: inherit;
+}
+.m3-menu-button > .arrow-button, .m3-split-button > .arrow-button {
+    -fx-padding: 10 14;
+    -fx-background-color: transparent;
+}
+.m3-menu-button > .arrow-button > .arrow, .m3-split-button > .arrow-button > .arrow {
+    -fx-background-color: -m3-on-primary;
+    -fx-shape: "M 0 0 L 4 4 L 8 0 Z";
+    -fx-padding: 2 4;
+}
+.m3-menu-button:tonal > .arrow-button > .arrow, .m3-split-button:tonal > .arrow-button > .arrow {
+    -fx-background-color: -m3-on-secondary-container;
+}
+.m3-menu-button:text > .arrow-button > .arrow, .m3-menu-button:outlined > .arrow-button > .arrow,
+.m3-menu-button:elevated > .arrow-button > .arrow,
+.m3-split-button:text > .arrow-button > .arrow, .m3-split-button:outlined > .arrow-button > .arrow,
+.m3-split-button:elevated > .arrow-button > .arrow { -fx-background-color: -m3-primary; }
+.m3-split-button > .arrow-button { -fx-border-color: transparent transparent transparent -m3-outline; -fx-border-width: 0 0 0 1; }

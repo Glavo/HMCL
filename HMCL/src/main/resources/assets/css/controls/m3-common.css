@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL */
+.m3-button-base, .m3-check-box, .m3-radio-button, .m3-switch {
+    -m3-primary: #4352a5;
+    -m3-on-primary: white;
+    -m3-primary-container: #dee0ff;
+    -m3-on-primary-container: #141938;
+    -m3-secondary-container: #d0d5fd;
+    -m3-on-secondary-container: #141938;
+    -m3-surface: #fbf8ff;
+    -m3-surface-container-low: #f5f2fa;
+    -m3-surface-container-highest: #e3e1e9;
+    -m3-on-surface: #1b1b21;
+    -m3-on-surface-variant: #45464f;
+    -m3-outline: #767680;
+}

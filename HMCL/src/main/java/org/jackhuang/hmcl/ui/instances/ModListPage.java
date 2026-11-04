@@ -3,6 +3,7 @@
 package org.jackhuang.hmcl.ui.instances;
 
 import com.jfoenix.controls.*;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -737,7 +738,7 @@ public final class ModListPage extends ListPageBase<ModListPage.ModInfoObject> i
         private final JFXButton restoreButton = FXUtils.newToggleButton4(SVG.RESTORE);
         private final JFXButton revealButton = FXUtils.newToggleButton4(SVG.FOLDER);
         private final JFXButton infoButton = FXUtils.newToggleButton4(SVG.INFO);
-        private final JFXSwitch activeSwitch = new JFXSwitch();
+        private final M3Switch activeSwitch = new M3Switch();
 
         private final InvalidationListener activeListener = obs -> activeSwitch.setSelected(getItem().getModInfo().isActive());
         private final WeakInvalidationListener weakActiveListener = new WeakInvalidationListener(activeListener);

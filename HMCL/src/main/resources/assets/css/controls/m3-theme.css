@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL */
+/* Resolve the current HMCL theme at each Material control. */
+.m3-button-base, .m3-check-box, .m3-radio-button, .m3-switch {
+    -m3-primary: -monet-primary;
+    -m3-on-primary: -monet-on-primary;
+    -m3-primary-container: -monet-primary-container;
+    -m3-on-primary-container: -monet-on-primary-container;
+    -m3-secondary-container: -monet-secondary-container;
+    -m3-on-secondary-container: -monet-on-secondary-container;
+    -m3-surface: -monet-surface;
+    -m3-surface-container-low: -monet-surface-container-low;
+    -m3-surface-container-highest: -monet-surface-container-highest;
+    -m3-on-surface: -monet-on-surface;
+    -m3-on-surface-variant: -monet-on-surface-variant;
+    -m3-outline: -monet-outline;
+}
+
+/* Keep the global label rule from overriding the native menu label's button paint. */
+.m3-menu-button > .label, .m3-split-button > .label {
+    -fx-text-fill: inherit;
+}

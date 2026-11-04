@@ -1,0 +1,53 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL */
+@import "m3-common.css";
+
+.m3-check-box, .m3-radio-button {
+    -fx-text-fill: -m3-on-surface;
+    -fx-padding: 12 10;
+    -fx-label-padding: 0 0 0 12;
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+    -fx-min-height: 48;
+    -fx-background-color: transparent;
+}
+.m3-check-box { -m3-checked-color: -m3-primary; -m3-unchecked-color: -m3-on-surface-variant; }
+.m3-radio-button { -m3-selected-color: -m3-primary; -m3-unselected-color: -m3-on-surface-variant; }
+.m3-check-box > .box {
+    -fx-min-width: 18; -fx-pref-width: 18; -fx-max-width: 18;
+    -fx-min-height: 18; -fx-pref-height: 18; -fx-max-height: 18;
+    -fx-background-radius: 2;
+    -fx-background-color: transparent;
+    -fx-border-radius: 2;
+    -fx-border-width: 2;
+    -fx-border-color: -m3-on-surface-variant;
+    -fx-padding: 2;
+}
+.m3-check-box > .box > .mark {
+    -fx-background-color: -m3-on-primary;
+    -fx-shape: "M 0 5 L 2 3 L 5 6 L 11 0 L 13 2 L 5 10 Z";
+    -fx-scale-shape: true;
+    -fx-opacity: 0;
+}
+.m3-check-box:selected > .box > .mark { -fx-opacity: 1; }
+.m3-check-box:indeterminate > .box > .mark {
+    -fx-shape: "M 0 4 L 12 4 L 12 6 L 0 6 Z";
+    -fx-scale-shape: false;
+    -fx-opacity: 1;
+}
+.m3-radio-button > .radio {
+    -fx-min-width: 20; -fx-pref-width: 20; -fx-max-width: 20;
+    -fx-min-height: 20; -fx-pref-height: 20; -fx-max-height: 20;
+    -fx-background-color: transparent;
+    -fx-border-color: -m3-on-surface-variant;
+    -fx-border-width: 2;
+    -fx-border-radius: 999;
+    -fx-padding: 3;
+}
+.m3-radio-button > .radio > .dot {
+    -fx-background-radius: 999;
+    -fx-background-color: -m3-primary;
+    -fx-padding: 5;
+    -fx-opacity: 0;
+}
+.m3-radio-button:selected > .radio > .dot { -fx-opacity: 1; }
+.m3-check-box:disabled, .m3-radio-button:disabled { -fx-opacity: 0.38; -fx-cursor: default; }
