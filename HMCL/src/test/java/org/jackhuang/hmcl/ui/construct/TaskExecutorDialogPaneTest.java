@@ -86,7 +86,7 @@ final class TaskExecutorDialogPaneTest {
             TaskExecutorDialogPane pane = new TaskExecutorDialogPane(TaskCancellationAction.NORMAL);
             TaskExecutorDialogPane second = new TaskExecutorDialogPane(TaskCancellationAction.NORMAL);
             try {
-                ButtonBase tasksButton = decorator.getRoot().lookupAll(".jfx-decorator-button").stream()
+                ButtonBase tasksButton = decorator.getRoot().lookupAll(".title-bar-button").stream()
                         .filter(node -> i18n("task.list").equals(node.getAccessibleText()))
                         .map(ButtonBase.class::cast).findFirst().orElseThrow();
                 Node icon = Objects.requireNonNull(tasksButton.getGraphic());

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.ui.decorator;
 
-import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXSpinner;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -10,6 +9,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -35,6 +35,7 @@ import org.jackhuang.hmcl.ui.*;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
+import org.jackhuang.hmcl.ui.controls.M3IconButton;
 import org.jackhuang.hmcl.ui.wizard.Navigation;
 import org.jackhuang.hmcl.util.TaskManager;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -47,6 +48,9 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 final class MainWindowPane extends StackPane {
     /// The diameter, in pixels, of the rounded window corners.
     private static final double ARC = 8.0;
+
+    /// Selects foreground colors for a translucent title bar.
+    private static final PseudoClass TRANSPARENT = PseudoClass.getPseudoClass("transparent");
 
     /// The decorator whose state and actions are represented by this pane.
     private final Decorator decorator;
@@ -180,10 +184,10 @@ final class MainWindowPane extends StackPane {
         decorator.capableDraggingWindow(buttons);
         buttons.setMaxSize(Region.USE_PREF_SIZE, 40);
 
-        JFXButton tasksButton = new JFXButton();
+        M3IconButton tasksButton = new M3IconButton();
         tasksButton.setFocusTraversable(false);
         tasksButton.setAccessibleText(i18n("task.list"));
-        tasksButton.getStyleClass().add("jfx-decorator-button");
+        tasksButton.getStyleClass().add("title-bar-button");
         tasksButton.setOnAction(event -> {
             if (!(decorator.getNavigator().getCurrentPage() instanceof TaskManagerPage))
                 Controllers.navigate(new TaskManagerPage());
@@ -208,24 +212,24 @@ final class MainWindowPane extends StackPane {
             }
         });
 
-        JFXButton helpButton = new JFXButton();
+        M3IconButton helpButton = new M3IconButton();
         helpButton.setFocusTraversable(false);
         helpButton.setGraphic(SVG.HELP.createIcon(Themes.titleFillProperty()));
-        helpButton.getStyleClass().add("jfx-decorator-button");
+        helpButton.getStyleClass().add("title-bar-button");
         helpButton.setOnAction(event -> FXUtils.openLink(Metadata.CONTACT_URL));
         decorator.forbidDraggingWindow(helpButton);
 
-        JFXButton minimizeButton = new JFXButton();
+        M3IconButton minimizeButton = new M3IconButton();
         minimizeButton.setFocusTraversable(false);
         minimizeButton.setGraphic(SVG.MINIMIZE_CENTER.createIcon(Themes.titleFillProperty()));
-        minimizeButton.getStyleClass().add("jfx-decorator-button");
+        minimizeButton.getStyleClass().add("title-bar-button");
         minimizeButton.setOnAction(event -> decorator.minimizeWindow());
         decorator.forbidDraggingWindow(minimizeButton);
 
-        JFXButton closeButton = new JFXButton();
+        M3IconButton closeButton = new M3IconButton();
         closeButton.setFocusTraversable(false);
         closeButton.setGraphic(SVG.CLOSE.createIcon(Themes.titleFillProperty()));
-        closeButton.getStyleClass().add("jfx-decorator-button");
+        closeButton.getStyleClass().add("title-bar-button");
         closeButton.setOnAction(event -> decorator.closeWindow());
         decorator.forbidDraggingWindow(closeButton);
 
@@ -235,6 +239,7 @@ final class MainWindowPane extends StackPane {
 
     /// Recomputes the title-bar background for the current theme and transparency preference.
     private void updateTitleBarBackground() {
+        titleBar.pseudoClassStateChanged(TRANSPARENT, Themes.titleBarTransparentProperty().get());
         @Nullable ColorScheme colorScheme = Themes.getColorScheme();
         if (colorScheme == null) {
             titleBar.setBackground(null);
@@ -286,10 +291,10 @@ final class MainWindowPane extends StackPane {
 
         // Left navigation buttons
         if (state.backable()) {
-            JFXButton backButton = new JFXButton();
+            M3IconButton backButton = new M3IconButton();
             backButton.setFocusTraversable(false);
             backButton.setGraphic(SVG.ARROW_BACK.createIcon(Themes.titleFillProperty()));
-            backButton.getStyleClass().add("jfx-decorator-button");
+            backButton.getStyleClass().add("title-bar-button");
             backButton.setOnAction(event -> decorator.back());
             decorator.forbidDraggingWindow(backButton);
             navBar.getChildren().add(backButton);
@@ -298,10 +303,10 @@ final class MainWindowPane extends StackPane {
         if (decorator.canCloseProperty().get()) {
             boolean showCloseAsHome = decorator.showCloseAsHomeProperty().get();
 
-            JFXButton closeButton = new JFXButton();
+            M3IconButton closeButton = new M3IconButton();
             closeButton.setFocusTraversable(false);
             closeButton.setGraphic((showCloseAsHome ? SVG.HOME : SVG.CLOSE).createIcon(Themes.titleFillProperty()));
-            closeButton.getStyleClass().add("jfx-decorator-button");
+            closeButton.getStyleClass().add("title-bar-button");
             closeButton.setOnAction(event -> decorator.closeCurrentPage());
             decorator.forbidDraggingWindow(closeButton);
             navBar.getChildren().add(closeButton);
@@ -337,10 +342,10 @@ final class MainWindowPane extends StackPane {
 
         // Right refresh button
         if (state.refreshable()) {
-            JFXButton refreshButton = new JFXButton();
+            M3IconButton refreshButton = new M3IconButton();
             refreshButton.setFocusTraversable(false);
             refreshButton.setGraphic(SVG.REFRESH.createIcon(Themes.titleFillProperty()));
-            refreshButton.getStyleClass().add("jfx-decorator-button");
+            refreshButton.getStyleClass().add("title-bar-button");
             refreshButton.setOnAction(event -> decorator.refresh());
             decorator.forbidDraggingWindow(refreshButton);
 

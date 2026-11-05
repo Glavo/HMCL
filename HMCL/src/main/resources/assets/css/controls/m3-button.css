@@ -48,19 +48,23 @@
 .m3-button-base:disabled { -fx-opacity: 0.38; -fx-cursor: default; -fx-effect: null; }
 .m3-button-base:default { -fx-font-weight: bold; }
 
-.m3-icon-button, .m3-icon-toggle-button {
-    -fx-padding: 8;
-    -fx-min-width: 40;
+/* Keep icon layout rules more specific than shared labeled-button metrics. */
+.m3-button-base.m3-icon-button, .m3-button-base.m3-icon-toggle-button {
+    -fx-padding: 0;
+    -fx-min-width: -fx-pref-width;
     -fx-pref-width: 40;
     -fx-max-width: -fx-pref-width;
+    -fx-min-height: -fx-pref-height;
+    -fx-pref-height: 40;
+    -fx-max-height: -fx-pref-height;
     -fx-content-display: graphic-only;
 }
-.m3-icon-button:extra-small, .m3-icon-toggle-button:extra-small { -fx-min-width: 32; -fx-pref-width: 32; }
-.m3-icon-button:medium, .m3-icon-toggle-button:medium { -fx-min-width: 56; -fx-pref-width: 56; }
-.m3-icon-button:large, .m3-icon-toggle-button:large { -fx-min-width: 80; -fx-pref-width: 80; }
-.m3-icon-button:extra-large, .m3-icon-toggle-button:extra-large { -fx-min-width: 96; -fx-pref-width: 96; }
-.m3-icon-button:narrow, .m3-icon-toggle-button:narrow { -fx-min-width: 32; -fx-pref-width: 32; }
-.m3-icon-button:wide, .m3-icon-toggle-button:wide { -fx-min-width: 56; -fx-pref-width: 56; }
+.m3-button-base.m3-icon-button:extra-small, .m3-button-base.m3-icon-toggle-button:extra-small { -fx-pref-width: 32; -fx-pref-height: 32; }
+.m3-button-base.m3-icon-button:medium, .m3-button-base.m3-icon-toggle-button:medium { -fx-pref-width: 56; -fx-pref-height: 56; }
+.m3-button-base.m3-icon-button:large, .m3-button-base.m3-icon-toggle-button:large { -fx-pref-width: 80; -fx-pref-height: 80; }
+.m3-button-base.m3-icon-button:extra-large, .m3-button-base.m3-icon-toggle-button:extra-large { -fx-pref-width: 96; -fx-pref-height: 96; }
+.m3-button-base.m3-icon-button:narrow, .m3-button-base.m3-icon-toggle-button:narrow { -fx-pref-width: 32; }
+.m3-button-base.m3-icon-button:wide, .m3-button-base.m3-icon-toggle-button:wide { -fx-pref-width: 56; }
 .m3-icon-toggle-button:selected, .m3-segmented-button:selected {
     -fx-background-color: -monet-secondary-container;
     -fx-text-fill: -monet-on-secondary-container;

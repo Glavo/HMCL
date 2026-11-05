@@ -700,6 +700,22 @@
     -fx-stroke: -monet-on-primary-container;
 }
 
+.jfx-tool-bar .title-bar-button {
+    -fx-text-fill: -monet-on-primary-container;
+}
+
+.jfx-tool-bar .title-bar-button .jfx-spinner .arc {
+    -fx-stroke: -monet-on-primary-container;
+}
+
+.jfx-tool-bar:transparent .title-bar-button {
+    -fx-text-fill: -monet-on-surface;
+}
+
+.jfx-tool-bar:transparent .title-bar-button .jfx-spinner .arc {
+    -fx-stroke: -monet-on-surface;
+}
+
 .jfx-tool-bar Label {
     -fx-text-fill: -monet-on-surface;
 }
