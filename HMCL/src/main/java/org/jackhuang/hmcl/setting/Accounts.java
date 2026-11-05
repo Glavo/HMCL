@@ -21,15 +21,12 @@ import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.auth.offline.Skin;
 import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.RemoteAuthenticationException;
-import org.jackhuang.hmcl.auth.yggdrasil.Texture;
-import org.jackhuang.hmcl.auth.yggdrasil.TextureType;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
 import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.JarUtils;
 import org.jackhuang.hmcl.util.skin.InvalidSkinException;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.net.ssl.SSLException;
@@ -62,85 +59,9 @@ public final class Accounts {
     /// Performs account operations using HMCL's protocol services and injector configuration.
     private static final AccountService ACCOUNT_SERVICE = new AccountService(AUTHLIB_INJECTOR_DOWNLOADER, MICROSOFT_SERVICE);
 
-    /// Logs in with stored credentials and prepares launch resources.
-    ///
-    /// @see AccountService#logIn(Account)
-    public static AuthInfo logIn(Account account) throws AuthenticationException {
-        return ACCOUNT_SERVICE.logIn(account);
-    }
-
-    /// Prepares a launch using cached credentials and available authentication resources.
-    ///
-    /// @see AccountService#playOffline(Account)
-    public static AuthInfo playOffline(Account account) throws AuthenticationException {
-        return ACCOUNT_SERVICE.playOffline(account);
-    }
-
-    /// Returns offline launch information without preparing skin injection.
-    public static AuthInfo logInWithoutSkin(OfflineAccount account) {
-        return ACCOUNT_SERVICE.logInWithoutSkin(account);
-    }
-
-    /// Returns whether the launcher implements skin uploads for this account type.
-    ///
-    /// @see AccountService#canUploadSkin(Account)
-    public static boolean canUploadSkin(@NotNull Account account) {
-        return ACCOUNT_SERVICE.canUploadSkin(account);
-    }
-
-    /// Uploads a skin using the account's current session without refreshing credentials or profile caches.
-    ///
-    /// @see AccountService#uploadSkin(Account, boolean, Path)
-    public static void uploadSkin(@NotNull Account account, boolean isSlim, @NotNull Path file) throws AuthenticationException {
-        ACCOUNT_SERVICE.uploadSkin(account, isSlim, file);
-    }
-
-    /// Returns an observable profile, fetching missing or stale data asynchronously when the binding is read.
-    public static ObjectBinding<Optional<CompleteGameProfile>> getProfile(Account account) {
-        return ACCOUNT_SERVICE.getProfile(account, false);
-    }
-
-    /// Returns an observable texture map backed by the launcher's profile cache.
-    public static ObjectBinding<Optional<Map<TextureType, Texture>>> getTextures(Account account) {
-        return ACCOUNT_SERVICE.getTextures(account);
-    }
-
-    /// Invalidates cached authentication and profile data without discarding stored credentials.
-    public static void clearCache(Account account) {
-        ACCOUNT_SERVICE.clearCache(account);
-    }
-
-    /// Creates an offline account with an optional UUID and skin override.
-    public static OfflineAccount createOfflineAccount(String name, @Nullable UUID uuid, @Nullable Skin skin) {
-        return ACCOUNT_SERVICE.createOfflineAccount(name, uuid, skin);
-    }
-
-    /// Authenticates a new Microsoft account using the supplied operation callback.
-    public static MicrosoftAccount createMicrosoftAccount(OAuth.GrantFlow flow, OAuth.Callback callback) throws AuthenticationException {
-        return ACCOUNT_SERVICE.createMicrosoftAccount(flow, callback);
-    }
-
-    /// Authenticates a new external account and selects a character when necessary.
-    public static AuthlibInjectorAccount createAuthlibInjectorAccount(AuthlibInjectorServer server, String username,
-                                                                     String password, CharacterSelector selector) throws AuthenticationException {
-        return ACCOUNT_SERVICE.createAuthlibInjectorAccount(server, username, password, selector);
-    }
-
-    /// Obtains detached Microsoft credentials for the same profile without changing the existing account.
-    public static MicrosoftAccount reauthenticateMicrosoftAccount(MicrosoftAccount account, OAuth.GrantFlow flow,
-                                                                  OAuth.Callback callback) throws AuthenticationException {
-        return ACCOUNT_SERVICE.reauthenticateMicrosoftAccount(account, flow, callback);
-    }
-
-    /// Obtains detached external credentials for the same profile without changing the existing account.
-    public static AuthlibInjectorAccount reauthenticateAuthlibInjectorAccount(AuthlibInjectorAccount account, String password)
-            throws AuthenticationException {
-        return ACCOUNT_SERVICE.reauthenticateAuthlibInjectorAccount(account, password);
-    }
-
-    /// Commits accepted credentials to the existing account while preserving its identity and storage settings.
-    public static void acceptReauthentication(Account existing, Account candidate) throws AuthenticationException {
-        ACCOUNT_SERVICE.acceptReauthentication(existing, candidate);
+    /// Returns the shared account service configured for this launcher.
+    public static AccountService getAccountService() {
+        return ACCOUNT_SERVICE;
     }
 
     private static final ObservableList<Account> accounts = observableArrayList(account -> new Observable[]{account});
@@ -495,7 +416,7 @@ public final class Accounts {
             Account finalSelected = selected;
             Schedulers.io().execute(() -> {
                 try {
-                    logIn(finalSelected);
+                    ACCOUNT_SERVICE.logIn(finalSelected);
                 } catch (Throwable e) {
                     LOG.warning("Failed to log " + finalSelected + " in", e);
                 }

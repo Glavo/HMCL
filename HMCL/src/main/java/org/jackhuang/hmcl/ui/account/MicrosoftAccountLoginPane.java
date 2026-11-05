@@ -114,8 +114,8 @@ public final class MicrosoftAccountLoginPane extends VBox implements AutoCloseab
         busy.set(true);
         task = Schedulers.io().submit(() -> {
             try {
-                MicrosoftAccount account = existing == null ? Accounts.createMicrosoftAccount(flow, callback)
-                        : Accounts.reauthenticateMicrosoftAccount(existing, flow, callback);
+                MicrosoftAccount account = existing == null ? Accounts.getAccountService().createMicrosoftAccount(flow, callback)
+                        : Accounts.getAccountService().reauthenticateMicrosoftAccount(existing, flow, callback);
                 Platform.runLater(() -> {
                     if (activeCallback != callback) return;
                     activeCallback = null;

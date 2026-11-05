@@ -176,6 +176,11 @@ public final class AccountService {
         return null;
     }
 
+    /// Returns a profile binding that asynchronously fetches missing or invalidated data when read.
+    public ObjectBinding<Optional<CompleteGameProfile>> getProfile(Account account) {
+        return getProfile(account, false);
+    }
+
     /// Returns a binding to the account's cached profile, or an empty optional for unsupported account types.
     ///
     /// When `quiet` is `false`, reading an absent or invalidated profile starts an asynchronous fetch.

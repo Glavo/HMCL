@@ -182,8 +182,8 @@ public final class AuthlibInjectorAccountLoginPane extends VBox implements AutoC
         String loginName = username.getText();
         String secret = password.getText();
         return () -> existing == null
-                ? Accounts.createAuthlibInjectorAccount(selected, loginName, secret, new DialogCharacterSelector())
-                : Accounts.reauthenticateAuthlibInjectorAccount(existing, secret);
+                ? Accounts.getAccountService().createAuthlibInjectorAccount(selected, loginName, secret, new DialogCharacterSelector())
+                : Accounts.getAccountService().reauthenticateAuthlibInjectorAccount(existing, secret);
     }
 
     /// Focuses the login name for creation, or the password for reauthentication.

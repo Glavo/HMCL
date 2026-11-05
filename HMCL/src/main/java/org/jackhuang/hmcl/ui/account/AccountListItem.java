@@ -85,9 +85,9 @@ public class AccountListItem extends RadioButton {
 
     public Task<?> refreshAsync() {
         return Task.runAsync(() -> {
-            Accounts.clearCache(account);
+            Accounts.getAccountService().clearCache(account);
             try {
-                Accounts.logIn(account);
+                Accounts.getAccountService().logIn(account);
             } catch (CredentialExpiredException e) {
                 try {
                     DialogController.logIn(account);
@@ -106,14 +106,14 @@ public class AccountListItem extends RadioButton {
 
     public ObservableBooleanValue canUploadSkin() {
         if (account instanceof AuthlibInjectorAccount aiAccount) {
-            ObjectBinding<Optional<CompleteGameProfile>> profile = Accounts.getProfile(aiAccount);
+            ObjectBinding<Optional<CompleteGameProfile>> profile = Accounts.getAccountService().getProfile(aiAccount);
             return createBooleanBinding(() -> {
                 Set<TextureType> uploadableTextures = profile.get()
                         .map(AuthlibInjectorAccount::getUploadableTextures)
                         .orElse(emptySet());
                 return uploadableTextures.contains(TextureType.SKIN);
             }, profile);
-        } else if (account instanceof OfflineAccount || Accounts.canUploadSkin(account)) {
+        } else if (account instanceof OfflineAccount || Accounts.getAccountService().canUploadSkin(account)) {
             return createBooleanBinding(() -> true);
         } else {
             return createBooleanBinding(() -> false);
@@ -129,7 +129,7 @@ public class AccountListItem extends RadioButton {
             Controllers.dialog(new OfflineAccountSkinPane((OfflineAccount) account));
             return null;
         }
-        if (!Accounts.canUploadSkin(account)) {
+        if (!Accounts.getAccountService().canUploadSkin(account)) {
             return null;
         }
 
@@ -158,7 +158,7 @@ public class AccountListItem extends RadioButton {
                     NormalizedSkin skin = new NormalizedSkin(skinImg);
                     String model = skin.isSlim() ? "slim" : "";
                     LOG.info("Uploading skin [" + selectedFile + "], model [" + model + "]");
-                    Accounts.uploadSkin(account, skin.isSlim(), selectedFile);
+                    Accounts.getAccountService().uploadSkin(account, skin.isSlim(), selectedFile);
                 })
                 .thenComposeAsync(refreshAsync())
                 .whenComplete(Schedulers.javafx(), e -> {

@@ -64,6 +64,6 @@ public final class DialogController {
                 throw e;
             }
         }
-        return Accounts.logIn(account);
+        return Accounts.getAccountService().logIn(account);
     }
 }

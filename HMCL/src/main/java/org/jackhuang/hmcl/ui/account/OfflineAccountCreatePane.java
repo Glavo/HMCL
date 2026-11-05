@@ -98,7 +98,7 @@ public final class OfflineAccountCreatePane extends VBox {
     /// The fields must satisfy [#validProperty()].
     public OfflineAccount createAccount() {
         @Nullable UUID playerID = StringUtils.isBlank(uuid.getText()) ? null : UUIDs.parse(uuid.getText());
-        return Accounts.createOfflineAccount(name.getText(), playerID, null);
+        return Accounts.getAccountService().createOfflineAccount(name.getText(), playerID, null);
     }
 
     /// Requests focus for the player name field.

@@ -209,7 +209,7 @@ public final class TexturesLoader {
 
             return binding;
         } else {
-            return BindingMapping.of(Accounts.getTextures(account))
+            return BindingMapping.of(Accounts.getAccountService().getTextures(account))
                     .asyncMap(textures -> {
                         if (textures.isPresent()) {
                             Texture texture = textures.get().get(TextureType.SKIN);

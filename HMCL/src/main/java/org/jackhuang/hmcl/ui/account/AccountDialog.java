@@ -273,7 +273,7 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
                 if (Accounts.getAccounts().stream().noneMatch(value -> value == existing)) {
                     throw new IllegalStateException("Account was removed during authentication");
                 }
-                Accounts.acceptReauthentication(existing, account);
+                Accounts.getAccountService().acceptReauthentication(existing, account);
             }
             Accounts.setSelectedAccount(selected);
         } catch (Exception e) {

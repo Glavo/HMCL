@@ -770,9 +770,9 @@ public final class LauncherHelper {
         return Task.composeAsync(() -> {
             try {
                 if (disableOfflineSkin && account instanceof OfflineAccount offlineAccount)
-                    return Task.completed(Accounts.logInWithoutSkin(offlineAccount));
+                    return Task.completed(Accounts.getAccountService().logInWithoutSkin(offlineAccount));
                 else
-                    return Task.completed(Accounts.logIn(account));
+                    return Task.completed(Accounts.getAccountService().logIn(account));
             } catch (CredentialExpiredException e) {
                 LOG.info("Credential has expired", e);
 
@@ -785,7 +785,7 @@ public final class LauncherHelper {
                     JFXButton loginOfflineButton = new JFXButton(i18n("account.login.skip"));
                     loginOfflineButton.setOnAction(event -> {
                         try {
-                            future.complete(Task.completed(Accounts.playOffline(account)));
+                            future.complete(Task.completed(Accounts.getAccountService().playOffline(account)));
                         } catch (AuthenticationException e2) {
                             future.completeExceptionally(e2);
                         }
