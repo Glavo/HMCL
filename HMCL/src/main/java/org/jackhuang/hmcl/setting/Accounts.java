@@ -65,6 +65,7 @@ public final class Accounts {
     }
 
     private static final ObservableList<Account> accounts = observableArrayList(account -> new Observable[]{account});
+
     /// Keeps quiet profile bindings alive while their account objects are in the account list.
     /// Identity keys remain stable when an account's portability flag changes.
     private static final Map<Account, ObjectBinding<Optional<CompleteGameProfile>>> profileBindings = new IdentityHashMap<>();

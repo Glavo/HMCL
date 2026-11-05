@@ -141,13 +141,10 @@ public abstract class Account implements Observable {
 
     @Override
     public final boolean equals(@Nullable Object obj) {
-        if (this == obj)
-            return true;
-        if (!(obj instanceof Account))
-            return false;
+        return this == obj || obj instanceof Account another
+                && isPortable() == another.isPortable()
+                && accountID.equals(another.accountID);
 
-        Account another = (Account) obj;
-        return isPortable() == another.isPortable() && accountID.equals(another.accountID);
     }
 
     @Override
