@@ -5,6 +5,7 @@ package org.jackhuang.hmcl.setting;
 import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
+import org.jackhuang.hmcl.auth.AuthenticationResult;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
@@ -54,14 +55,14 @@ public final class AccountsPersistenceTest {
 
     /// Installs stores without autosave listeners so tests never touch the user's files.
     @BeforeEach
-    public void installSettings() throws ReflectiveOperationException {
+    public void installSettings() throws Exception {
         replaceSetting("gameAccountPrivateData", privateData);
         replaceSetting("userGameAccountPrivateData", new AccountPrivateData());
         replaceSetting("authlibInjectorServers", new AuthlibInjectorServerList());
     }
 
     /// Preserves a setting before replacing it for this test.
-    private void replaceSetting(String name, Object replacement) throws ReflectiveOperationException {
+    private void replaceSetting(String name, Object replacement) throws Exception {
         var field = SettingsManager.class.getDeclaredField(name);
         field.setAccessible(true);
         previousSettings.put(name, field.get(null));
@@ -70,7 +71,8 @@ public final class AccountsPersistenceTest {
 
     /// Restores every setting changed by this test.
     @AfterEach
-    public void restoreSettings() throws ReflectiveOperationException {
+    public void restoreSettings() throws Exception {
+        onFx(() -> { for (Account account : List.copyOf(Accounts.getAccounts())) Accounts.remove(account); return true; });
         for (var entry : previousSettings.entrySet()) {
             var field = SettingsManager.class.getDeclaredField(entry.getKey());
             field.setAccessible(true);
@@ -79,7 +81,7 @@ public final class AccountsPersistenceTest {
     }
 
     /// Serializes an account through the production path and extracts one JSON component.
-    private static JsonObject serialize(Account account, String component) throws ReflectiveOperationException {
+    private static JsonObject serialize(Account account, String component) throws Exception {
         var method = Accounts.class.getDeclaredMethod("serializeAccount", Account.class);
         method.setAccessible(true);
         Object serialized = Objects.requireNonNull(method.invoke(null, account));
@@ -89,22 +91,50 @@ public final class AccountsPersistenceTest {
     }
 
     /// Restores a metadata record through the production path using the isolated private data store.
-    private static @Nullable Account parse(JsonObject metadata) throws ReflectiveOperationException {
+    private static @Nullable Account parse(JsonObject metadata) throws Exception {
         var method = Accounts.class.getDeclaredMethod("parseAccount", JsonObject.class, boolean.class);
         method.setAccessible(true);
-        return (Account) method.invoke(null, metadata, true);
+        return onFx(() -> {
+            for (Account account : List.copyOf(Accounts.getAccounts())) {
+                if (account.getAccountID().equals(AccountMetadataStore.readAccountID(metadata))) Accounts.remove(account);
+            }
+            return (Account) method.invoke(null, metadata, true);
+        });
+    }
+
+    /// Runs list mutations on the same thread as production account management.
+    private static <T> T onFx(java.util.concurrent.Callable<T> operation) throws Exception {
+        java.util.concurrent.FutureTask<T> task = new java.util.concurrent.FutureTask<>(operation);
+        javafx.application.Platform.runLater(task);
+        return task.get(10, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    /// Registers an account without authenticating it.
+    private static Account register(Account account) throws Exception {
+        return onFx(() -> { Accounts.add(account, false); return account; });
+    }
+
+    /// Creates an identity with previously saved Microsoft credentials.
+    private static Account microsoft(MicrosoftSession session) throws Exception {
+        return register(new MicrosoftAccount(AccountID.generate(), session.profile().id(), session.profile().name(), session));
+    }
+
+    /// Creates an identity with previously saved external credentials.
+    private static Account injector(AuthlibInjectorServer server, String login, YggdrasilSession session) throws Exception {
+        return register(new AuthlibInjectorAccount(AccountID.generate(), server, login,
+                session.getSelectedProfile().getId(), session.getSelectedProfile().getName(), session));
     }
 
     /// Checks all account types retain identity, skin settings, and credentials across persistence.
     @Test
-    public void roundTripsSupportedAccounts() throws ReflectiveOperationException {
+    public void roundTripsSupportedAccounts() throws Exception {
         UUID profileID = UUID.randomUUID();
         AuthlibInjectorServer server = new AuthlibInjectorServer("https://example.invalid/auth/");
         for (Account original : List.of(
-                new OfflineAccount(AccountID.generate(), "Player", profileID, new Skin(Skin.Type.ALEX, null, null, null, null)),
-                new MicrosoftAccount(AccountID.generate(), new MicrosoftSession("Bearer", "access", 123L, "refresh",
-                        new MicrosoftSession.User("user"), new MicrosoftSession.GameProfile(profileID, "Player")), true),
-                new AuthlibInjectorAccount(AccountID.generate(), server, "login@example.invalid",
+                register(new OfflineAccount(AccountID.generate(), "Player", profileID, new Skin(Skin.Type.ALEX, null, null, null, null))),
+                microsoft(new MicrosoftSession("Bearer", "access", 123L, "refresh",
+                        new MicrosoftSession.User("user"), new MicrosoftSession.GameProfile(profileID, "Player"))),
+                injector(server, "login@example.invalid",
                         new YggdrasilSession("client", "access", new GameProfile(profileID, "Player"), null, Map.of("key", "value"))))) {
             JsonObject metadata = serialize(original, "metadata");
             JsonObject credentials = serialize(original, "privateData");
@@ -121,7 +151,7 @@ public final class AccountsPersistenceTest {
 
     /// Checks legacy offline records may omit the derived UUID and skin.
     @Test
-    public void restoresOfflineUUIDDefault() throws ReflectiveOperationException {
+    public void restoresOfflineUUIDDefault() throws Exception {
         JsonObject metadata = new JsonObject();
         metadata.addProperty("accountID", AccountID.generate().toString());
         metadata.addProperty("type", "offline");
@@ -134,8 +164,8 @@ public final class AccountsPersistenceTest {
 
     /// Checks restored profile properties survive another save and malformed records are rejected.
     @Test
-    public void retainsCachedProfileAndRejectsUnknownTypes() throws ReflectiveOperationException {
-        AuthlibInjectorAccount account = new AuthlibInjectorAccount(AccountID.generate(),
+    public void retainsCachedProfileAndRejectsUnknownTypes() throws Exception {
+        Account account = injector(
                 new AuthlibInjectorServer("https://example.invalid/auth/"), "user",
                 new YggdrasilSession("client", "access", new GameProfile(UUID.randomUUID(), "Player"), null, null));
         JsonObject metadata = serialize(account, "metadata");
@@ -148,5 +178,54 @@ public final class AccountsPersistenceTest {
         assertEquals(credentials, serialize(restored, "privateData"));
         metadata.addProperty("type", "unknown");
         assertNull(parse(metadata));
+    }
+
+    /// Missing private data keeps the saved identity available for interactive reauthentication.
+    @Test
+    public void retainsIdentityWithoutCredentials() throws Exception {
+        JsonObject metadata = new JsonObject();
+        metadata.addProperty("accountID", AccountID.generate().toString());
+        metadata.addProperty("type", "microsoft");
+        metadata.addProperty("profileID", UUID.randomUUID().toString());
+        Account restored = Objects.requireNonNull(parse(metadata));
+        assertInstanceOf(MicrosoftAccount.class, restored);
+        assertNull(((MicrosoftAccount) restored).getSession());
+        assertEquals(metadata, serialize(restored, "metadata"));
+    }
+
+    /// Account changes update the stable read-only JavaFX view and invalidate profile bindings.
+    @Test
+    public void projectsStorageAndProfileChangesToJavaFX() throws Exception {
+        java.util.concurrent.FutureTask<Boolean> task = new java.util.concurrent.FutureTask<>(() -> {
+            var view = Accounts.getAccounts();
+            assertSame(view, Accounts.getAccounts());
+            MicrosoftAccount account = new MicrosoftAccount(AccountID.generate(), UUID.randomUUID(), "Player");
+            MicrosoftSession initial = new MicrosoftSession("Bearer", "old", Long.MAX_VALUE, "refresh",
+                    new MicrosoftSession.User("user"), new MicrosoftSession.GameProfile(account.getProfileID(), "Player"));
+            account.updateSession(initial);
+            Accounts.add(account, false);
+            assertTrue(view.contains(account));
+            assertThrows(UnsupportedOperationException.class, () -> view.remove(account));
+            javafx.beans.binding.StringBinding name = javafx.beans.binding.Bindings.createStringBinding(
+                    account::getProfileName, Accounts.observable(account));
+            assertEquals("Player", name.get());
+            Accounts.setPortable(account, true);
+            assertSame(account, view.getFirst());
+            MicrosoftSession replacement = new MicrosoftSession("Bearer", "new", Long.MAX_VALUE, "refresh",
+                    new MicrosoftSession.User("user"), new MicrosoftSession.GameProfile(account.getProfileID(), "Renamed"));
+            new AuthenticationResult(account, replacement, null, account.getAuthenticationRevision()).accept();
+            assertEquals("Renamed", name.get());
+            name.dispose();
+            AuthenticationResult pending = new AuthenticationResult(account, initial, null, account.getAuthenticationRevision());
+            Accounts.remove(account);
+            assertThrows(IllegalStateException.class, pending::accept);
+            Accounts.add(account, false);
+            assertThrows(IllegalStateException.class, pending::accept);
+            Accounts.remove(account);
+            assertFalse(view.contains(account));
+            return true;
+        });
+        javafx.application.Platform.runLater(task);
+        task.get(10, java.util.concurrent.TimeUnit.SECONDS);
     }
 }

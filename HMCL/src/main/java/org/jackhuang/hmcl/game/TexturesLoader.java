@@ -13,6 +13,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.auth.Account;
+import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
 import org.jackhuang.hmcl.auth.ServerResponseMalformedException;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
@@ -202,10 +203,10 @@ public final class TexturesLoader {
                 }
             };
 
-            listener.invalidated(offlineAccount);
+            listener.invalidated(Accounts.observable(offlineAccount));
 
             binding.addListener(new Holder<>(listener));
-            offlineAccount.addListener(new WeakInvalidationListener(listener));
+            Accounts.observable(offlineAccount).addListener(new WeakInvalidationListener(listener));
 
             return binding;
         } else {
@@ -293,7 +294,7 @@ public final class TexturesLoader {
     }
 
     public static void bindAvatar(Canvas canvas, Account account) {
-        if (account instanceof YggdrasilAccount || account instanceof MicrosoftAccount || account instanceof OfflineAccount)
+        if (account instanceof AuthlibInjectorAccount || account instanceof MicrosoftAccount || account instanceof OfflineAccount)
             fxAvatarBinding(canvas, skinBinding(account));
         else {
             unbindAvatar(canvas);

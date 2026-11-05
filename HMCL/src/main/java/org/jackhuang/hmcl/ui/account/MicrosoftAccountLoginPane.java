@@ -18,6 +18,7 @@ import javafx.scene.layout.*;
 import javafx.scene.shape.SVGPath;
 import org.jackhuang.hmcl.auth.OAuth;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
+import org.jackhuang.hmcl.auth.AuthenticationResult;
 import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilService;
 import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.setting.Accounts;
@@ -56,7 +57,7 @@ public final class MicrosoftAccountLoginPane extends VBox implements AutoCloseab
     /// Controls the dialog's login spinner.
     private final BooleanProperty busy;
     /// Receives authenticated account state on the JavaFX thread.
-    private final Consumer<MicrosoftAccount> success;
+    private final Consumer<AuthenticationResult> success;
     /// The current background OAuth request, if any.
     private @Nullable Future<?> task;
     /// Whether this pane has been closed.
@@ -65,7 +66,7 @@ public final class MicrosoftAccountLoginPane extends VBox implements AutoCloseab
     /// Creates a Microsoft panel without starting OAuth. Call [#start()] when the dialog is shown.
     /// The button and busy property belong to the containing dialog.
     public MicrosoftAccountLoginPane(@Nullable MicrosoftAccount existing, JFXButton acceptButton,
-                                      BooleanProperty busy, Consumer<MicrosoftAccount> success) {
+                                      BooleanProperty busy, Consumer<AuthenticationResult> success) {
         this.existing = existing;
         this.acceptButton = acceptButton;
         this.busy = busy;
@@ -114,7 +115,7 @@ public final class MicrosoftAccountLoginPane extends VBox implements AutoCloseab
         busy.set(true);
         task = Schedulers.io().submit(() -> {
             try {
-                MicrosoftAccount account = existing == null ? Accounts.getAccountService().createMicrosoftAccount(flow, callback)
+                AuthenticationResult account = existing == null ? Accounts.getAccountService().createMicrosoftAccount(flow, callback)
                         : Accounts.getAccountService().reauthenticateMicrosoftAccount(existing, flow, callback);
                 Platform.runLater(() -> {
                     if (activeCallback != callback) return;

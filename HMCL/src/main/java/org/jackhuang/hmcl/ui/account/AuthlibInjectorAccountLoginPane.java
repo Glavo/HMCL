@@ -17,6 +17,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
+import org.jackhuang.hmcl.auth.AuthenticationResult;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
 import org.jackhuang.hmcl.setting.Accounts;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -177,7 +178,7 @@ public final class AuthlibInjectorAccountLoginPane extends VBox implements AutoC
 
     /// Captures the current credentials on the JavaFX thread for authentication on a background thread.
     /// The fields must satisfy [#validProperty()]. The operation returns detached account state.
-    public Callable<AuthlibInjectorAccount> authentication() {
+    public Callable<AuthenticationResult> authentication() {
         AuthlibInjectorServer selected = Objects.requireNonNull(server.get());
         String loginName = username.getText();
         String secret = password.getText();

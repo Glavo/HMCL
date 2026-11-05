@@ -94,7 +94,7 @@ public final class AccountListItemSkin extends SkinBase<AccountListItem> {
             moveAccount(skinnable);
         });
         btnMove.getStyleClass().add("toggle-icon4");
-        if (skinnable.getAccount().isPortable()) {
+        if (Accounts.isPortable(skinnable.getAccount())) {
             btnMove.setGraphic(SVG.PUBLIC.createIcon());
             FXUtils.installFastTooltip(btnMove, i18n("account.move_to_global"));
         } else {
@@ -167,23 +167,6 @@ public final class AccountListItemSkin extends SkinBase<AccountListItem> {
     /// Moves the account between local and user account files.
     private static void moveAccount(AccountListItem skinnable) {
         Account account = skinnable.getAccount();
-        Accounts.getAccounts().remove(account);
-        if (account.isPortable()) {
-            account.setPortable(false);
-            if (!Accounts.getAccounts().contains(account))
-                Accounts.getAccounts().add(account);
-        } else {
-            account.setPortable(true);
-            if (!Accounts.getAccounts().contains(account)) {
-                int idx = 0;
-                for (int i = Accounts.getAccounts().size() - 1; i >= 0; i--) {
-                    if (Accounts.getAccounts().get(i).isPortable()) {
-                        idx = i + 1;
-                        break;
-                    }
-                }
-                Accounts.getAccounts().add(idx, account);
-            }
-        }
+        Accounts.setPortable(account, !Accounts.isPortable(account));
     }
 }

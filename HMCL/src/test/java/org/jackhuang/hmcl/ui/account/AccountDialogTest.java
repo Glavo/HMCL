@@ -3,12 +3,11 @@
 package org.jackhuang.hmcl.ui.account;
 
 import javafx.application.Platform;
-import org.jackhuang.hmcl.auth.Account;
+import org.jackhuang.hmcl.auth.AuthenticationResult;
 import org.jackhuang.hmcl.auth.AccountID;
 import org.jackhuang.hmcl.auth.AccountType;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
-import org.jackhuang.hmcl.auth.microsoft.MicrosoftSession;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -38,7 +37,7 @@ public final class AccountDialogTest {
     }
 
     /// Starts a controlled background operation without adding a test-only production API.
-    private static Future<?> authenticate(AccountDialog dialog, Callable<Account> operation) throws Exception {
+    private static Future<?> authenticate(AccountDialog dialog, Callable<AuthenticationResult> operation) throws Exception {
         var method = AccountDialog.class.getDeclaredMethod("authenticate", Callable.class);
         method.setAccessible(true);
         method.invoke(dialog, operation);
@@ -58,7 +57,7 @@ public final class AccountDialogTest {
         AccountDialog dialog = onFx(() -> {
             AccountDialog created = new AccountDialog(AccountType.OFFLINE);
             // Holding the JavaFX thread keeps result delivery queued until after the method switch.
-            authenticate(created, () -> new OfflineAccount(AccountID.generate(), "Player", UUID.randomUUID(), null))
+            authenticate(created, () -> AuthenticationResult.offline(new OfflineAccount(AccountID.generate(), "Player", UUID.randomUUID(), null)))
                     .get(5, TimeUnit.SECONDS);
             var switchMethod = AccountDialog.class.getDeclaredMethod("showPane", AccountType.class, AuthlibInjectorServer.class);
             switchMethod.setAccessible(true);
@@ -79,9 +78,7 @@ public final class AccountDialogTest {
         CountDownLatch interrupted = new CountDownLatch(1);
         AtomicInteger cancelled = new AtomicInteger();
         onFx(() -> {
-            MicrosoftAccount account = new MicrosoftAccount(AccountID.generate(),
-                    new MicrosoftSession("Bearer", "token", Long.MAX_VALUE, "refresh", new MicrosoftSession.User("user"),
-                            new MicrosoftSession.GameProfile(UUID.randomUUID(), "Player")), false);
+            MicrosoftAccount account = new MicrosoftAccount(AccountID.generate(), UUID.randomUUID(), "Player");
             AccountDialog dialog = new AccountDialog(account, ignored -> fail("Cancelled account must not be accepted"), cancelled::incrementAndGet);
             authenticate(dialog, () -> {
                 started.countDown();

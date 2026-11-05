@@ -11,6 +11,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.auth.Account;
+import org.jackhuang.hmcl.auth.AuthenticationResult;
 import org.jackhuang.hmcl.auth.AccountType;
 import org.jackhuang.hmcl.auth.NoSelectedCharacterException;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
@@ -60,7 +61,7 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     /// Invalidates results and confirmations from superseded requests or forms.
     private long generation;
     /// The account awaiting storage confirmation, or `null` when no result is pending.
-    private @Nullable Account pending;
+    private @Nullable AuthenticationResult pending;
     /// Whether this dialog has been shown.
     private boolean shown;
     /// Whether this dialog has completed or been cancelled.
@@ -195,7 +196,7 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     /// Creates an offline identity after any required player-name warning has been accepted.
     private void createOfflineAccount(OfflineAccountCreatePane offline) {
         if (closed || busy.get() || !offline.validProperty().get()) return;
-        Account account = offline.createAccount();
+        AuthenticationResult account = AuthenticationResult.offline(offline.createAccount());
         if (offline.requiresNameConfirmation()) {
             long attempt = generation;
             busy.set(true);
@@ -211,14 +212,14 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     }
 
     /// Authenticates captured password credentials off the JavaFX thread and ignores obsolete results.
-    private void authenticate(Callable<? extends Account> operation) {
+    private void authenticate(Callable<? extends AuthenticationResult> operation) {
         if (closed || busy.get()) return;
         long attempt = ++generation;
         busy.set(true);
         error.setText("");
         task = io().submit(() -> {
             try {
-                Account account = operation.call();
+                AuthenticationResult account = operation.call();
                 Platform.runLater(() -> {
                     if (closed || generation != attempt) return;
                     task = null;
@@ -237,20 +238,20 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     }
 
     /// Confirms any required storage overwrite before applying authenticated account state.
-    private void onCompleted(Account account) {
+    private void onCompleted(AuthenticationResult account) {
         if (closed) return;
         pending = account;
         busy.set(true);
         content.setDisable(true);
-        Account target = existing != null ? existing : account;
-        if (Accounts.isAccountFilesReadOnly(target)) {
+        Account target = existing != null ? existing : account.account();
+        if (existing != null ? Accounts.isAccountFilesReadOnly(target) : Accounts.isAccountFilesReadOnly(false)) {
             Controllers.dialog(new MessageDialogPane.Builder(
                     i18n("account.storage.read_only") + "\n\n" + i18n("settings.file.force_write.confirm"),
                     i18n("message.warning"), MessageDialogPane.MessageType.WARNING)
                     .addAction(i18n("settings.file.force_write"), () -> {
                         if (closed || pending != account) return;
                         try {
-                            Accounts.forceOverwriteAccountFiles(target);
+                            Accounts.forceOverwriteAccountFiles(existing != null && Accounts.isPortable(existing));
                             commit(account);
                         } catch (Exception e) {
                             reject(account, e);
@@ -263,17 +264,17 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     }
 
     /// Stores an accepted account or applies its credentials to the original account, then closes the dialog.
-    private void commit(Account account) {
+    private void commit(AuthenticationResult account) {
         if (closed || pending != account) return;
-        Account selected = existing != null ? existing : account;
+        Account selected = existing != null ? existing : account.account();
         try {
             if (existing == null) {
-                Accounts.getAccounts().add(account);
+                Accounts.add(account.accept(), false);
             } else {
-                if (Accounts.getAccounts().stream().noneMatch(value -> value == existing)) {
+                if (account.account() != existing || Accounts.getAccounts().stream().noneMatch(value -> value == existing)) {
                     throw new IllegalStateException("Account was removed during authentication");
                 }
-                Accounts.getAccountService().acceptReauthentication(existing, account);
+                account.accept();
             }
             Accounts.setSelectedAccount(selected);
         } catch (Exception e) {
@@ -290,7 +291,7 @@ public final class AccountDialog extends JFXDialogLayout implements DialogAware 
     }
 
     /// Discards a declined result and allows the current form to be submitted again.
-    private void reject(Account account, @Nullable Exception exception) {
+    private void reject(AuthenticationResult account, @Nullable Exception exception) {
         if (closed || pending != account) return;
         pending = null;
         content.setDisable(false);

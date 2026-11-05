@@ -1,97 +1,64 @@
-// SPDX-FileCopyrightText: Copyright (C) 2020 The HMCL Authors
+// SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.auth.microsoft;
 
-import com.google.gson.JsonObject;
-import org.jackhuang.hmcl.auth.*;
+import org.jackhuang.hmcl.auth.Account;
+import org.jackhuang.hmcl.auth.AccountID;
 import org.jetbrains.annotations.NotNullByDefault;
-
+import org.jetbrains.annotations.Nullable;
+import org.jackhuang.hmcl.auth.ServerResponseMalformedException;
+import org.jackhuang.hmcl.auth.CredentialExpiredException;
 import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
-
-/// Stores a Microsoft identity and its current session.
+/// Holds a Microsoft game identity and its accepted credentials.
 @NotNullByDefault
-public final class MicrosoftAccount extends OAuthAccount {
-
-    /// The fixed Minecraft profile ID.
-    protected final UUID profileID;
-
-    /// Whether the current session has been authenticated in this process.
+public final class MicrosoftAccount extends Account {
+    /// The accepted credentials, or null when reauthentication is required.
+    private @Nullable MicrosoftSession session;
+    /// Whether the current credentials have been validated in this process.
     private boolean authenticated;
-    /// The current credentials and profile.
-    private MicrosoftSession session;
 
-    /// Creates an account from a session with a non-null profile ID.
-    ///
-    /// @param authenticated whether the caller has already authenticated this session
-    public MicrosoftAccount(AccountID accountID, MicrosoftSession session, boolean authenticated) {
-        super(accountID);
-        this.session = requireNonNull(session);
-        this.authenticated = authenticated;
-        this.profileID = requireNonNull(session.profile().id());
+    /// Creates a saved identity with its last known profile name.
+    public MicrosoftAccount(AccountID accountID, UUID profileID, String profileName) {
+        super(accountID, profileID, profileName);
     }
 
-    @Override
-    public String getProfileName() {
-        return session.profile().name();
+    /// Creates an identity with previously accepted credentials; no network validation is performed.
+    public MicrosoftAccount(AccountID accountID, UUID profileID, String profileName, @Nullable MicrosoftSession session) {
+        this(accountID, profileID, profileName);
+        if (session != null && !(session.profile() != null && getProfileID().equals(session.profile().id()))) throw new IllegalArgumentException("Session profile mismatch");
+        this.session = session;
     }
 
-    @Override
-    public UUID getProfileID() {
-        return session.profile().id();
-    }
-
-    /// Returns the current session without validating or refreshing its credentials.
-    public synchronized MicrosoftSession getSession() {
+    /// Returns stored credentials without validating them, or null when unavailable.
+    public synchronized @Nullable MicrosoftSession getSession() {
         return session;
     }
 
-    /// Returns whether this session has been authenticated since loading or clearing the cache.
+    /// Returns stored credentials or requests interactive authentication when unavailable.
+    public synchronized MicrosoftSession requireSession() throws CredentialExpiredException {
+        if (session == null) throw new CredentialExpiredException("Account credentials are missing");
+        return session;
+    }
+
+    /// Accepts credentials for the same profile and notifies the owner.
+    public synchronized void updateSession(MicrosoftSession session) throws ServerResponseMalformedException {
+        if (!(session.profile() != null && getProfileID().equals(session.profile().id())) || !session.hasProfileName())
+            throw new ServerResponseMalformedException("Session profile mismatch or missing profile name");
+        this.session = session;
+        updateProfileName(session.profile().name());
+        authenticated = true;
+        sessionChanged();
+    }
+
+    /// Returns whether these credentials have been validated in this process.
     public synchronized boolean isAuthenticated() {
         return authenticated;
     }
 
-    /// Installs an authenticated session for this profile and schedules a change notification.
-    /// Passing the current session marks it authenticated without scheduling a notification.
-    ///
-    /// @throws ServerResponseMalformedException if the profile differs or its name is missing;
-    ///         the current session and authentication state are retained
-    public synchronized void updateSession(MicrosoftSession session) throws ServerResponseMalformedException {
-        if (session.profile() == null || !profileID.equals(session.profile().id())) {
-            throw new ServerResponseMalformedException("Selected profile changed");
-        }
-        if (!session.hasProfileName()) {
-            throw new ServerResponseMalformedException("Profile name is missing");
-        }
-        boolean changed = this.session != session;
-        this.session = session;
-        authenticated = true;
-        if (changed) {
-            invalidate();
-        }
-    }
-
-    @Override
-    public void writeMetadata(JsonObject metadata) {
-        super.writeMetadata(metadata);
-        metadata.addProperty("profileID", getProfileID().toString());
-    }
-
-    @Override
-    public void writePrivateData(JsonObject privateData) {
-        super.writePrivateData(privateData);
-        session.writePrivateData(privateData);
-    }
-
-    /// Marks the current session as requiring validation without changing its stored credentials.
+    /// Requires validation on the next login without discarding stored credentials.
     public synchronized void invalidateAuthentication() {
         authenticated = false;
-    }
-
-    @Override
-    public String toString() {
-        return "MicrosoftAccount[accountID=" + getAccountID() + ", profileID=" + profileID
-                + ", name=" + getProfileName() + "]";
+        invalidateAuthenticationResults();
     }
 }

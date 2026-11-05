@@ -1,159 +1,95 @@
-// SPDX-FileCopyrightText: Copyright (C) 2021 The HMCL Authors
+// SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.auth;
 
-import com.google.gson.JsonObject;
-import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import org.jackhuang.hmcl.util.ToStringBuilder;
-import org.jackhuang.hmcl.util.gson.JsonUtils;
-import org.jackhuang.hmcl.util.javafx.ObservableHelper;
-import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-
 import java.util.Objects;
 import java.util.UUID;
 
-/// Stores an account identity and exposes observable profile and persistence state.
+/// Holds a saved game identity and publishes state changes without depending on storage or UI frameworks.
 @NotNullByDefault
-public abstract class Account implements Observable {
-    /// The serialized account ID property name.
-    public static final String PROPERTY_ACCOUNT_ID = "accountID";
-
-    /// The stable ID of this account entry.
+public abstract class Account {
+    /// The stable launcher entry identifier.
     private final AccountID accountID;
+    /// The fixed game profile identifier within the authentication provider.
+    private final UUID profileID;
+    /// The last known display name, which may be empty for an unrestored online profile.
+    private volatile String profileName;
 
-    /// Creates an account.
-    ///
-    /// @param accountID the stable account entry ID
-    protected Account(AccountID accountID) {
+    /// Invalidates detached authentication results when credentials change or the account is removed.
+    private long authenticationRevision;
+    /// Receives changes on the modifying thread; the owning account list installs this callback.
+    private @Nullable Runnable changeListener;
+
+    /// Creates an identity without requiring authentication credentials.
+    protected Account(AccountID accountID, UUID profileID, String profileName) {
         this.accountID = Objects.requireNonNull(accountID);
+        this.profileID = Objects.requireNonNull(profileID);
+        this.profileName = Objects.requireNonNull(profileName);
     }
 
-    /// Returns the stable ID of this account entry.
-    public AccountID getAccountID() {
+    /// Returns the stable launcher entry identifier.
+    public final AccountID getAccountID() {
         return accountID;
     }
 
-    /// Returns the cached player profile name.
-    public abstract String getProfileName();
-
-    /// Returns the player profile UUID.
-    public abstract UUID getProfileID();
-
-    /// Writes public account metadata into the target JSON object.
-    ///
-    /// Metadata is stored in `accounts.json` and must not contain credentials or cached private profile data.
-    ///
-    /// The target object is owned by the caller. Implementations may only mutate it during this method call and must
-    /// not retain a reference to it.
-    @MustBeInvokedByOverriders
-    public void writeMetadata(JsonObject metadata) {
-        metadata.addProperty(PROPERTY_ACCOUNT_ID, accountID.toString());
+    /// Returns the fixed game profile identifier.
+    public final UUID getProfileID() {
+        return profileID;
     }
 
-    /// Writes private account data into the target JSON object.
-    ///
-    /// Private data is stored outside `accounts.json` and may contain credentials or cached profile data.
-    ///
-    /// The target object is owned by the caller. Implementations may only mutate it during this method call and must
-    /// not retain a reference to it.
-    @MustBeInvokedByOverriders
-    public void writePrivateData(JsonObject privateData) {
+    /// Returns the last known display name without authenticating.
+    public final String getProfileName() {
+        return profileName;
     }
 
-    /// Whether this account is stored with the local launcher configuration.
-    private final BooleanProperty portable = new SimpleBooleanProperty(false);
-
-    /// Returns the mutable property selecting local account storage.
-    public BooleanProperty portableProperty() {
-        return portable;
+    /// Updates the last known name after credentials have been validated.
+    protected final void updateProfileName(String name) {
+        profileName = Objects.requireNonNull(name);
     }
 
-    /// Returns whether this account is stored with the local launcher configuration.
-    public boolean isPortable() {
-        return portable.get();
+    /// Returns the revision captured before starting interactive authentication.
+    public final synchronized long getAuthenticationRevision() {
+        return authenticationRevision;
     }
 
-    /// Selects local or shared account storage.
-    public void setPortable(boolean value) {
-        this.portable.set(value);
+    /// Rejects outstanding authentication results without discarding the stored session.
+    public final synchronized void invalidateAuthenticationResults() {
+        authenticationRevision++;
     }
 
-    /// Returns the stable account ID for the given serialized account record.
-    ///
-    /// @param storage the serialized account record
-    /// @return the stable account ID, or `null` if the account record has no valid account ID
-    public static @Nullable AccountID getAccountID(JsonObject storage) {
-        @Nullable String accountID = JsonUtils.getString(storage, PROPERTY_ACCOUNT_ID);
-        if (accountID == null) {
-            return null;
-        }
-
-        try {
-            return AccountID.parse(accountID);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+    /// Sets the owner's notification callback, or detaches it when the account leaves the list.
+    public final synchronized void setChangeListener(@Nullable Runnable listener) {
+        changeListener = listener;
     }
 
-    /// Reads an account ID from serialized account storage.
-    ///
-    /// @param storage the account storage object
-    /// @return the parsed account ID
-    /// @throws IllegalArgumentException if the storage has no valid account ID
-    public static AccountID readAccountID(JsonObject storage) {
-        @Nullable String accountID = JsonUtils.getString(storage, PROPERTY_ACCOUNT_ID);
-        if (accountID == null) {
-            throw new IllegalArgumentException("accountID is missing");
-        }
-
-        return AccountID.parse(accountID);
+    /// Notifies the owner after configuration or display data changes.
+    protected final synchronized void changed() {
+        if (changeListener != null) changeListener.run();
     }
 
-    /// Dispatches account invalidation notifications.
-    private final ObservableHelper helper = new ObservableHelper(this);
-
-    @Override
-    public void addListener(InvalidationListener listener) {
-        helper.addListener(listener);
+    /// Invalidates older results and publishes an accepted credential update.
+    protected final synchronized void sessionChanged() {
+        authenticationRevision++;
+        changed();
     }
 
-    @Override
-    public void removeListener(InvalidationListener listener) {
-        helper.removeListener(listener);
-    }
-
-    /// Schedules an account change notification on the JavaFX application thread.
-    /// This method may be called from any thread after the JavaFX runtime has started.
-    protected void invalidate() {
-        Platform.runLater(helper::invalidate);
-    }
-
+    /// Hashes the stable launcher identity independently of storage and credentials.
     @Override
     public final int hashCode() {
-        return Objects.hash(portable.get(), accountID);
+        return accountID.hashCode();
     }
 
+    /// Compares saved entries by their stable launcher identity.
     @Override
-    public final boolean equals(@Nullable Object obj) {
-        return this == obj || obj instanceof Account another
-                && isPortable() == another.isPortable()
-                && accountID.equals(another.accountID);
-
+    public final boolean equals(@Nullable Object other) {
+        return this == other || other instanceof Account account && accountID.equals(account.accountID);
     }
 
+    /// Describes the identity without including credentials.
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
-                .append("accountID", accountID)
-                .append("profileName", getProfileName())
-                .append("profileID", getProfileID())
-                .append("portable", isPortable())
-                .toString();
+        return getClass().getSimpleName() + "[accountID=" + accountID + ", profileID=" + profileID + "]";
     }
 }

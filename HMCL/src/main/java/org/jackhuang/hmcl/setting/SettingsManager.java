@@ -8,7 +8,6 @@ import javafx.beans.InvalidationListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import org.jackhuang.hmcl.Metadata;
-import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
 import org.jackhuang.hmcl.util.FileSaver;
@@ -670,7 +669,7 @@ public final class SettingsManager {
     private static List<AccountID> getAccountIDs(List<JsonObject> metadataAccounts) {
         List<AccountID> accountIDs = new ArrayList<>(metadataAccounts.size());
         for (JsonObject metadata : metadataAccounts) {
-            @Nullable AccountID accountID = Account.getAccountID(metadata);
+            @Nullable AccountID accountID = AccountMetadataStore.getAccountID(metadata);
             if (accountID != null) {
                 accountIDs.add(accountID);
             }

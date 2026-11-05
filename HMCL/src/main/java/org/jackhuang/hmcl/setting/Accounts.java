@@ -3,6 +3,11 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.JsonObject;
+import org.glavo.uuid.UUIDs;
+import org.jackhuang.hmcl.auth.microsoft.MicrosoftSession;
+import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
+import org.jackhuang.hmcl.auth.offline.Skin;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.ObjectBinding;
@@ -10,24 +15,22 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.auth.*;
 import org.jackhuang.hmcl.auth.authlibinjector.*;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftAccount;
 import org.jackhuang.hmcl.auth.microsoft.MicrosoftService;
-import org.jackhuang.hmcl.auth.microsoft.MicrosoftSession;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
-import org.jackhuang.hmcl.auth.offline.Skin;
 import org.jackhuang.hmcl.auth.yggdrasil.CompleteGameProfile;
 import org.jackhuang.hmcl.auth.yggdrasil.RemoteAuthenticationException;
-import org.jackhuang.hmcl.auth.yggdrasil.YggdrasilSession;
 import org.jackhuang.hmcl.game.OAuthServer;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jackhuang.hmcl.util.io.JarUtils;
 import org.jackhuang.hmcl.util.skin.InvalidSkinException;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnmodifiableView;
+import org.jackhuang.hmcl.util.javafx.ObservableHelper;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
@@ -64,10 +67,71 @@ public final class Accounts {
         return ACCOUNT_SERVICE;
     }
 
-    private static final ObservableList<Account> accounts = observableArrayList(account -> new Observable[]{account});
+    /// The JavaFX projection of registered identities.
+    private static final ObservableList<Account> accounts = observableArrayList();
+    /// The stable read-only view observed by launcher controls.
+    private static final @UnmodifiableView ObservableList<Account> accountView = javafx.collections.FXCollections.unmodifiableObservableList(accounts);
+    /// UI invalidation sources contain no credentials and are owned by the adapter.
+    private static final Map<Account, ObservableHelper> observables = new IdentityHashMap<>();
+
+    /// Accounts stored with the launcher rather than in shared user storage.
+    private static final Set<Account> portableAccounts = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /// Adds an accepted or restored account on the JavaFX thread.
+    public static void add(Account account, boolean portable) {
+        if (accounts.contains(account)) throw new IllegalArgumentException("Duplicate account ID");
+        if (portable) portableAccounts.add(account);
+        account.setChangeListener(() -> accountChanged(account));
+        int index = portable ? (int) accounts.stream().filter(Accounts::isPortable).count() : accounts.size();
+        accounts.add(index, account);
+        updateAccountMetadataRecords();
+    }
+
+    /// Removes the exact account, detaches notifications, and rejects its outstanding authentication results.
+    public static void remove(Account account) {
+        if (accounts.stream().noneMatch(value -> value == account)) throw new IllegalStateException("Account is no longer registered");
+        account.setChangeListener(null);
+        account.invalidateAuthenticationResults();
+        portableAccounts.remove(account);
+        accounts.remove(account);
+        observables.remove(account);
+        updateAccountMetadataRecords();
+    }
+
+    /// Returns whether the account is stored with the launcher.
+    public static boolean isPortable(Account account) {
+        return portableAccounts.contains(account);
+    }
+
+    /// Moves storage without changing the account identity or its credentials; called on the JavaFX thread.
+    public static void setPortable(Account account, boolean portable) {
+        if (accounts.stream().noneMatch(value -> value == account)) throw new IllegalStateException("Account is no longer registered");
+        if (isPortable(account) == portable) return;
+        if (portable) portableAccounts.add(account);
+        else portableAccounts.remove(account);
+        // Rebuild list entries so storage labels and actions reflect the new location.
+        accounts.setAll(accounts.stream().sorted(Comparator.comparing(value -> !isPortable(value))).toList());
+        updateAccountMetadataRecords();
+    }
+
+    /// Adapts model changes to JavaFX and persists the currently registered account state.
+    private static void accountChanged(Account account) {
+        Runnable update = () -> {
+            if (accounts.stream().noneMatch(value -> value == account)) return;
+            @Nullable ObservableHelper observable = observables.get(account);
+            if (observable != null) observable.invalidate();
+            updateAccountMetadataRecords();
+        };
+        if (Platform.isFxApplicationThread()) update.run();
+        else Platform.runLater(update);
+    }
+
+    /// Returns a UI-only invalidation source; callers must use the JavaFX thread.
+    public static Observable observable(Account account) {
+        return observables.computeIfAbsent(account, ignored -> new ObservableHelper());
+    }
 
     /// Keeps quiet profile bindings alive while their account objects are in the account list.
-    /// Identity keys remain stable when an account's portability flag changes.
     private static final Map<Account, ObjectBinding<Optional<CompleteGameProfile>>> profileBindings = new IdentityHashMap<>();
 
     /// Tracks profile cache changes so refreshed private data is persisted independently of account notifications.
@@ -95,13 +159,81 @@ public final class Accounts {
      */
     private static boolean initialized = false;
 
+    /// Reads a required string in persisted metadata.
+    private static String required(JsonObject record, String key) {
+        @Nullable String value = JsonUtils.getString(record, key);
+        if (value == null) throw new IllegalArgumentException(key + " is missing");
+        return value;
+    }
+
+    /// Restores an identity even when its private credentials are unavailable.
+    private static Account readAccount(JsonObject metadata, JsonObject privateData) {
+        AccountID id = AccountMetadataStore.readAccountID(metadata);
+        AccountType type = AccountType.fromId(JsonUtils.getString(metadata, "type"));
+        if (type == AccountType.OFFLINE) {
+            String name = required(metadata, "profileName");
+            @Nullable String uuid = JsonUtils.getString(metadata, "profileID");
+            @Nullable Skin skin = Skin.fromStorage(metadata.get("skin") instanceof JsonObject value ? value : null);
+            return new OfflineAccount(id, name,
+                    uuid == null ? OfflineAccount.getUUIDFromUserName(name) : UUIDs.parse(uuid), skin);
+        }
+        UUID profileID = UUIDs.parse(required(metadata, "profileID"));
+        String name = JsonUtils.getString(privateData, "profileName", "");
+        if (type == AccountType.MICROSOFT) {
+            @Nullable MicrosoftSession session = privateData.has("refreshToken") ? MicrosoftSession.fromStorage(metadata, privateData) : null;
+            return new MicrosoftAccount(id, profileID, name, session);
+        }
+        @Nullable YggdrasilSession session = privateData.has("accessToken") ? YggdrasilSession.fromStorage(metadata, privateData) : null;
+        return new AuthlibInjectorAccount(id, getOrCreateAuthlibInjectorServer(required(metadata, "serverBaseURL")),
+                required(metadata, "loginName"), profileID, name, session);
+    }
+
+    /// Writes public identity and offline configuration without credentials.
+    private static JsonObject writeMetadata(Account account) {
+        JsonObject result = new JsonObject();
+        result.addProperty(AccountMetadataStore.PROPERTY_ACCOUNT_ID, account.getAccountID().toString());
+        result.addProperty("type", AccountType.of(account).id());
+        result.addProperty("profileID", account.getProfileID().toString());
+        if (account instanceof OfflineAccount offline) {
+            result.addProperty("profileName", offline.getProfileName());
+            @Nullable Skin skin = offline.getSkin();
+            if (skin == null) result.add("skin", com.google.gson.JsonNull.INSTANCE);
+            else {
+                JsonObject data = new JsonObject();
+                skin.writeStorage(data);
+                result.add("skin", data);
+            }
+        } else if (account instanceof AuthlibInjectorAccount injector) {
+            result.addProperty("serverBaseURL", injector.getServer().getUrl());
+            result.addProperty("loginName", injector.getLoginName());
+        }
+        return result;
+    }
+
+    /// Writes accepted credentials and the last known online display name.
+    private static JsonObject writePrivateData(Account account) {
+        JsonObject result = new JsonObject();
+        synchronized (account) {
+            if (account instanceof MicrosoftAccount microsoft) {
+                @Nullable MicrosoftSession session = microsoft.getSession();
+                if (session != null) session.writePrivateData(result);
+            } else if (account instanceof AuthlibInjectorAccount injector) {
+                @Nullable YggdrasilSession session = injector.getSession();
+                if (session != null) session.writePrivateData(result);
+            }
+            if (!(account instanceof OfflineAccount)) result.addProperty("profileName", account.getProfileName());
+        }
+        return result;
+    }
+
     /// Captures public metadata and currently cached private account data without fetching profiles.
     private static SerializedAccount serializeAccount(Account account) {
-        JsonObject metadata = new JsonObject();
-        metadata.addProperty("type", AccountType.of(account).id());
-        account.writeMetadata(metadata);
-        JsonObject privateData = new JsonObject();
-        ACCOUNT_SERVICE.writePrivateData(account, privateData);
+        JsonObject metadata = writeMetadata(account);
+        JsonObject privateData = writePrivateData(account);
+        if (!(account instanceof OfflineAccount)) {
+            ACCOUNT_SERVICE.getCachedProfile(account).ifPresent(profile ->
+                    privateData.add("profileProperties", JsonUtils.GSON.toJsonTree(profile.getProperties())));
+        }
         return new SerializedAccount(metadata, privateData);
     }
 
@@ -144,7 +276,7 @@ public final class Accounts {
     /// @param metadataRecords the metadata records to read
     private static void addAccountIDs(List<AccountID> accountIDs, List<JsonObject> metadataRecords) {
         for (JsonObject metadata : metadataRecords) {
-            @Nullable AccountID accountID = Account.getAccountID(metadata);
+            @Nullable AccountID accountID = AccountMetadataStore.getAccountID(metadata);
             if (accountID != null && !accountIDs.contains(accountID)) {
                 accountIDs.add(accountID);
             }
@@ -163,7 +295,7 @@ public final class Accounts {
 
         for (Account account : accounts) {
             SerializedAccount serialized = serializeAccount(account);
-            if (account.isPortable()) {
+            if (isPortable(account)) {
                 portableMetadata.add(serialized.metadata());
                 if (!serialized.privateData().isEmpty()) {
                     portablePrivateData.put(account.getAccountID(), serialized.privateData());
@@ -192,7 +324,7 @@ public final class Accounts {
 
     /// Returns whether the files containing the given account are read-only.
     public static boolean isAccountFilesReadOnly(Account account) {
-        return isAccountFilesReadOnly(account.isPortable());
+        return isAccountFilesReadOnly(isPortable(account));
     }
 
     /// Returns whether the given account may be removed from its current account files.
@@ -221,7 +353,7 @@ public final class Accounts {
     ///
     /// @throws IOException if saving either file fails
     public static void forceOverwriteAccountFiles(Account account) throws IOException {
-        forceOverwriteAccountFiles(account.isPortable());
+        forceOverwriteAccountFiles(isPortable(account));
     }
 
     /// Backs up and overwrites both local and user account metadata and credential files.
@@ -239,39 +371,19 @@ public final class Accounts {
     /// Restores an account and its cached profile, returning `null` for invalid persisted data.
     private static @Nullable Account parseAccount(JsonObject record, boolean portable) {
         try {
-            AccountID accountID = Account.readAccountID(record);
+            AccountID accountID = AccountMetadataStore.readAccountID(record);
             JsonObject privateData = SettingsManager.getAccountPrivateData(accountID, portable);
-            Account account = switch (AccountType.fromId(JsonUtils.getString(record, "type"))) {
-                case OFFLINE -> {
-                    String name = requireAccountString(record, "profileName");
-                    @Nullable String uuid = JsonUtils.getString(record, "profileID");
-                    UUID profileID = uuid == null ? OfflineAccount.getUUIDFromUserName(name) : UUIDs.parse(uuid);
-                    @Nullable Skin skin = Skin.fromStorage(record.get("skin") instanceof JsonObject value ? value : null);
-                    yield new OfflineAccount(accountID, name, profileID, skin);
-                }
-                case MICROSOFT -> new MicrosoftAccount(accountID, MicrosoftSession.fromStorage(record, privateData), false);
-                case AUTHLIB_INJECTOR -> new AuthlibInjectorAccount(accountID,
-                        getOrCreateAuthlibInjectorServer(requireAccountString(record, "serverBaseURL")),
-                        requireAccountString(record, "loginName"), YggdrasilSession.fromStorage(record, privateData));
-            };
+            Account account = readAccount(record, privateData);
             if (!(account instanceof OfflineAccount) && privateData.get("profileProperties") instanceof JsonObject propertiesObject) {
                 Map<String, String> properties = JsonUtils.GSON.fromJson(propertiesObject, JsonUtils.mapTypeOf(String.class, String.class));
                 ACCOUNT_SERVICE.restoreProfile(account, new CompleteGameProfile(account.getProfileID(), account.getProfileName(), properties));
             }
+            add(account, portable);
             return account;
         } catch (Exception e) {
             LOG.warning("Failed to load account: " + describeAccountRecord(record), e);
             return null;
         }
-    }
-
-    /// Reads a required primitive member of persisted account metadata as a string.
-    ///
-    /// @throws IllegalArgumentException if the member is missing, null, or cannot be read as a string
-    private static String requireAccountString(JsonObject record, String name) {
-        @Nullable String value = JsonUtils.getString(record, name);
-        if (value == null) throw new IllegalArgumentException(name + " is missing");
-        return value;
     }
 
     /// Serialized account metadata and private data.
@@ -283,7 +395,7 @@ public final class Accounts {
 
     /// Returns a safe account record description for diagnostics.
     private static String describeAccountRecord(JsonObject record) {
-        AccountID accountID = Account.getAccountID(record);
+        AccountID accountID = AccountMetadataStore.getAccountID(record);
         if (accountID != null) {
             return accountID.toString();
         }
@@ -318,8 +430,8 @@ public final class Accounts {
         for (JsonObject record : getAccountMetadataRecords()) {
             Account account = parseAccount(record, true);
             if (account != null) {
-                account.setPortable(true);
-                accounts.add(account);
+
+                if (!accounts.contains(account)) accounts.add(account);
                 if (JsonUtils.getBoolean(record, "selected", false)) {
                     selected = account;
                 }
@@ -329,7 +441,7 @@ public final class Accounts {
         for (JsonObject record : getUserAccountMetadataRecords()) {
             Account account = parseAccount(record, false);
             if (account != null) {
-                accounts.add(account);
+                if (!accounts.contains(account)) accounts.add(account);
             }
         }
 
@@ -407,7 +519,6 @@ public final class Accounts {
                 settings().selectedAccountProperty().set(null);
         }));
         accounts.addListener(listener);
-        accounts.addListener(onInvalidating(Accounts::updateAccountMetadataRecords));
 
         initialized = true;
 
@@ -437,8 +548,8 @@ public final class Accounts {
         }
     }
 
-    public static ObservableList<Account> getAccounts() {
-        return accounts;
+    public static @UnmodifiableView ObservableList<Account> getAccounts() {
+        return accountView;
     }
 
     public static Account getSelectedAccount() {
@@ -492,7 +603,7 @@ public final class Accounts {
                 .filter(it -> !getAuthlibInjectorServers().contains(it.getServer()))
                 .filter(Accounts::canRemoveAccount)
                 .collect(toList())
-                .forEach(accounts::remove);
+                .forEach(Accounts::remove);
     }
     // ====
 
@@ -572,7 +683,7 @@ public final class Accounts {
             return i18n("account.methods.microsoft.error.add_family");
         } else if (exception instanceof OAuthServer.MicrosoftAuthenticationNotSupportedException) {
             return i18n("account.methods.microsoft.snapshot");
-        } else if (exception instanceof OAuthAccount.WrongAccountException) {
+        } else if (exception instanceof WrongAccountException) {
             return i18n("account.failed.wrong_account");
         } else if (exception.getClass() == AuthenticationException.class) {
             return exception.getLocalizedMessage();

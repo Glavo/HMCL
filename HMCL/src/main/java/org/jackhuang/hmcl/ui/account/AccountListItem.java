@@ -13,9 +13,9 @@ import javafx.scene.control.Skin;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import org.jackhuang.hmcl.auth.AccountType;
+import org.jackhuang.hmcl.auth.AccountService;
 import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AuthenticationException;
-import org.jackhuang.hmcl.auth.ClassicAccount;
 import org.jackhuang.hmcl.auth.CredentialExpiredException;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorAccount;
 import org.jackhuang.hmcl.auth.authlibinjector.AuthlibInjectorServer;
@@ -57,7 +57,7 @@ public class AccountListItem extends RadioButton {
         setUserData(account);
 
         String loginTypeName = Accounts.getLocalizedLoginTypeName(AccountType.of(account));
-        String portableSuffix = account.isPortable() ? ", " + i18n("account.portable") : "";
+        String portableSuffix = Accounts.isPortable(account) ? ", " + i18n("account.portable") : "";
         if (account instanceof AuthlibInjectorAccount) {
             AuthlibInjectorServer server = ((AuthlibInjectorAccount) account).getServer();
             subtitle.bind(Bindings.concat(
@@ -70,8 +70,8 @@ public class AccountListItem extends RadioButton {
         StringBinding profileName = Bindings.createStringBinding(() -> {
             String name = account.getProfileName();
             return StringUtils.isBlank(name) ? account.getProfileID().toString() : name;
-        }, account);
-        if (account instanceof ClassicAccount classicAccount) {
+        }, Accounts.observable(account));
+        if (account instanceof AuthlibInjectorAccount classicAccount) {
             title.bind(Bindings.concat(profileName, " - ", classicAccount.getLoginName()));
         } else {
             title.bind(profileName);
@@ -109,7 +109,7 @@ public class AccountListItem extends RadioButton {
             ObjectBinding<Optional<CompleteGameProfile>> profile = Accounts.getAccountService().getProfile(aiAccount);
             return createBooleanBinding(() -> {
                 Set<TextureType> uploadableTextures = profile.get()
-                        .map(AuthlibInjectorAccount::getUploadableTextures)
+                        .map(AccountService::getUploadableTextures)
                         .orElse(emptySet());
                 return uploadableTextures.contains(TextureType.SKIN);
             }, profile);
@@ -172,12 +172,12 @@ public class AccountListItem extends RadioButton {
         if (!Accounts.canRemoveAccount(account)) {
             Controllers.confirmBackupAndOverwrite(i18n("account.storage.read_only"), () -> {
                 Accounts.forceOverwriteAccountFiles(account);
-                Accounts.getAccounts().remove(account);
+                Accounts.remove(account);
             });
             return;
         }
 
-        Accounts.getAccounts().remove(account);
+        Accounts.remove(account);
     }
 
     public Account getAccount() {

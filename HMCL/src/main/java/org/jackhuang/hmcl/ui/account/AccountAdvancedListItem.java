@@ -48,7 +48,7 @@ public class AccountAdvancedListItem extends AdvancedListItem {
                 titleProperty().bind(createStringBinding(() -> {
                     String profileName = account.getProfileName();
                     return StringUtils.isBlank(profileName) ? account.getProfileID().toString() : profileName;
-                }, account));
+                }, Accounts.observable(account)));
                 subtitleProperty().bind(accountSubtitle(account));
                 uninstallTooltip();
                 TexturesLoader.bindAvatar(canvas, account);

@@ -3,6 +3,9 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.JsonObject;
+import org.jackhuang.hmcl.auth.AccountID;
+import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.jetbrains.annotations.Nullable;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.ObjectProperty;
@@ -25,6 +28,24 @@ import java.util.Objects;
 @NotNullByDefault
 @JsonSerializable
 final class AccountMetadataStore extends ObservableSetting implements JsonSchemaSetting {
+    /// The stable identifier field in account metadata.
+    static final String PROPERTY_ACCOUNT_ID = "accountID";
+
+    /// Returns a valid stored account identifier, or null when missing or malformed.
+    static @Nullable AccountID getAccountID(JsonObject record) {
+        @Nullable String value = JsonUtils.getString(record, PROPERTY_ACCOUNT_ID);
+        if (value == null) return null;
+        try { return AccountID.parse(value); }
+        catch (IllegalArgumentException e) { return null; }
+    }
+
+    /// Reads a required stored account identifier.
+    static AccountID readAccountID(JsonObject record) {
+        @Nullable AccountID id = getAccountID(record);
+        if (id == null) throw new IllegalArgumentException("Invalid accountID");
+        return id;
+    }
+
     /// The JSON schema supported by this account metadata store.
     static final JsonSchema CURRENT_SCHEMA =
             new JsonSchema("accounts", new JsonSchema.Version(1, 0, 0));

@@ -7,7 +7,6 @@ import com.google.common.jimfs.Jimfs;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.glavo.uuid.UUIDs;
-import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.util.FileSaver;
@@ -543,7 +542,7 @@ public final class AccountMetadataStoreTest {
         assertEquals(legacyAccountID(false, "Alex:Alex"), JsonUtils.getString(offlineAccount, "accountID"));
         assertFalse(offlineAccount.has("username"));
         assertFalse(offlineAccount.has("uuid"));
-        AccountID offlineAccountID = Objects.requireNonNull(Account.getAccountID(offlineAccount));
+        AccountID offlineAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(offlineAccount));
         assertNull(AccountPrivateData.findPrivateData(offlineAccountID, List.of(privateData)));
 
         JsonObject microsoftAccount = accountMetadata.getAccounts().get(1);
@@ -565,13 +564,13 @@ public final class AccountMetadataStoreTest {
         assertFalse(yggdrasilAccount.has("displayName"));
         assertFalse(yggdrasilAccount.has("profileName"));
 
-        AccountID microsoftAccountID = Objects.requireNonNull(Account.getAccountID(microsoftAccount));
+        AccountID microsoftAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(microsoftAccount));
         assertEquals(JsonUtils.getString(microsoftAccount, "accountID"), microsoftAccountID.toString());
         JsonObject microsoftPrivateData = privateData.getPrivateData().get(microsoftAccountID);
         assertEquals("Steve", JsonUtils.getString(microsoftPrivateData, "profileName"));
         assertEquals("access-token", JsonUtils.getString(microsoftPrivateData, "accessToken"));
 
-        AccountID yggdrasilAccountID = Objects.requireNonNull(Account.getAccountID(yggdrasilAccount));
+        AccountID yggdrasilAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(yggdrasilAccount));
         JsonObject yggdrasilPrivateData = privateData.getPrivateData().get(yggdrasilAccountID);
         assertEquals("Steve", JsonUtils.getString(yggdrasilPrivateData, "profileName"));
     }
@@ -648,7 +647,7 @@ public final class AccountMetadataStoreTest {
         AccountPrivateData privateData = migratedAccounts.privateData();
 
         JsonObject microsoftMetadata = migratedAccounts.metadata().getAccounts().get(0);
-        AccountID microsoftAccountID = Objects.requireNonNull(Account.getAccountID(microsoftMetadata));
+        AccountID microsoftAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(microsoftMetadata));
         assertFalse(microsoftMetadata.has("profileName"));
         assertFalse(microsoftMetadata.has("accessToken"));
         assertFalse(microsoftMetadata.has("refreshToken"));
@@ -664,7 +663,7 @@ public final class AccountMetadataStoreTest {
         assertEquals("user-id", JsonUtils.getString(microsoftPrivateData, "userid"));
 
         JsonObject yggdrasilMetadata = migratedAccounts.metadata().getAccounts().get(1);
-        AccountID yggdrasilAccountID = Objects.requireNonNull(Account.getAccountID(yggdrasilMetadata));
+        AccountID yggdrasilAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(yggdrasilMetadata));
         assertFalse(yggdrasilMetadata.has("profileName"));
         assertFalse(yggdrasilMetadata.has("accessToken"));
         assertFalse(yggdrasilMetadata.has("clientToken"));
@@ -677,7 +676,7 @@ public final class AccountMetadataStoreTest {
                 JsonUtils.getString(yggdrasilPrivateData.getAsJsonObject("userProperties"), "preferredLanguage"));
 
         JsonObject authlibInjectorMetadata = migratedAccounts.metadata().getAccounts().get(2);
-        AccountID authlibInjectorAccountID = Objects.requireNonNull(Account.getAccountID(authlibInjectorMetadata));
+        AccountID authlibInjectorAccountID = Objects.requireNonNull(AccountMetadataStore.getAccountID(authlibInjectorMetadata));
         assertFalse(authlibInjectorMetadata.has("profileName"));
         assertFalse(authlibInjectorMetadata.has("profileProperties"));
         JsonObject authlibInjectorPrivateData = privateData.getPrivateData().get(authlibInjectorAccountID);

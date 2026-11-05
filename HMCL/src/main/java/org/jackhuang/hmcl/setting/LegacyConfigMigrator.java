@@ -5,7 +5,6 @@ package org.jackhuang.hmcl.setting;
 import com.google.gson.*;
 import org.glavo.uuid.UUIDs;
 import org.jackhuang.hmcl.Metadata;
-import org.jackhuang.hmcl.auth.Account;
 import org.jackhuang.hmcl.auth.AccountID;
 import org.jackhuang.hmcl.auth.offline.OfflineAccount;
 import org.jackhuang.hmcl.theme.BuiltinBackground;
@@ -496,7 +495,7 @@ public final class LegacyConfigMigrator {
             JsonObject metadata = migrated.metadata();
             metadata.remove("selected");
             AccountID accountID = createLegacyAccountID(metadata, userStorage);
-            metadata.addProperty(Account.PROPERTY_ACCOUNT_ID, accountID.toString());
+            metadata.addProperty(AccountMetadataStore.PROPERTY_ACCOUNT_ID, accountID.toString());
 
             if (!migrated.privateData().isEmpty()) {
                 privateData.putPrivateData(accountID, migrated.privateData());
@@ -517,18 +516,18 @@ public final class LegacyConfigMigrator {
         boolean changed = false;
         for (JsonObject account : accountMetadata.getAccounts()) {
             JsonObject updatedAccount = account.deepCopy();
-            @Nullable AccountID existing = parseAccountID(JsonUtils.getString(account, Account.PROPERTY_ACCOUNT_ID));
+            @Nullable AccountID existing = parseAccountID(JsonUtils.getString(account, AccountMetadataStore.PROPERTY_ACCOUNT_ID));
             if (existing != null && usedAccountIDs.add(existing.toString())) {
-                updatedAccount.addProperty(Account.PROPERTY_ACCOUNT_ID, existing.toString());
-                changed |= !Objects.equals(JsonUtils.getString(account, Account.PROPERTY_ACCOUNT_ID), existing.toString());
+                updatedAccount.addProperty(AccountMetadataStore.PROPERTY_ACCOUNT_ID, existing.toString());
+                changed |= !Objects.equals(JsonUtils.getString(account, AccountMetadataStore.PROPERTY_ACCOUNT_ID), existing.toString());
                 updatedAccounts.add(updatedAccount);
                 continue;
             }
 
             AccountID accountID = createLegacyAccountID(account, userStorage);
-            updatedAccount.addProperty(Account.PROPERTY_ACCOUNT_ID, accountID.toString());
+            updatedAccount.addProperty(AccountMetadataStore.PROPERTY_ACCOUNT_ID, accountID.toString());
             usedAccountIDs.add(accountID.toString());
-            changed |= !Objects.equals(JsonUtils.getString(account, Account.PROPERTY_ACCOUNT_ID), accountID.toString());
+            changed |= !Objects.equals(JsonUtils.getString(account, AccountMetadataStore.PROPERTY_ACCOUNT_ID), accountID.toString());
             updatedAccounts.add(updatedAccount);
         }
 

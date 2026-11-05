@@ -15,7 +15,6 @@ import org.jackhuang.hmcl.game.OAuthServer;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies interactive credentials remain detached until explicitly accepted.
 @NotNullByDefault
-@EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 public final class AccountReauthenticationTest {
     /// Fails if a test unexpectedly requests injector resources.
     @NotNullByDefault
@@ -67,64 +65,66 @@ public final class AccountReauthenticationTest {
                 new MicrosoftSession.User("user"), new MicrosoftSession.GameProfile(profile, "Player"));
     }
 
-    /// Verifies acceptance updates the original object without changing identity or storage settings.
+    /// Credentials stay detached until accepted and preserve the original identity.
     @Test
     public void acceptsDetachedCredentialsForSameAccount() throws Exception {
         UUID profile = UUID.randomUUID();
-        MicrosoftAccount original = new MicrosoftAccount(AccountID.generate(), session(profile, "old-token"), false);
-        original.setPortable(true);
+        MicrosoftAccount original = new MicrosoftAccount(AccountID.generate(), profile, "Player", session(profile, "old-token"));
         MicrosoftStub protocol = new MicrosoftStub(session(profile, "new-token"));
         AccountService service = new AccountService(new UnusedArtifacts(), protocol);
         OAuth.Callback callback = new OAuthServer.Factory();
-        MicrosoftAccount candidate = service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, callback);
+        AuthenticationResult candidate = service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, callback);
         assertSame(callback, protocol.receivedCallback);
-        assertNotSame(original, candidate);
-        assertEquals(original.getAccountID(), candidate.getAccountID());
-        assertTrue(candidate.isPortable());
-        assertEquals("old-token", original.getSession().accessToken());
+        assertSame(original, candidate.account());
+        assertEquals("old-token", original.requireSession().accessToken());
         assertFalse(original.isAuthenticated());
-        service.acceptReauthentication(original, candidate);
-        assertEquals("new-token", original.getSession().accessToken());
+        assertSame(original, candidate.accept());
+        assertEquals("new-token", original.requireSession().accessToken());
         assertTrue(original.isAuthenticated());
-        assertTrue(original.isPortable());
     }
 
-    /// Verifies wrong profiles and unrelated account IDs cannot overwrite the original credentials.
+    /// Wrong profiles cannot overwrite accepted credentials.
     @Test
-    public void rejectsDifferentIdentityWithoutChangingOriginal() {
+    public void rejectsDifferentIdentityWithoutChangingOriginal() throws Exception {
         UUID profile = UUID.randomUUID();
         MicrosoftSession initial = session(profile, "old-token");
-        MicrosoftAccount original = new MicrosoftAccount(AccountID.generate(), initial, false);
+        MicrosoftAccount original = new MicrosoftAccount(AccountID.generate(), profile, "Player", initial);
         AccountService service = new AccountService(new UnusedArtifacts(), new MicrosoftStub(session(UUID.randomUUID(), "new-token")));
-        assertThrows(OAuthAccount.WrongAccountException.class,
+        assertThrows(WrongAccountException.class,
                 () -> service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, new OAuthServer.Factory()));
-        assertThrows(IllegalArgumentException.class, () -> service.acceptReauthentication(original,
-                new MicrosoftAccount(AccountID.generate(), session(profile, "another-token"), true)));
         assertSame(initial, original.getSession());
         assertFalse(original.isAuthenticated());
     }
 
-    /// Verifies external acceptance checks the server and login identity before replacing credentials.
+    /// Later accepted credentials and explicit invalidation reject older authentication attempts.
+    @Test
+    public void rejectsObsoleteResults() throws Exception {
+        UUID profile = UUID.randomUUID();
+        MicrosoftAccount original = new MicrosoftAccount(AccountID.generate(), profile, "Player", session(profile, "old"));
+        AccountService service = new AccountService(new UnusedArtifacts(), new MicrosoftStub(session(profile, "new")));
+        AuthenticationResult first = service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, new OAuthServer.Factory());
+        AuthenticationResult second = service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, new OAuthServer.Factory());
+        second.accept();
+        assertThrows(IllegalStateException.class, first::accept);
+        AuthenticationResult pending = service.reauthenticateMicrosoftAccount(original, OAuth.GrantFlow.DEVICE, new OAuthServer.Factory());
+        original.invalidateAuthenticationResults();
+        assertThrows(IllegalStateException.class, pending::accept);
+        assertEquals("new", original.requireSession().accessToken());
+    }
+
+    /// External credentials update display data without changing the server, login name, or profile identity.
     @Test
     public void preservesExternalIdentityOnAcceptance() throws Exception {
         UUID profile = UUID.randomUUID();
         AuthlibInjectorServer server = new AuthlibInjectorServer("https://example.invalid/auth/");
-        AuthlibInjectorAccount original = new AuthlibInjectorAccount(AccountID.generate(), server, "user",
+        AuthlibInjectorAccount original = new AuthlibInjectorAccount(AccountID.generate(), server, "user", profile, "Player",
                 new YggdrasilSession("client", "old-token", new GameProfile(profile, "Player"), null, null));
-        original.setPortable(true);
         YggdrasilSession replacement = new YggdrasilSession("client", "new-token", new GameProfile(profile, "Renamed"), null, null);
-        AccountService service = new AccountService(new UnusedArtifacts(), new MicrosoftStub(session(profile, "unused")));
-        assertThrows(IllegalArgumentException.class, () -> service.acceptReauthentication(original,
-                new AuthlibInjectorAccount(original.getAccountID(), new AuthlibInjectorServer("https://other.invalid/"), "user", replacement)));
-        assertThrows(IllegalArgumentException.class, () -> service.acceptReauthentication(original,
-                new AuthlibInjectorAccount(original.getAccountID(), server, "other-user", replacement)));
-        assertEquals("old-token", original.getSession().getAccessToken());
-        AuthlibInjectorAccount candidate = new AuthlibInjectorAccount(original.getAccountID(), server, "user", replacement);
-        service.acceptReauthentication(original, candidate);
+        new AuthenticationResult(original, null, replacement, original.getAuthenticationRevision()).accept();
         assertSame(replacement, original.getSession());
         assertEquals("Renamed", original.getProfileName());
+        assertSame(server, original.getServer());
+        assertEquals("user", original.getLoginName());
         assertEquals(profile, original.getProfileID());
-        assertTrue(original.isPortable());
     }
-
 }
