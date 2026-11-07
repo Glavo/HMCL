@@ -39,12 +39,16 @@ import java.util.Objects;
 @NotNullByDefault
 public class M3Switch extends Control {
 
+    // Constructors
+
     /// Creates an unselected switch.
     public M3Switch() {
         getStyleClass().setAll("m3-switch");
         setFocusTraversable(true);
         setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
     }
+
+    // Properties
 
     /// Selection before its observable property is requested.
     private boolean selectedValue;
@@ -81,24 +85,21 @@ public class M3Switch extends Control {
         return selected;
     }
 
-    /// Returns whether selection is bound without allocating its property.
-    public final boolean isSelectionBound() {
-        return selected != null && selected.isBound();
-    }
-
-    /// Validates bound selection and notifies CSS, accessibility, and the installed skin.
-    private void updateSelected() {
-        pseudoClassStateChanged(SELECTED, isSelected());
-        notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED);
-        if (getSkin() instanceof M3SwitchSkin skin)
-            skin.updateSelection();
-    }
-
     /// Activation state before its observable property is requested.
     private boolean armedValue;
 
     /// Optional observable activation state.
     private @Nullable ReadOnlyBooleanWrapper armed;
+
+    /// Changes input feedback without allocating its observable wrapper.
+    private void setArmed(boolean value) {
+        if (armed != null) {
+            armed.set(value);
+        } else if (armedValue != value) {
+            armedValue = value;
+            updateArmed();
+        }
+    }
 
     /// Returns whether the switch is armed.
     public final boolean isArmed() {
@@ -117,23 +118,6 @@ public class M3Switch extends Control {
             };
         }
         return armed.getReadOnlyProperty();
-    }
-
-    /// Changes input feedback without allocating its observable wrapper.
-    private void setArmed(boolean value) {
-        if (armed != null) {
-            armed.set(value);
-        } else if (armedValue != value) {
-            armedValue = value;
-            updateArmed();
-        }
-    }
-
-    /// Validates activation state and updates CSS and the installed skin.
-    private void updateArmed() {
-        pseudoClassStateChanged(ARMED, isArmed());
-        if (getSkin() instanceof M3SwitchSkin skin)
-            skin.updateArmed();
     }
 
     /// Optional action handler.
@@ -257,6 +241,13 @@ public class M3Switch extends Control {
         return disableAnimation;
     }
 
+    // Methods
+
+    /// Returns whether selection is bound without allocating its property.
+    public final boolean isSelectionBound() {
+        return selected != null && selected.isBound();
+    }
+
     /// Arms input feedback unless the switch is disabled or its selection is bound.
     public final void arm() {
         if (!isDisabled() && !isSelectionBound())
@@ -282,10 +273,21 @@ public class M3Switch extends Control {
         return new M3SwitchSkin(this);
     }
 
-    /// Supplies component styling; the containing scene must provide the Monet palette.
-    @Override
-    public String getUserAgentStylesheet() {
-        return Objects.requireNonNull(M3Switch.class.getResource("/assets/css/m3-switch.css")).toExternalForm();
+    // Implementation
+
+    /// Validates bound selection and notifies CSS, accessibility, and the installed skin.
+    private void updateSelected() {
+        pseudoClassStateChanged(SELECTED, isSelected());
+        notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED);
+        if (getSkin() instanceof M3SwitchSkin skin)
+            skin.updateSelection();
+    }
+
+    /// Validates activation state and updates CSS and the installed skin.
+    private void updateArmed() {
+        pseudoClassStateChanged(ARMED, isArmed());
+        if (getSkin() instanceof M3SwitchSkin skin)
+            skin.updateArmed();
     }
 
     /// Creates a property that updates the skin, optionally settling active animations.
@@ -300,6 +302,8 @@ public class M3Switch extends Control {
             }
         };
     }
+
+    // Stylesheet handling
 
     /// Indicates that the switch is selected.
     private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
@@ -342,6 +346,14 @@ public class M3Switch extends Control {
     public @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
+
+    /// Supplies component styling; the containing scene must provide the Monet palette.
+    @Override
+    public String getUserAgentStylesheet() {
+        return Objects.requireNonNull(M3Switch.class.getResource("/assets/css/m3-switch.css")).toExternalForm();
+    }
+
+    // Accessibility handling
 
     /// Exposes selection to assistive technology.
     @Override

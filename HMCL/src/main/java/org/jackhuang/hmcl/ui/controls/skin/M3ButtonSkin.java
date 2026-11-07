@@ -25,6 +25,9 @@ import org.jetbrains.annotations.Nullable;
 /// Renders a labeled MD3 button with a bounded, uniform state layer and independent input handling.
 @NotNullByDefault
 public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
+
+    // Fields
+
     /// Keyboard-focus indication shared with the switch.
     private static final PseudoClass VISUAL_FOCUSED = PseudoClass.getPseudoClass("visual-focused");
 
@@ -73,6 +76,8 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
     /// Tracks a scene moving between windows.
     private final ChangeListener<@Nullable Window> windowListener = (observable, oldValue, newValue) -> updateWindow(newValue);
 
+    // Constructors
+
     /// Installs artwork, gesture handling, and lifecycle cleanup.
     public M3ButtonSkin(M3ButtonBase control) {
         super(control);
@@ -94,6 +99,38 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
         updateScene(control.getScene());
     }
 
+    // Public API
+
+    /// Removes input and scene listeners before releasing labeled content.
+    @Override
+    public void dispose() {
+        M3ButtonBase control = getSkinnable();
+        disposed = true;
+        updateScene(null);
+        control.removeEventFilter(MouseEvent.ANY, mouseHandler);
+        control.removeEventHandler(KeyEvent.ANY, keyHandler);
+        control.pseudoClassStateChanged(VISUAL_FOCUSED, false);
+        super.dispose();
+    }
+
+    /// Registers scene key handling only while the button has a default or cancel role.
+    /// Called directly by role-property invalidation without requesting those properties.
+    public void updateSceneActions() {
+        @Nullable Scene target = !disposed && (getSkinnable().isDefaultButton() || getSkinnable().isCancelButton()) ? scene : null;
+        if (actionScene == target)
+            return;
+        if (actionScene != null && sceneKeyHandler != null)
+            actionScene.removeEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
+        actionScene = target;
+        if (actionScene != null) {
+            if (sceneKeyHandler == null)
+                sceneKeyHandler = this::handleSceneKey;
+            actionScene.addEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
+        }
+    }
+
+    // Layout and sizing
+
     /// Restores artwork when labeled content changes, including during superclass construction.
     @Override
     protected void updateChildren() {
@@ -105,15 +142,6 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
         if (focusRing == null)
             focusRing = artwork("button-focus-ring");
         getChildren().addAll(0, java.util.List.of(container, stateLayer, focusRing));
-    }
-
-    /// Creates a skin-owned decoration that cannot intercept input or affect content measurement.
-    private static Region artwork(String styleClass) {
-        Region region = new Region();
-        region.getStyleClass().setAll(styleClass);
-        region.setManaged(false);
-        region.setMouseTransparent(true);
-        return region;
     }
 
     /// Centers the 40-pixel visual within its 48-pixel target and lays out standard labeled content.
@@ -168,6 +196,17 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
             default -> 0;
         };
         return 4 + offset + super.computeBaselineOffset(top, right, bottom, left);
+    }
+
+    // Implementation
+
+    /// Creates a skin-owned decoration that cannot intercept input or affect content measurement.
+    private static Region artwork(String styleClass) {
+        Region region = new Region();
+        region.getStyleClass().setAll(styleClass);
+        region.setManaged(false);
+        region.setMouseTransparent(true);
+        return region;
     }
 
     /// Arms primary presses and activates only when released inside the target.
@@ -268,22 +307,6 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
         updateWindow(scene == null ? null : scene.getWindow());
     }
 
-    /// Registers scene key handling only while the button has a default or cancel role.
-    /// Called directly by role-property invalidation without requesting those properties.
-    public void updateSceneActions() {
-        @Nullable Scene target = !disposed && (getSkinnable().isDefaultButton() || getSkinnable().isCancelButton()) ? scene : null;
-        if (actionScene == target)
-            return;
-        if (actionScene != null && sceneKeyHandler != null)
-            actionScene.removeEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
-        actionScene = target;
-        if (actionScene != null) {
-            if (sceneKeyHandler == null)
-                sceneKeyHandler = this::handleSceneKey;
-            actionScene.addEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
-        }
-    }
-
     /// Moves deactivation listeners without retaining old windows.
     private void updateWindow(@Nullable Window value) {
         cancelGesture();
@@ -303,17 +326,5 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
         mouseDown = false;
         keyDown = null;
         getSkinnable().disarm();
-    }
-
-    /// Removes input and scene listeners before releasing labeled content.
-    @Override
-    public void dispose() {
-        M3ButtonBase control = getSkinnable();
-        disposed = true;
-        updateScene(null);
-        control.removeEventFilter(MouseEvent.ANY, mouseHandler);
-        control.removeEventHandler(KeyEvent.ANY, keyHandler);
-        control.pseudoClassStateChanged(VISUAL_FOCUSED, false);
-        super.dispose();
     }
 }

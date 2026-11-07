@@ -25,23 +25,8 @@ import java.util.Objects;
 /// Default and cancel buttons handle unconsumed Enter and Escape events in their scene.
 @NotNullByDefault
 public abstract class M3ButtonBase extends ButtonBase {
-    /// Latest visual emphasis, also retained before the observable property is requested.
-    private @Nullable M3ButtonVariant variantValue = M3ButtonVariant.FILLED;
 
-    /// Optional observable visual emphasis.
-    private @Nullable ObjectProperty<@Nullable M3ButtonVariant> variant;
-
-    /// Default-action role before the observable property is requested.
-    private boolean defaultButtonValue;
-
-    /// Optional observable default-action role.
-    private @Nullable BooleanProperty defaultButton;
-
-    /// Cancel-action role before the observable property is requested.
-    private boolean cancelButtonValue;
-
-    /// Optional observable cancel-action role.
-    private @Nullable BooleanProperty cancelButton;
+    // Constructors
 
     /// Creates an empty filled button.
     protected M3ButtonBase() {
@@ -75,10 +60,13 @@ public abstract class M3ButtonBase extends ButtonBase {
         setVariant(variant);
     }
 
-    /// Returns the effective visual emphasis without allocating its property.
-    public final M3ButtonVariant getVariant() {
-        return Objects.requireNonNullElse(variant == null ? variantValue : variant.get(), M3ButtonVariant.FILLED);
-    }
+    // Properties
+
+    /// Latest visual emphasis, also retained before the observable property is requested.
+    private @Nullable M3ButtonVariant variantValue = M3ButtonVariant.FILLED;
+
+    /// Optional observable visual emphasis.
+    private @Nullable ObjectProperty<@Nullable M3ButtonVariant> variant;
 
     /// Sets the visual emphasis; null restores FILLED.
     public final void setVariant(@Nullable M3ButtonVariant value) {
@@ -87,6 +75,11 @@ public abstract class M3ButtonBase extends ButtonBase {
         } else {
             variant.set(value);
         }
+    }
+
+    /// Returns the effective visual emphasis without allocating its property.
+    public final M3ButtonVariant getVariant() {
+        return Objects.requireNonNullElse(variant == null ? variantValue : variant.get(), M3ButtonVariant.FILLED);
     }
 
     /// Returns the visual-emphasis property, allocating it on first access and preserving the current value.
@@ -103,21 +96,11 @@ public abstract class M3ButtonBase extends ButtonBase {
         return variant;
     }
 
-    /// Retains the raw value and updates only the two CSS states affected by an emphasis change.
-    private void updateVariant(@Nullable M3ButtonVariant value) {
-        M3ButtonVariant previous = Objects.requireNonNullElse(variantValue, M3ButtonVariant.FILLED);
-        variantValue = value;
-        M3ButtonVariant current = Objects.requireNonNullElse(value, M3ButtonVariant.FILLED);
-        if (previous != current) {
-            pseudoClassStateChanged(previous.pseudoClass(), false);
-            pseudoClassStateChanged(current.pseudoClass(), true);
-        }
-    }
+    /// Default-action role before the observable property is requested.
+    private boolean defaultButtonValue;
 
-    /// Returns whether this is a default action without allocating its property.
-    public final boolean isDefaultButton() {
-        return defaultButton == null ? defaultButtonValue : defaultButton.get();
-    }
+    /// Optional observable default-action role.
+    private @Nullable BooleanProperty defaultButton;
 
     /// Enables or disables scene-level Enter activation.
     public final void setDefaultButton(boolean value) {
@@ -127,6 +110,11 @@ public abstract class M3ButtonBase extends ButtonBase {
             defaultButtonValue = value;
             updateDefaultButton();
         }
+    }
+
+    /// Returns whether this is a default action without allocating its property.
+    public final boolean isDefaultButton() {
+        return defaultButton == null ? defaultButtonValue : defaultButton.get();
     }
 
     /// Returns the default-action property, allocating it on first access and preserving the current value.
@@ -143,17 +131,11 @@ public abstract class M3ButtonBase extends ButtonBase {
         return defaultButton;
     }
 
-    /// Reflects the default role in CSS and updates the installed skin's scene handler.
-    private void updateDefaultButton() {
-        pseudoClassStateChanged(PseudoClass.getPseudoClass("default"), isDefaultButton());
-        if (getSkin() instanceof M3ButtonSkin skin)
-            skin.updateSceneActions();
-    }
+    /// Cancel-action role before the observable property is requested.
+    private boolean cancelButtonValue;
 
-    /// Returns whether this is a cancel action without allocating its property.
-    public final boolean isCancelButton() {
-        return cancelButton == null ? cancelButtonValue : cancelButton.get();
-    }
+    /// Optional observable cancel-action role.
+    private @Nullable BooleanProperty cancelButton;
 
     /// Enables or disables scene-level Escape activation.
     public final void setCancelButton(boolean value) {
@@ -163,6 +145,11 @@ public abstract class M3ButtonBase extends ButtonBase {
             cancelButtonValue = value;
             updateCancelButton();
         }
+    }
+
+    /// Returns whether this is a cancel action without allocating its property.
+    public final boolean isCancelButton() {
+        return cancelButton == null ? cancelButtonValue : cancelButton.get();
     }
 
     /// Returns the cancel-action property, allocating it on first access and preserving the current value.
@@ -179,12 +166,7 @@ public abstract class M3ButtonBase extends ButtonBase {
         return cancelButton;
     }
 
-    /// Reflects the cancel role in CSS and updates the installed skin's scene handler.
-    private void updateCancelButton() {
-        pseudoClassStateChanged(PseudoClass.getPseudoClass("cancel"), isCancelButton());
-        if (getSkin() instanceof M3ButtonSkin skin)
-            skin.updateSceneActions();
-    }
+    // Methods
 
     /// Fires one action unless disabled, including activation by assistive technology or a mnemonic.
     @Override
@@ -198,6 +180,35 @@ public abstract class M3ButtonBase extends ButtonBase {
     protected Skin<?> createDefaultSkin() {
         return new M3ButtonSkin(this);
     }
+
+    // Implementation
+
+    /// Retains the raw value and updates only the two CSS states affected by an emphasis change.
+    private void updateVariant(@Nullable M3ButtonVariant value) {
+        M3ButtonVariant previous = Objects.requireNonNullElse(variantValue, M3ButtonVariant.FILLED);
+        variantValue = value;
+        M3ButtonVariant current = Objects.requireNonNullElse(value, M3ButtonVariant.FILLED);
+        if (previous != current) {
+            pseudoClassStateChanged(previous.pseudoClass(), false);
+            pseudoClassStateChanged(current.pseudoClass(), true);
+        }
+    }
+
+    /// Reflects the default role in CSS and updates the installed skin's scene handler.
+    private void updateDefaultButton() {
+        pseudoClassStateChanged(PseudoClass.getPseudoClass("default"), isDefaultButton());
+        if (getSkin() instanceof M3ButtonSkin skin)
+            skin.updateSceneActions();
+    }
+
+    /// Reflects the cancel role in CSS and updates the installed skin's scene handler.
+    private void updateCancelButton() {
+        pseudoClassStateChanged(PseudoClass.getPseudoClass("cancel"), isCancelButton());
+        if (getSkin() instanceof M3ButtonSkin skin)
+            skin.updateSceneActions();
+    }
+
+    // Stylesheet handling
 
     /// Supplies component styling; the containing scene must provide the Monet palette.
     @Override

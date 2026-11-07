@@ -44,6 +44,9 @@ import org.jetbrains.annotations.Nullable;
 /// Geometry uses unscaled MD3 units and is mirrored in RTL layouts.
 @NotNullByDefault
 public final class M3SwitchSkin extends SkinBase<M3Switch> {
+
+    // Constants
+
     /// Track width in unscaled MD3 artwork coordinates.
     private static final double TRACK_WIDTH = 52;
 
@@ -79,6 +82,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
 
     /// Indicates visible keyboard focus.
     private static final PseudoClass VISUAL_FOCUSED = PseudoClass.getPseudoClass("visual-focused");
+
+    // Fields
 
     /// The rendered switch.
     private final M3Switch control;
@@ -158,6 +163,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Handle center at press time, preserving the pointer's grab offset.
     private double pressCenter;
 
+    // Constructors
+
     /// Creates a skin for the switch.
     public M3SwitchSkin(M3Switch control) {
         super(control);
@@ -195,14 +202,7 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         update(true);
     }
 
-    /// Updates icon and animation options, optionally settling active animations.
-    public void updateOptions(boolean finishAnimation) {
-        if (disposed)
-            return;
-        if (finishAnimation)
-            finishColors();
-        update(finishAnimation);
-    }
+    // Public API
 
     /// Stops animations and removes artwork, event handlers, and listeners.
     @Override
@@ -217,6 +217,47 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         getChildren().remove(artwork);
         super.dispose();
     }
+
+    /// Updates icon and animation options, optionally settling active animations.
+    public void updateOptions(boolean finishAnimation) {
+        if (disposed)
+            return;
+        if (finishAnimation)
+            finishColors();
+        update(finishAnimation);
+    }
+
+    /// Updates geometry and schedules selection colors for the next CSS pass.
+    public void updateSelection() {
+        if (disposed)
+            return;
+        update(false);
+        if (control.isDisableAnimation() || control.isDisabled() || control.getScene() == null)
+            return;
+        if (colors.isEmpty()) {
+            colors.add(new CssColor(track.fillProperty()));
+            colors.add(new CssColor(handle.fillProperty()));
+            colors.add(new CssColor(stateLayer.fillProperty()));
+            colors.add(new CssColor(track.strokeProperty()));
+            if (icon != null)
+                colors.add(new CssColor(icon.fillProperty()));
+        }
+        if (colorTransition != null)
+            colorTransition.stop();
+        // A reversal before the first frame may reapply the visible paint without emitting a change event.
+        for (CssColor color : colors)
+            color.target = null;
+        animateColors = true;
+        control.requestLayout();
+    }
+
+    /// Updates pressed geometry when the control changes its activation state.
+    public void updateArmed() {
+        if (!disposed)
+            update(false);
+    }
+
+    // Layout and sizing
 
     /// Centers the scaled artwork within the control and starts pending color transitions.
     @Override
@@ -275,6 +316,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     protected double computeMaxHeight(double w, double top, double right, double bottom, double left) {
         return computePrefHeight(w, top, right, bottom, left);
     }
+
+    // Implementation
 
     /// Handles clicking and dragging.
     private void handleMouse(MouseEvent event) {
@@ -390,36 +433,6 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         update(true);
     }
 
-    /// Updates geometry and schedules selection colors for the next CSS pass.
-    public void updateSelection() {
-        if (disposed)
-            return;
-        update(false);
-        if (control.isDisableAnimation() || control.isDisabled() || control.getScene() == null)
-            return;
-        if (colors.isEmpty()) {
-            colors.add(new CssColor(track.fillProperty()));
-            colors.add(new CssColor(handle.fillProperty()));
-            colors.add(new CssColor(stateLayer.fillProperty()));
-            colors.add(new CssColor(track.strokeProperty()));
-            if (icon != null)
-                colors.add(new CssColor(icon.fillProperty()));
-        }
-        if (colorTransition != null)
-            colorTransition.stop();
-        // A reversal before the first frame may reapply the visible paint without emitting a change event.
-        for (CssColor color : colors)
-            color.target = null;
-        animateColors = true;
-        control.requestLayout();
-    }
-
-    /// Updates pressed geometry when the control changes its activation state.
-    public void updateArmed() {
-        if (!disposed)
-            update(false);
-    }
-
     /// Updates handle geometry, with optional animation.
     private void update(boolean immediate) {
         if (dragging)
@@ -524,6 +537,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         for (CssColor color : colors)
             color.finish();
     }
+
+    // Supporting types
 
     /// Animates a solid paint while preserving CSS precedence.
     @NotNullByDefault
