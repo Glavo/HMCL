@@ -23,7 +23,6 @@ import javafx.scene.AccessibleAttribute;
 import javafx.scene.AccessibleRole;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
-import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -195,7 +194,7 @@ public class M3Switch extends Control {
     /// Whether to show a check mark when selected; defaults to false.
     public final BooleanProperty showSelectedIconProperty() {
         if (showSelectedIcon == null)
-            showSelectedIcon = createOptionProperty("showSelectedIcon", false, false);
+            showSelectedIcon = createOptionProperty("showSelectedIcon");
         return showSelectedIcon;
     }
 
@@ -216,29 +215,8 @@ public class M3Switch extends Control {
     /// Whether to show a cross when unselected; defaults to false.
     public final BooleanProperty showUnselectedIconProperty() {
         if (showUnselectedIcon == null)
-            showUnselectedIcon = createOptionProperty("showUnselectedIcon", false, false);
+            showUnselectedIcon = createOptionProperty("showUnselectedIcon");
         return showUnselectedIcon;
-    }
-
-    /// Optional animation policy override.
-    private @Nullable BooleanProperty disableAnimation;
-
-    /// Sets the value of [#disableAnimationProperty()].
-    public final void setDisableAnimation(boolean value) {
-        if (disableAnimation != null || value == AnimationUtils.isAnimationEnabled())
-            disableAnimationProperty().set(value);
-    }
-
-    /// Returns whether animation is disabled.
-    public final boolean isDisableAnimation() {
-        return disableAnimation == null ? !AnimationUtils.isAnimationEnabled() : disableAnimation.get();
-    }
-
-    /// Disables animation, defaulting to the inverse of the global animation-enabled setting.
-    public final BooleanProperty disableAnimationProperty() {
-        if (disableAnimation == null)
-            disableAnimation = createOptionProperty("disableAnimation", !AnimationUtils.isAnimationEnabled(), true);
-        return disableAnimation;
     }
 
     // Methods
@@ -290,15 +268,15 @@ public class M3Switch extends Control {
             skin.updateArmed();
     }
 
-    /// Creates a property that updates the skin, optionally settling active animations.
-    private BooleanProperty createOptionProperty(String name, boolean initialValue, boolean finishAnimation) {
-        return new SimpleBooleanProperty(this, name, initialValue) {
+    /// Creates an initially hidden icon option that updates the installed skin.
+    private BooleanProperty createOptionProperty(String name) {
+        return new SimpleBooleanProperty(this, name, false) {
             /// Validates the value even without a skin, so subsequent changes also reach this callback.
             @Override
             protected void invalidated() {
                 get();
                 if (getSkin() instanceof M3SwitchSkin skin)
-                    skin.updateOptions(finishAnimation);
+                    skin.updateOptions();
             }
         };
     }

@@ -33,7 +33,7 @@ public final class M3Animations {
     // Methods
 
     /// Enters a suppression scope and settles existing animations on its first entry.
-    /// Does not install skins or change local animation settings or bindings.
+    /// Does not install skins or change the global animation policy or property bindings.
     public static void suspend(Node root) {
         checkThread();
         @Nullable SuspensionState state = state(root);

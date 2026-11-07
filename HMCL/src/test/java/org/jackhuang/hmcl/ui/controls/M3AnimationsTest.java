@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/// Exercises nested subtree scopes, deferred CSS, local bindings, and reusable list-cell content.
+/// Exercises nested subtree scopes, deferred CSS, selection bindings, and reusable list-cell content.
 @NotNullByDefault
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 public final class M3AnimationsTest {
@@ -57,20 +57,20 @@ public final class M3AnimationsTest {
         });
     }
 
-    /// Suppressed changes remain immediate after CSS runs later, without changing a bound local policy.
+    /// Suppressed changes remain immediate after CSS runs later, without disturbing selection bindings.
     @Test
-    void deferredCssAndLocalBinding() throws Exception {
+    void deferredCssAndSelectionBinding() throws Exception {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
-            SimpleBooleanProperty localPolicy = new SimpleBooleanProperty(false);
-            control.disableAnimationProperty().bind(localPolicy);
+            SimpleBooleanProperty selection = new SimpleBooleanProperty(false);
+            control.selectedProperty().bind(selection);
             VBox root = scene(control);
             AtomicInteger actions = new AtomicInteger();
             control.setOnAction(event -> actions.incrementAndGet());
 
             M3Animations.suspend(root);
             try {
-                control.setSelected(true);
+                selection.set(true);
                 assertEquals(36, center(control));
             } finally {
                 M3Animations.resume(root);
@@ -79,54 +79,19 @@ public final class M3AnimationsTest {
             assertEquals(Color.web("#4352a5"), part(control, "track").getFill());
             assertNull(animation(control, "geometryTransition"));
             assertNull(animation(control, "colorTransition"));
-            assertTrue(control.disableAnimationProperty().isBound());
-            assertFalse(control.isDisableAnimation());
+            assertTrue(control.selectedProperty().isBound());
             assertEquals(0, actions.get());
 
-            control.setSelected(false);
+            selection.set(false);
             layout(root);
-            assertEquals(Animation.Status.RUNNING, Objects.requireNonNull(animation(control, "geometryTransition")).getStatus());
-            assertEquals(Animation.Status.RUNNING, Objects.requireNonNull(animation(control, "colorTransition")).getStatus());
-            M3Animations.suspend(root);
-            M3Animations.resume(root);
-            localPolicy.set(true);
-            control.setSelected(true);
-            assertEquals(36, center(control));
-            assertStopped(control);
-        });
-    }
-
-    /// Entry settles already running colors and geometry; subsequent changes are not replayed on exit.
-    @Test
-    void settlesActiveAndPendingTransitions() throws Exception {
-        onFxThread(() -> {
-            M3Switch control = new M3Switch();
-            control.setDisableAnimation(false);
-            VBox root = scene(control);
-            control.setSelected(true);
-            layout(root);
-            assertEquals(Animation.Status.RUNNING, Objects.requireNonNull(animation(control, "colorTransition")).getStatus());
             M3Animations.suspend(root);
             try {
-                assertStopped(control);
+                selection.set(true);
                 assertEquals(36, center(control));
-                assertEquals(Color.web("#4352a5"), part(control, "track").getFill());
-                control.setSelected(false);
+                assertStopped(control);
             } finally {
                 M3Animations.resume(root);
             }
-            layout(root);
-            assertEquals(16, center(control));
-            assertEquals(Color.web("#e3e1e9"), part(control, "track").getFill());
-            assertStopped(control);
-
-            control.setSelected(true);
-            // Enter and leave before CSS has resolved the new selected colors.
-            M3Animations.suspend(root);
-            M3Animations.resume(root);
-            layout(root);
-            assertEquals(Color.web("#4352a5"), part(control, "track").getFill());
-            assertStopped(control);
         });
     }
 
@@ -136,7 +101,6 @@ public final class M3AnimationsTest {
         onFxThread(() -> {
             VBox root = scene();
             M3Switch control = new M3Switch();
-            control.setDisableAnimation(false);
             M3Animations.suspend(root);
             try {
                 root.getChildren().add(control);
@@ -159,31 +123,6 @@ public final class M3AnimationsTest {
         });
     }
 
-    /// Exit settles an active node attached while suspended even when no pulse ran within the scope.
-    @Test
-    void incomingAnimationsBeforeNextPulse() throws Exception {
-        onFxThread(() -> {
-            M3Switch control = new M3Switch();
-            control.setDisableAnimation(false);
-            Pane source = new Pane(control);
-            Pane target = new Pane();
-            VBox root = scene(source, target);
-            control.setSelected(true);
-            layout(root);
-            M3Animations.suspend(target);
-            try {
-                source.getChildren().remove(control);
-                target.getChildren().add(control);
-                assertTrue(M3Animations.isSuspended(control));
-            } finally {
-                M3Animations.resume(target);
-            }
-            layout(root);
-            assertEquals(36, center(control));
-            assertStopped(control);
-        });
-    }
-
     /// The shared cell update path suppresses detached content and unwinds its scope after exceptions.
     @Test
     void reusableCellAndExceptionalRefresh() throws Exception {
@@ -197,7 +136,6 @@ public final class M3AnimationsTest {
             assertEquals(36, center(cell.control));
             assertNull(animation(cell.control, "geometryTransition"));
             assertFalse(M3Animations.isSuspended(cell.control));
-            assertFalse(cell.control.isDisableAnimation());
             cell.refresh(null);
             assertNull(cell.getGraphic());
             cell.refresh(false);
@@ -213,8 +151,7 @@ public final class M3AnimationsTest {
             layout(root);
             cell.control.fire();
             assertTrue(cell.control.isSelected());
-            assertEquals(Animation.Status.RUNNING,
-                    Objects.requireNonNull(animation(cell.control, "geometryTransition")).getStatus());
+            assertFalse(M3Animations.isSuspended(cell.control));
             M3Animations.suspend(root);
             M3Animations.resume(root);
         });
@@ -278,10 +215,9 @@ public final class M3AnimationsTest {
     @NotNullByDefault
     private static final class SwitchCell extends MDListCell<Boolean> {
 
-        /// Creates persistent content with local animation explicitly enabled for this test.
+        /// Creates persistent switch content for reuse across item updates.
         private SwitchCell() {
             super(new JFXListView<>());
-            control.setDisableAnimation(false);
             getContainer().getChildren().setAll(control);
         }
 

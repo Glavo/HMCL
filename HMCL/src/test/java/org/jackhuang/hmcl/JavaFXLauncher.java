@@ -41,8 +41,7 @@ public final class JavaFXLauncher {
             Platform.setImplicitExit(false);
     }
 
-    /// Initializes the cached animation policy before any JavaFX test can select a different default.
-    /// Tests that exercise animations explicitly enable them on their controls.
+    /// Disables animations for deterministic JavaFX tests without changing persisted settings.
     /// The temporary settings are not persisted and the original configuration is restored.
     private static void initializeAnimationPolicy() throws ReflectiveOperationException {
         Field field = SettingsManager.class.getDeclaredField("launcherSettings");

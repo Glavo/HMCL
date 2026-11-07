@@ -5,16 +5,10 @@ package org.jackhuang.hmcl.ui.controls;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Objects;
-import java.util.Base64;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BooleanSupplier;
-import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -36,22 +30,14 @@ import javafx.scene.input.PickResult;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.shape.Shape;
-import javafx.stage.Stage;
-import org.jackhuang.hmcl.setting.LauncherSettings;
-import org.jackhuang.hmcl.setting.SettingsManager;
-import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.construct.LineInheritableSwitch;
 import org.jackhuang.hmcl.ui.construct.LineSwitch;
 import org.jackhuang.hmcl.ui.controls.skin.M3SwitchSkin;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
-import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -61,7 +47,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /// Exercises the switch through a live JavaFX scene, including CSS and inherited behavior.
 @NotNullByDefault
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
-@Isolated("Temporarily supplies settings while initializing the cached animation policy")
 public final class M3SwitchTest {
 
     /// Subtree suppression settles transitions without interrupting pointer-driven dragging.
@@ -69,7 +54,6 @@ public final class M3SwitchTest {
     void draggingWhileAnimationsAreSuspended() throws Exception {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
-            control.setDisableAnimation(false);
             VBox root = scene(control);
             AtomicInteger actions = new AtomicInteger();
             control.setOnAction(event -> actions.incrementAndGet());
@@ -104,7 +88,7 @@ public final class M3SwitchTest {
             control.disarm();
             control.fire();
             assertFalse(control.isSelected());
-            for (String name : List.of("selected", "armed", "size", "showSelectedIcon", "showUnselectedIcon", "disableAnimation", "onAction"))
+            for (String name : List.of("selected", "armed", "size", "showSelectedIcon", "showUnselectedIcon", "onAction"))
                 assertNull(field(control, name), name + " must remain unallocated");
             control.arm();
             assertTrue(control.armedProperty().get());
@@ -137,7 +121,6 @@ public final class M3SwitchTest {
     void paletteOnlyStyling() throws Exception {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
-            control.setDisableAnimation(true);
             control.setSelected(true);
             VBox root = new VBox(control);
             Scene scene = new Scene(root);
@@ -148,25 +131,6 @@ public final class M3SwitchTest {
             assertEquals(Color.WHITE, part(control, "handle").getFill());
             assertEquals(48, control.prefHeight(-1));
         });
-    }
-
-    /// Initializes the cached animation policy without loading or changing persisted settings.
-    @BeforeAll
-    static void initializeAnimationPolicy() throws Exception {
-        // AnimationUtils caches its policy at class initialization. Without in-memory settings,
-        // that initialization calls SettingsManager.settings() and loads configuration from disk.
-        // Preserve any previously initialized policy; animation tests select their own policy
-        // explicitly, so their behavior does not depend on which test initialized the class first.
-        Field settingsField = SettingsManager.class.getDeclaredField("launcherSettings");
-        settingsField.setAccessible(true);
-        @Nullable Object previous = settingsField.get(null);
-        if (previous == null)
-            settingsField.set(null, new LauncherSettings());
-        try {
-            AnimationUtils.init();
-        } finally {
-            settingsField.set(null, previous);
-        }
     }
 
     /// Preserves compact row height and overrides the inherited value once despite synchronous binder refresh.
@@ -185,7 +149,6 @@ public final class M3SwitchTest {
             M3Switch control = (M3Switch) Objects.requireNonNull(row.lookup(".m3-switch"));
             assertEquals(30, control.getHeight());
             assertEquals(50, row.getHeight());
-            control.setDisableAnimation(true);
             mouse(control, MouseEvent.MOUSE_PRESSED, 16, true);
             mouse(control, MouseEvent.MOUSE_DRAGGED, 36, true);
             mouse(control, MouseEvent.MOUSE_RELEASED, 36, false);
@@ -205,7 +168,6 @@ public final class M3SwitchTest {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
             control.setStyle("-m3-size: " + size + ";");
-            control.setDisableAnimation(true);
             VBox root = scene(control);
             root.setNodeOrientation(rtl ? NodeOrientation.RIGHT_TO_LEFT : NodeOrientation.LEFT_TO_RIGHT);
             layout(root);
@@ -251,7 +213,6 @@ public final class M3SwitchTest {
     void canceledDragRelease() throws Exception {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
-            control.setDisableAnimation(true);
             scene(control);
             AtomicInteger actions = new AtomicInteger();
             control.setOnAction(event -> actions.incrementAndGet());
@@ -303,7 +264,6 @@ public final class M3SwitchTest {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
             control.setAccessibleText("Wi-Fi");
-            control.setDisableAnimation(true);
             VBox root = scene(control);
             Button confirm = new Button("Confirm");
             confirm.setDefaultButton(true);
@@ -357,7 +317,6 @@ public final class M3SwitchTest {
             M3Switch control = (M3Switch) Objects.requireNonNull(row.lookup(".m3-switch"));
             assertEquals(30, control.getHeight());
             assertEquals(50, row.getHeight());
-            control.setDisableAnimation(true);
             AtomicInteger rowActions = new AtomicInteger();
             AtomicInteger parentActions = new AtomicInteger();
             row.addEventHandler(javafx.event.ActionEvent.ACTION, event -> rowActions.incrementAndGet());
@@ -399,7 +358,6 @@ public final class M3SwitchTest {
                     setFocused(focused);
                 }
             };
-            control.setDisableAnimation(true);
             VBox root = scene(control);
             AtomicInteger actions = new AtomicInteger();
             control.setOnAction(event -> actions.incrementAndGet());
@@ -497,14 +455,11 @@ public final class M3SwitchTest {
         });
     }
 
-    /// Keeps bound icon and animation options effective before skin creation and after replacement.
+    /// Keeps bound icon options effective before skin creation and after replacement.
     @Test
     void optionUpdatesAcrossSkinReplacement() throws Exception {
         onFxThread(() -> {
             M3Switch control = new M3Switch();
-            assertEquals(!AnimationUtils.isAnimationEnabled(), control.isDisableAnimation());
-            SimpleBooleanProperty immediate = new SimpleBooleanProperty(true);
-            control.disableAnimationProperty().bind(immediate);
             SimpleBooleanProperty selectedIcon = new SimpleBooleanProperty(false);
             control.showSelectedIconProperty().bind(selectedIcon);
             selectedIcon.set(true);
@@ -527,112 +482,9 @@ public final class M3SwitchTest {
             assertFalse(part(control, "icon").isVisible());
             selectedIcon.set(true);
             assertTrue(part(control, "icon").isVisible());
-            immediate.set(false);
             control.setSelected(false);
-            immediate.set(true);
             assertEquals(16, part(control, "handle").getLayoutBounds().getWidth());
             assertEquals(16, part(control, "handle").getBoundsInParent().getCenterX());
-        });
-    }
-
-    /// Uses real pulses to animate selection without manually applying CSS or laying out after the change.
-    @Test
-    void selectionColorsOnPulse() throws Exception {
-        Stage window = callOnFxThread(Stage::new);
-        try {
-            M3Switch control = callOnFxThread(() -> {
-                M3Switch target = new M3Switch();
-                target.setDisableAnimation(false);
-                setPrimaryColor(target, "#123456");
-                VBox root = scene(target);
-                window.setScene(root.getScene());
-                window.show();
-                Paint initial = Objects.requireNonNull(part(target, "track").getFill());
-                assertNotEquals(Color.web("#123456"), initial);
-                target.setSelected(true);
-                assertEquals(initial, part(target, "track").getFill());
-                return target;
-            });
-            awaitFx("selection colors after automatic CSS and layout",
-                    () -> Color.web("#123456").equals(part(control, "track").getFill()));
-        } finally {
-            onFxThread(window::close);
-        }
-    }
-
-    /// Checks reversal continuity, eventual completion, theme overrides, and immediate completion.
-    @Test
-    void selectionColorTransitions() throws Exception {
-        M3Switch control = callOnFxThread(() -> {
-            M3Switch target = new M3Switch();
-            target.setShowSelectedIcon(true);
-            target.setShowUnselectedIcon(true);
-            setPrimaryColor(target, "#123456");
-            target.setDisableAnimation(true);
-            scene(target);
-            return target;
-        });
-        @Unmodifiable List<Paint> off = callOnFxThread(() -> palette(control));
-        @Unmodifiable List<Paint> on = callOnFxThread(() -> {
-            control.setSelected(true);
-            layout(control);
-            return palette(control);
-        });
-        onFxThread(() -> {
-            control.setSelected(false);
-            control.applyCss();
-            control.setDisableAnimation(false);
-            control.setSelected(true);
-            layout(control);
-            control.setSelected(false);
-            layout(control);
-            control.setDisableAnimation(true);
-            assertEquals(off, palette(control), "Settling a pre-frame reversal must not need another CSS pass");
-            control.setDisableAnimation(false);
-            control.setSelected(true);
-            layout(control);
-            control.setSelected(false);
-            control.setSelected(true);
-            layout(control);
-            assertEquals(off, palette(control), "Selection must start from the visible palette");
-        });
-        awaitFx("selection colors to advance before reversal", () -> {
-            @Unmodifiable List<Paint> current = palette(control);
-            if (off.equals(current))
-                return false;
-            // Reverse in the same FX callback that observes progress. A busy CI worker may
-            // skip intermediate frames, so continuity must also hold at the final frame.
-            Shape handle = part(control, "handle");
-            double center = handle.getBoundsInParent().getCenterX();
-            double diameter = handle.getLayoutBounds().getWidth();
-            control.setSelected(false);
-            layout(control);
-            assertEquals(current, palette(control), "Reversing must preserve the displayed colors");
-            assertEquals(center, handle.getBoundsInParent().getCenterX(), 0.001);
-            assertEquals(diameter, handle.getLayoutBounds().getWidth(), 0.001);
-            return true;
-        });
-        awaitFx("reversed selection colors to settle", () -> off.equals(palette(control)));
-        onFxThread(() -> {
-            control.setSelected(true);
-            control.setDisableAnimation(true);
-            layout(control);
-            assertEquals(on, palette(control), "Disabling animation must settle all colors");
-            Shape handle = part(control, "handle");
-            assertEquals(36, handle.getBoundsInParent().getCenterX());
-            assertEquals(24, handle.getLayoutBounds().getWidth());
-            setPrimaryColor(control, "#abcdef");
-            control.applyCss();
-            assertEquals(Color.web("#abcdef"), palette(control).get(0), "CSS must still override animated values");
-            control.setDisableAnimation(false);
-            control.setSelected(false);
-            control.setDisable(true);
-            control.applyCss();
-            @Unmodifiable List<Paint> disabled = palette(control);
-            control.setSkin(null);
-            control.setSkin(new M3SwitchSkin(control));
-            control.applyCss();
-            assertEquals(disabled, palette(control), "Disabling must settle to the same palette as a fresh skin");
         });
     }
 
@@ -669,15 +521,6 @@ public final class M3SwitchTest {
                 modifier == KeyCode.CONTROL, modifier == KeyCode.ALT, modifier == KeyCode.META));
     }
 
-    /// Captures rendered paints without applying CSS, which could hide an incorrect animation result.
-    private static @Unmodifiable List<Paint> palette(M3Switch control) {
-        return List.of(part(control, "track").getFill(),
-                part(control, "track").getStroke(),
-                part(control, "handle").getFill(),
-                part(control, "state-layer").getFill(),
-                part(control, "icon").getFill());
-    }
-
     /// Attaches a switch to a scene with the application theme and component stylesheet.
     private static VBox scene(M3Switch control) {
         VBox root = new VBox(control);
@@ -702,41 +545,6 @@ public final class M3SwitchTest {
     /// Returns a required shape from the default skin.
     private static Shape part(M3Switch control, String name) {
         return (Shape) Objects.requireNonNull(control.lookup(".switch-" + name));
-    }
-
-    /// Evaluates a condition once per pulse, propagating failures and stopping on completion or timeout.
-    private static void awaitFx(String description, BooleanSupplier condition) throws Exception {
-        CompletableFuture<@Nullable Void> completed = new CompletableFuture<>();
-        AnimationTimer timer = new AnimationTimer() {
-            /// Checks on the FX thread so observations and any dependent actions are atomic between pulses.
-            @Override
-            public void handle(long now) {
-                try {
-                    if (condition.getAsBoolean()) {
-                        stop();
-                        completed.complete(null);
-                    }
-                } catch (Throwable failure) {
-                    stop();
-                    completed.completeExceptionally(failure);
-                }
-            }
-        };
-        try {
-            onFxThread(timer::start);
-            completed.get(10, TimeUnit.SECONDS);
-        } catch (TimeoutException failure) {
-            fail("Timed out waiting for " + description, failure);
-        } finally {
-            onFxThread(timer::stop);
-        }
-    }
-
-    /// Overrides the theme token on the control and its descendants, matching the palette's scope.
-    private static void setPrimaryColor(M3Switch control, String color) {
-        String css = "* { -monet-primary: " + color + "; }";
-        control.getStylesheets().setAll("data:text/css;base64,"
-                + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8)));
     }
 
     /// Reads optional-property storage without forcing its allocation.

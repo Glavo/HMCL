@@ -34,6 +34,7 @@ import javafx.scene.shape.SVGPath;
 import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.ui.FXUtils;
+import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.controls.M3Animations;
 import org.jackhuang.hmcl.ui.controls.M3Switch;
@@ -222,16 +223,14 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> implements M3Animated
         super.dispose();
     }
 
-    /// Updates icon and animation options, optionally settling active animations.
-    public void updateOptions(boolean finishAnimation) {
+    /// Updates icon visibility and the corresponding handle geometry.
+    public void updateOptions() {
         if (disposed)
             return;
-        if (finishAnimation)
-            finishColors();
-        update(finishAnimation);
+        update(false);
     }
 
-    /// Settles visual transitions while preserving selection, local settings, and pointer-driven dragging.
+    /// Settles visual transitions while preserving selection and pointer-driven dragging.
     @Override
     public void finishAnimations() {
         if (disposed || finishingAnimations)
@@ -535,9 +534,9 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> implements M3Animated
         return Double.isFinite(size) && size > 0 ? size / TRACK_HEIGHT : 1;
     }
 
-    /// Resolves local policy and the current subtree scope without allocating observable state.
+    /// Resolves global policy and the current subtree scope without allocating observable state.
     private boolean canAnimate() {
-        return !control.isDisableAnimation() && !control.isDisabled()
+        return AnimationUtils.isAnimationEnabled() && !control.isDisabled()
                 && control.getScene() != null && !M3Animations.isSuspended(control);
     }
 
