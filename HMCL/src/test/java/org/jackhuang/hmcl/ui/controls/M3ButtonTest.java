@@ -28,6 +28,8 @@ import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +68,7 @@ public final class M3ButtonTest {
             button.variantProperty().bind(value);
             root.applyCss();
             assertEquals(M3ButtonVariant.FILLED, button.getVariant());
-            button.setStyle("-m3-primary: #123456;");
+            setPrimaryColor(button, "#123456");
             root.applyCss();
             assertEquals(Color.web("#123456"), background(button, "container"));
             value.set(M3ButtonVariant.TEXT);
@@ -123,16 +125,19 @@ public final class M3ButtonTest {
         });
     }
 
-    /// Provides a usable baseline palette without application stylesheets.
+    /// A new button subtype inherits the skin and styles when only a Monet palette is supplied.
     @Test
-    void standaloneStyling() throws Exception {
+    void paletteOnlyStyling() throws Exception {
         onFxThread(() -> {
-            M3Button button = new M3Button("Standalone");
+            M3ButtonBase button = new M3ButtonBase("Standalone") {
+            };
             VBox root = new VBox(button);
-            new Scene(root);
+            Scene scene = new Scene(root);
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    M3ButtonTest.class.getResource("/assets/css/blue.css")).toExternalForm());
             root.applyCss();
             root.layout();
-            assertEquals(Color.web("#6750a4"), background(button, "container"));
+            assertEquals(Color.web("#4352a5"), background(button, "container"));
             assertEquals(48, button.prefHeight(-1));
         });
     }
@@ -268,12 +273,12 @@ public final class M3ButtonTest {
     }
 
     /// Finds a required decoration in the installed skin.
-    private static Region part(M3Button button, String name) {
+    private static Region part(M3ButtonBase button, String name) {
         return (Region) Objects.requireNonNull(button.lookup(".button-" + name));
     }
 
     /// Returns the resolved background color of a decoration.
-    private static Color background(M3Button button, String name) {
+    private static Color background(M3ButtonBase button, String name) {
         return (Color) part(button, name).getBackground().getFills().get(0).getFill();
     }
 
@@ -289,6 +294,13 @@ public final class M3ButtonTest {
                 false, false, false, false, type == MouseEvent.MOUSE_PRESSED && mouseButton == MouseButton.PRIMARY,
                 false, type == MouseEvent.MOUSE_PRESSED && mouseButton == MouseButton.SECONDARY, false, false, false,
                 new PickResult(button, point.getX(), point.getY())));
+    }
+
+    /// Overrides the theme token on the control and its descendants, matching the palette's scope.
+    private static void setPrimaryColor(M3ButtonBase control, String color) {
+        String css = "* { -monet-primary: " + color + "; }";
+        control.getStylesheets().setAll("data:text/css;base64,"
+                + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8)));
     }
 
     /// Runs assertions on the shared JavaFX thread and propagates failures to JUnit.

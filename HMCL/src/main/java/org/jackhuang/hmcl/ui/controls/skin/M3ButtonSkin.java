@@ -18,13 +18,13 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.stage.Window;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.controls.M3Button;
+import org.jackhuang.hmcl.ui.controls.M3ButtonBase;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 /// Renders a labeled MD3 button with a bounded, uniform state layer and independent input handling.
 @NotNullByDefault
-public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
+public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
     /// Keyboard-focus indication shared with the switch.
     private static final PseudoClass VISUAL_FOCUSED = PseudoClass.getPseudoClass("visual-focused");
 
@@ -68,7 +68,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
     private final ChangeListener<@Nullable Window> windowListener = (observable, oldValue, newValue) -> updateWindow(newValue);
 
     /// Installs artwork, gesture handling, and lifecycle cleanup.
-    public M3ButtonSkin(M3Button control) {
+    public M3ButtonSkin(M3ButtonBase control) {
         super(control);
         control.addEventFilter(MouseEvent.ANY, mouseHandler);
         control.addEventHandler(KeyEvent.ANY, keyHandler);
@@ -113,7 +113,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
     /// Centers the 40-pixel visual within its 48-pixel target and lays out standard labeled content.
     @Override
     protected void layoutChildren(double x, double y, double width, double height) {
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         double visualHeight = Math.max(0, control.getHeight() - 8);
         if (container != null)
             container.resizeRelocate(0, 4, control.getWidth(), visualHeight);
@@ -151,7 +151,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
     /// Includes the target margin and vertical alignment when aligning this button with adjacent text.
     @Override
     public double computeBaselineOffset(double top, double right, double bottom, double left) {
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         double contentHeight = super.computePrefHeight(control.getWidth(), top, right, bottom, left);
         double targetHeight = control.getHeight() > 0 ? control.getHeight() : Math.max(48, contentHeight + 8);
         double extra = Math.max(0, targetHeight - contentHeight - 8);
@@ -166,7 +166,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
 
     /// Arms primary presses and activates only when released inside the target.
     private void handleMouse(MouseEvent event) {
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         if (event.getEventType() == MouseEvent.MOUSE_PRESSED) {
             if (control.isDisabled() || keyDown != null || event.getButton() != MouseButton.PRIMARY
                     || event.isMiddleButtonDown() || event.isSecondaryButtonDown()
@@ -197,7 +197,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
     private void handleKey(KeyEvent event) {
         if (event.isConsumed())
             return;
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         if (event.getCode() == KeyCode.ESCAPE && event.getEventType() == KeyEvent.KEY_PRESSED && (mouseDown || keyDown != null)) {
             mouseDown = false;
             control.disarm();
@@ -224,7 +224,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
 
     /// Runs the first eligible fallback action without replacing any scene accelerators.
     private void handleSceneKey(KeyEvent event) {
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         if (event.isConsumed() || modified(event) || control.isDisabled() || !treeVisible(control))
             return;
         if ((event.getCode() == KeyCode.ENTER && control.isDefaultButton())
@@ -287,7 +287,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3Button> {
     /// Removes input and scene listeners before releasing labeled content.
     @Override
     public void dispose() {
-        M3Button control = getSkinnable();
+        M3ButtonBase control = getSkinnable();
         updateScene(null);
         control.removeEventFilter(MouseEvent.ANY, mouseHandler);
         control.removeEventHandler(KeyEvent.ANY, keyHandler);

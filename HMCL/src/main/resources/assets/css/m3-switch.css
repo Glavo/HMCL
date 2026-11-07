@@ -1,0 +1,112 @@
+.m3-switch {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.m3-switch > .switch-artwork > .switch-track {
+    -fx-fill: -monet-surface-container-highest;
+    -fx-stroke: -monet-outline;
+    -fx-stroke-width: 2;
+    -fx-stroke-type: inside;
+}
+
+.m3-switch:selected > .switch-artwork > .switch-track {
+    -fx-fill: -monet-primary;
+    -fx-stroke: transparent;
+}
+
+.m3-switch > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-outline;
+}
+
+.m3-switch:selected > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-on-primary;
+}
+
+.m3-switch:hover > .switch-artwork > .switch-handle,
+.m3-switch:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-on-surface-variant;
+}
+
+.m3-switch:selected:hover > .switch-artwork > .switch-handle,
+.m3-switch:selected:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:selected:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-primary-container;
+}
+
+.m3-switch > .switch-artwork > .switch-state-layer {
+    -fx-fill: -monet-on-surface;
+    -fx-opacity: 0;
+}
+
+.m3-switch:selected > .switch-artwork > .switch-state-layer {
+    -fx-fill: -monet-primary;
+}
+
+.m3-switch:hover > .switch-artwork > .switch-state-layer {
+    -fx-opacity: 0.08;
+}
+
+.m3-switch:visual-focused > .switch-artwork > .switch-state-layer,
+.m3-switch:armed > .switch-artwork > .switch-state-layer {
+    -fx-opacity: 0.12;
+}
+
+.m3-switch > .switch-artwork > .switch-icon {
+    -fx-fill: -monet-surface-container-highest;
+}
+
+.m3-switch:selected > .switch-artwork > .switch-icon {
+    -fx-fill: -monet-on-primary-container;
+}
+
+/* Disabled opacity belongs to individual parts, never to the entire control. */
+.m3-switch:disabled {
+    -fx-opacity: 1;
+    -fx-cursor: default;
+}
+
+.m3-switch:disabled > .switch-artwork > .switch-track {
+    -fx-fill: -monet-surface-container-highest;
+    -fx-stroke: -monet-on-surface;
+    -fx-opacity: 0.12;
+}
+
+.m3-switch:selected:disabled > .switch-artwork > .switch-track {
+    -fx-fill: -monet-on-surface;
+    -fx-stroke: transparent;
+}
+
+.m3-switch:disabled > .switch-artwork > .switch-handle,
+.m3-switch:disabled:hover > .switch-artwork > .switch-handle,
+.m3-switch:disabled:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:disabled:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-on-surface;
+    -fx-opacity: 0.38;
+}
+
+.m3-switch:selected:disabled > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:hover > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -monet-surface;
+    -fx-opacity: 1;
+}
+
+.m3-switch:disabled > .switch-artwork > .switch-icon {
+    -fx-opacity: 0.38;
+}
+
+.m3-switch:selected:disabled > .switch-artwork > .switch-icon {
+    -fx-fill: -monet-on-surface;
+}
+
+.m3-switch:disabled > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:hover > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:visual-focused > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:armed > .switch-artwork > .switch-state-layer {
+    -fx-opacity: 0;
+}
+

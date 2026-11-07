@@ -5,6 +5,8 @@ package org.jackhuang.hmcl.ui.controls;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Objects;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
@@ -61,6 +63,24 @@ import static org.junit.jupiter.api.Assertions.*;
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 @Isolated("Temporarily supplies settings while initializing the cached animation policy")
 public final class M3SwitchTest {
+
+    /// Loads the switch artwork styles without the application component stylesheet.
+    @Test
+    void paletteOnlyStyling() throws Exception {
+        onFxThread(() -> {
+            M3Switch control = new M3Switch();
+            control.setDisableAnimation(true);
+            control.setSelected(true);
+            VBox root = new VBox(control);
+            Scene scene = new Scene(root);
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    M3SwitchTest.class.getResource("/assets/css/blue.css")).toExternalForm());
+            layout(root);
+            assertEquals(Color.web("#4352a5"), part(control, "track").getFill());
+            assertEquals(Color.WHITE, part(control, "handle").getFill());
+            assertEquals(48, control.prefHeight(-1));
+        });
+    }
 
     /// Initializes the cached animation policy without loading or changing persisted settings.
     @BeforeAll
@@ -455,7 +475,7 @@ public final class M3SwitchTest {
             M3Switch control = callOnFxThread(() -> {
                 M3Switch target = new M3Switch();
                 target.setDisableAnimation(false);
-                target.setStyle("-m3-switch-primary: #123456;");
+                setPrimaryColor(target, "#123456");
                 VBox root = scene(target);
                 window.setScene(root.getScene());
                 window.show();
@@ -479,7 +499,7 @@ public final class M3SwitchTest {
             M3Switch target = new M3Switch();
             target.setShowSelectedIcon(true);
             target.setShowUnselectedIcon(true);
-            target.setStyle("-m3-switch-primary: #123456;");
+            setPrimaryColor(target, "#123456");
             target.setDisableAnimation(true);
             scene(target);
             return target;
@@ -533,7 +553,7 @@ public final class M3SwitchTest {
             Shape handle = part(control, "handle");
             assertEquals(36, handle.getBoundsInParent().getCenterX());
             assertEquals(24, handle.getLayoutBounds().getWidth());
-            control.setStyle("-m3-switch-primary: #abcdef;");
+            setPrimaryColor(control, "#abcdef");
             control.applyCss();
             assertEquals(Color.web("#abcdef"), palette(control).get(0), "CSS must still override animated values");
             control.setDisableAnimation(false);
@@ -642,6 +662,13 @@ public final class M3SwitchTest {
         } finally {
             onFxThread(timer::stop);
         }
+    }
+
+    /// Overrides the theme token on the control and its descendants, matching the palette's scope.
+    private static void setPrimaryColor(M3Switch control, String color) {
+        String css = "* { -monet-primary: " + color + "; }";
+        control.getStylesheets().setAll("data:text/css;base64,"
+                + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8)));
     }
 
     /// Runs assertions on the application thread and propagates failures to JUnit.

@@ -28,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
+import java.util.Objects;
 
 /// A Material Design 3 switch for a boolean setting.
 ///
@@ -227,6 +228,12 @@ public class M3Switch extends Control {
     @Override
     protected Skin<?> createDefaultSkin() {
         return new M3SwitchSkin(this);
+    }
+
+    /// Supplies component styling; the containing scene must provide the Monet palette.
+    @Override
+    public String getUserAgentStylesheet() {
+        return Objects.requireNonNull(M3Switch.class.getResource("/assets/css/m3-switch.css")).toExternalForm();
     }
 
     /// Creates a property that updates the skin, optionally settling active animations.
