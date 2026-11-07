@@ -64,6 +64,47 @@ import static org.junit.jupiter.api.Assertions.*;
 @Isolated("Temporarily supplies settings while initializing the cached animation policy")
 public final class M3SwitchTest {
 
+    /// Skin installation and input do not force selection, activation, size, or optional property allocation.
+    @Test
+    void lazyPropertiesAndSelectionBinding() throws Exception {
+        onFxThread(() -> {
+            M3Switch control = new M3Switch();
+            control.setSize(32);
+            control.setSelected(true);
+            VBox root = scene(control);
+            control.arm();
+            assertEquals(28, part(control, "handle").getLayoutBounds().getWidth());
+            control.disarm();
+            control.fire();
+            assertFalse(control.isSelected());
+            for (String name : List.of("selected", "armed", "size", "showSelectedIcon", "showUnselectedIcon", "disableAnimation", "onAction"))
+                assertNull(field(control, name), name + " must remain unallocated");
+            control.arm();
+            assertTrue(control.armedProperty().get());
+            AtomicInteger armChanges = new AtomicInteger();
+            control.armedProperty().addListener(observable -> armChanges.incrementAndGet());
+            control.disarm();
+            control.arm();
+            assertEquals(2, armChanges.get());
+            control.disarm();
+            control.setSelected(true);
+            assertTrue(control.selectedProperty().get());
+            SimpleBooleanProperty selection = new SimpleBooleanProperty(true);
+            control.selectedProperty().bind(selection);
+            selection.set(false);
+            selection.set(true);
+            assertEquals(36, part(control, "handle").getBoundsInParent().getCenterX());
+            control.fire();
+            assertTrue(control.isSelected(), "Bound selection must still ignore activation");
+            control.setSkin(null);
+            control.setSkin(new M3SwitchSkin(control));
+            layout(root);
+            selection.set(false);
+            assertEquals(16, part(control, "handle").getBoundsInParent().getCenterX());
+        });
+    }
+
+
     /// Loads the switch artwork styles without the application component stylesheet.
     @Test
     void paletteOnlyStyling() throws Exception {
@@ -669,6 +710,17 @@ public final class M3SwitchTest {
         String css = "* { -monet-primary: " + color + "; }";
         control.getStylesheets().setAll("data:text/css;base64,"
                 + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /// Reads optional-property storage without forcing its allocation.
+    private static @Nullable Object field(M3Switch control, String name) {
+        try {
+            Field field = M3Switch.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(control);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
     }
 
     /// Runs assertions on the application thread and propagates failures to JUnit.

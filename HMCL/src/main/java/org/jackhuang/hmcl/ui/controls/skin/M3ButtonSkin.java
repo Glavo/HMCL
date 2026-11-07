@@ -50,9 +50,15 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
     private final EventHandler<KeyEvent> keyHandler = this::handleKey;
 
     /// Scene-level default and cancel dispatch after focused controls have handled keys.
-    private final EventHandler<KeyEvent> sceneKeyHandler = this::handleSceneKey;
+    private @Nullable EventHandler<KeyEvent> sceneKeyHandler;
 
-    /// The scene currently holding this skin's fallback key handler.
+    /// The scene with a registered default or cancel handler, or null for ordinary buttons.
+    private @Nullable Scene actionScene;
+
+    /// Prevents property callbacks from registering handlers after disposal.
+    private boolean disposed;
+
+    /// The scene observed for window changes.
     private @Nullable Scene scene;
 
     /// The window whose deactivation cancels pending gestures.
@@ -252,15 +258,30 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
     private void updateScene(@Nullable Scene value) {
         cancelGesture();
         if (scene != null) {
-            scene.removeEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
             scene.windowProperty().removeListener(windowListener);
         }
         scene = value;
         if (scene != null) {
-            scene.addEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
             scene.windowProperty().addListener(windowListener);
         }
+        updateSceneActions();
         updateWindow(scene == null ? null : scene.getWindow());
+    }
+
+    /// Registers scene key handling only while the button has a default or cancel role.
+    /// Called directly by role-property invalidation without requesting those properties.
+    public void updateSceneActions() {
+        @Nullable Scene target = !disposed && (getSkinnable().isDefaultButton() || getSkinnable().isCancelButton()) ? scene : null;
+        if (actionScene == target)
+            return;
+        if (actionScene != null && sceneKeyHandler != null)
+            actionScene.removeEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
+        actionScene = target;
+        if (actionScene != null) {
+            if (sceneKeyHandler == null)
+                sceneKeyHandler = this::handleSceneKey;
+            actionScene.addEventHandler(KeyEvent.KEY_PRESSED, sceneKeyHandler);
+        }
     }
 
     /// Moves deactivation listeners without retaining old windows.
@@ -288,6 +309,7 @@ public final class M3ButtonSkin extends LabeledSkinBase<M3ButtonBase> {
     @Override
     public void dispose() {
         M3ButtonBase control = getSkinnable();
+        disposed = true;
         updateScene(null);
         control.removeEventFilter(MouseEvent.ANY, mouseHandler);
         control.removeEventHandler(KeyEvent.ANY, keyHandler);

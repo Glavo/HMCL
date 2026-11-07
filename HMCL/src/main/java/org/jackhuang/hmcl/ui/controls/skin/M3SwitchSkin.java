@@ -128,6 +128,9 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Optional shared color animation.
     private @Nullable Transition colorTransition;
 
+    /// Prevents control-property callbacks from restarting a disposed skin.
+    private boolean disposed;
+
     /// Whether a selection color update is pending.
     private boolean animateColors;
 
@@ -172,8 +175,6 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         for (var node : artwork.getChildren())
             node.setManaged(false);
         getChildren().add(artwork);
-        registerChangeListener(control.selectedProperty(), value -> updateSelection());
-        registerChangeListener(control.armedProperty(), value -> update(false));
         @Nullable ReadOnlyBooleanProperty focusVisible = FXUtils.focusVisibleProperty(control);
         ReadOnlyBooleanProperty focusIndicator = focusVisible != null ? focusVisible : control.focusedProperty();
         registerChangeListener(focusIndicator, value ->
@@ -196,6 +197,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
 
     /// Updates icon and animation options, optionally settling active animations.
     public void updateOptions(boolean finishAnimation) {
+        if (disposed)
+            return;
         if (finishAnimation)
             finishColors();
         update(finishAnimation);
@@ -204,6 +207,7 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Stops animations and removes artwork, event handlers, and listeners.
     @Override
     public void dispose() {
+        disposed = true;
         control.removeEventFilter(MouseEvent.ANY, mouseHandler);
         control.removeEventFilter(KeyEvent.ANY, keyHandler);
         cancelGesture();
@@ -284,7 +288,7 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
                     || event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown()
                     || event.isMiddleButtonDown() || event.isSecondaryButtonDown())
                 return;
-            if (control.isDisabled() || control.selectedProperty().isBound())
+            if (control.isDisabled() || control.isSelectionBound())
                 return;
             if (control.isFocusTraversable())
                 control.requestFocus();
@@ -359,7 +363,7 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
                 if (event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown())
                     return;
                 if (!keyDown) {
-                    if (mouseDown || control.isDisabled() || control.selectedProperty().isBound())
+                    if (mouseDown || control.isDisabled() || control.isSelectionBound())
                         return;
                     keyDown = true;
                     control.arm();
@@ -387,7 +391,9 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     }
 
     /// Updates geometry and schedules selection colors for the next CSS pass.
-    private void updateSelection() {
+    public void updateSelection() {
+        if (disposed)
+            return;
         update(false);
         if (control.isDisableAnimation() || control.isDisabled() || control.getScene() == null)
             return;
@@ -406,6 +412,12 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
             color.target = null;
         animateColors = true;
         control.requestLayout();
+    }
+
+    /// Updates pressed geometry when the control changes its activation state.
+    public void updateArmed() {
+        if (!disposed)
+            update(false);
     }
 
     /// Updates handle geometry, with optional animation.

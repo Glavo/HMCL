@@ -3,6 +3,7 @@
 package org.jackhuang.hmcl.ui.controls;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventType;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Field;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.FutureTask;
@@ -41,6 +43,51 @@ import static org.junit.jupiter.api.Assertions.*;
 @NotNullByDefault
 @EnabledIf("org.jackhuang.hmcl.JavaFXLauncher#isStarted")
 public final class M3ButtonTest {
+    /// Ordinary setters and skin installation do not allocate optional properties or fallback key handlers.
+    @Test
+    void lazyPropertiesAndBoundRoles() throws Exception {
+        onFxThread(() -> {
+            M3Button button = new M3Button("Action", M3ButtonVariant.TONAL);
+            VBox root = scene(button);
+            M3ButtonSkin skin = (M3ButtonSkin) Objects.requireNonNull(button.getSkin());
+            assertNull(field(skin, M3ButtonSkin.class, "sceneKeyHandler"));
+            button.setDefaultButton(true);
+            button.setCancelButton(true);
+            button.setVariant(M3ButtonVariant.OUTLINED);
+            assertNull(field(button, M3ButtonBase.class, "variant"));
+            assertNull(field(button, M3ButtonBase.class, "defaultButton"));
+            assertNull(field(button, M3ButtonBase.class, "cancelButton"));
+            assertEquals(M3ButtonVariant.OUTLINED, button.variantProperty().get());
+            assertTrue(button.defaultButtonProperty().get());
+            assertTrue(button.cancelButtonProperty().get());
+
+            AtomicInteger actions = new AtomicInteger();
+            button.setOnAction(event -> actions.incrementAndGet());
+            SimpleBooleanProperty defaultRole = new SimpleBooleanProperty(true);
+            SimpleBooleanProperty cancelRole = new SimpleBooleanProperty(true);
+            button.defaultButtonProperty().bind(defaultRole);
+            button.cancelButtonProperty().bind(cancelRole);
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ENTER);
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ESCAPE);
+            assertEquals(2, actions.get());
+            defaultRole.set(false);
+            cancelRole.set(false);
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ENTER);
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ESCAPE);
+            assertEquals(2, actions.get());
+            assertNull(field(skin, M3ButtonSkin.class, "actionScene"));
+            defaultRole.set(true);
+            cancelRole.set(true);
+            button.setSkin(null);
+            button.setSkin(new M3ButtonSkin(button));
+            root.applyCss();
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ENTER);
+            key(root, KeyEvent.KEY_PRESSED, KeyCode.ESCAPE);
+            assertEquals(4, actions.get());
+            assertNull(field(skin, M3ButtonSkin.class, "actionScene"));
+        });
+    }
+
     /// Resolves all five variants through the live HMCL palette and supports nullable bindings.
     @Test
     void variantsAndThemeChanges() throws Exception {
@@ -301,6 +348,17 @@ public final class M3ButtonTest {
         String css = "* { -monet-primary: " + color + "; }";
         control.getStylesheets().setAll("data:text/css;base64,"
                 + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /// Inspects allocation and registration state without invoking a property accessor.
+    private static @Nullable Object field(Object target, Class<?> owner, String name) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(target);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
     }
 
     /// Runs assertions on the shared JavaFX thread and propagates failures to JUnit.

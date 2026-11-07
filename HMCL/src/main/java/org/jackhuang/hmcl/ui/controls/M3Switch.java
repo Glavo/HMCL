@@ -14,7 +14,8 @@ import javafx.css.PseudoClass;
 import javafx.css.SimpleStyleableDoubleProperty;
 import javafx.css.Styleable;
 import javafx.css.StyleableDoubleProperty;
-import javafx.css.StyleablePropertyFactory;
+import javafx.css.StyleableProperty;
+import javafx.css.converter.SizeConverter;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.AccessibleAction;
@@ -27,6 +28,7 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,48 +46,94 @@ public class M3Switch extends Control {
         setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
     }
 
-    /// Selection state.
-    private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected") {
-        /// Updates visual and accessible selection without firing an action.
-        @Override
-        protected void invalidated() {
-            pseudoClassStateChanged(SELECTED, get());
-            notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED);
-        }
-    };
+    /// Selection before its observable property is requested.
+    private boolean selectedValue;
 
-    /// Changes selection without firing an action event.
+    /// Optional observable selection state.
+    private @Nullable BooleanProperty selected;
+
+    /// Changes selection without firing an action event or allocating its property.
     public final void setSelected(boolean value) {
-        selected.set(value);
+        if (selected != null) {
+            selected.set(value);
+        } else if (selectedValue != value) {
+            selectedValue = value;
+            updateSelected();
+        }
     }
 
     /// Returns whether the switch is selected.
     public final boolean isSelected() {
-        return selected.get();
+        return selected == null ? selectedValue : selected.get();
     }
 
-    /// Returns the bindable selection state; the default is false.
+    /// Returns the bindable selection state, allocating it on first access with the current value.
     public final BooleanProperty selectedProperty() {
+        if (selected == null) {
+            selected = new SimpleBooleanProperty(this, "selected", selectedValue) {
+                /// Updates visual and accessible selection without a skin listener.
+                @Override
+                protected void invalidated() {
+                    updateSelected();
+                }
+            };
+        }
         return selected;
     }
 
-    /// Read-only activation state.
-    private final ReadOnlyBooleanWrapper armed = new ReadOnlyBooleanWrapper(this, "armed") {
-        /// Reflects input feedback in CSS.
-        @Override
-        protected void invalidated() {
-            pseudoClassStateChanged(ARMED, get());
-        }
-    };
+    /// Returns whether selection is bound without allocating its property.
+    public final boolean isSelectionBound() {
+        return selected != null && selected.isBound();
+    }
+
+    /// Validates bound selection and notifies CSS, accessibility, and the installed skin.
+    private void updateSelected() {
+        pseudoClassStateChanged(SELECTED, isSelected());
+        notifyAccessibleAttributeChanged(AccessibleAttribute.SELECTED);
+        if (getSkin() instanceof M3SwitchSkin skin)
+            skin.updateSelection();
+    }
+
+    /// Activation state before its observable property is requested.
+    private boolean armedValue;
+
+    /// Optional observable activation state.
+    private @Nullable ReadOnlyBooleanWrapper armed;
 
     /// Returns whether the switch is armed.
     public final boolean isArmed() {
-        return armed.get();
+        return armed == null ? armedValue : armed.get();
     }
 
-    /// Returns the read-only state indicating a pending activation.
+    /// Returns the pending-activation state, allocating its observable wrapper on first access.
     public final ReadOnlyBooleanProperty armedProperty() {
+        if (armed == null) {
+            armed = new ReadOnlyBooleanWrapper(this, "armed", armedValue) {
+                /// Updates input feedback without a skin listener.
+                @Override
+                protected void invalidated() {
+                    updateArmed();
+                }
+            };
+        }
         return armed.getReadOnlyProperty();
+    }
+
+    /// Changes input feedback without allocating its observable wrapper.
+    private void setArmed(boolean value) {
+        if (armed != null) {
+            armed.set(value);
+        } else if (armedValue != value) {
+            armedValue = value;
+            updateArmed();
+        }
+    }
+
+    /// Validates activation state and updates CSS and the installed skin.
+    private void updateArmed() {
+        pseudoClassStateChanged(ARMED, isArmed());
+        if (getSkin() instanceof M3SwitchSkin skin)
+            skin.updateArmed();
     }
 
     /// Optional action handler.
@@ -116,29 +164,33 @@ public class M3Switch extends Control {
         return onAction;
     }
 
-    /// The requested track height in logical pixels.
-    private final StyleableDoubleProperty size = new SimpleStyleableDoubleProperty(SIZE, this, "size", 32.0) {
-        /// Validates the size and requests layout.
-        @Override
-        protected void invalidated() {
-            get();
-            requestLayout();
-        }
-    };
+    /// Optional styleable track-height property.
+    private @Nullable StyleableDoubleProperty size;
 
     /// Sets the track height; see [#sizeProperty()].
     public final void setSize(double value) {
-        size.set(value);
+        if (size != null || value != 32.0)
+            sizeProperty().set(value);
     }
 
-    /// Returns the requested track height in logical pixels.
+    /// Returns the requested track height in logical pixels without allocating its property.
     public final double getSize() {
-        return size.get();
+        return size == null ? 32.0 : size.get();
     }
 
     /// Track height in logical pixels, styled by `-m3-size`; the default is 32.
-    /// Scales the artwork and interaction target proportionally; nonpositive or nonfinite sizes render at the default size.
+    /// Allocated on property access or assignment. Nonpositive or nonfinite values render at the default size.
     public final StyleableDoubleProperty sizeProperty() {
+        if (size == null) {
+            size = new SimpleStyleableDoubleProperty(SIZE, this, "size", 32.0) {
+                /// Validates bound values and requests layout without a skin listener.
+                @Override
+                protected void invalidated() {
+                    get();
+                    requestLayout();
+                }
+            };
+        }
         return size;
     }
 
@@ -207,18 +259,18 @@ public class M3Switch extends Control {
 
     /// Arms input feedback unless the switch is disabled or its selection is bound.
     public final void arm() {
-        if (!isDisabled() && !selected.isBound())
-            armed.set(true);
+        if (!isDisabled() && !isSelectionBound())
+            setArmed(true);
     }
 
     /// Clears input feedback without firing an action.
     public final void disarm() {
-        armed.set(false);
+        setArmed(false);
     }
 
     /// Toggles selection and fires one action; disabled or bound switches ignore activation.
     public void fire() {
-        if (!isDisabled() && !selected.isBound()) {
+        if (!isDisabled() && !isSelectionBound()) {
             setSelected(!isSelected());
             fireEvent(new ActionEvent(this, this));
         }
@@ -255,17 +307,30 @@ public class M3Switch extends Control {
     /// Indicates a pending activation.
     private static final PseudoClass ARMED = PseudoClass.getPseudoClass("armed");
 
-    /// Factory for switch CSS metadata.
-    private static final StyleablePropertyFactory<M3Switch> STYLEABLES =
-            new StyleablePropertyFactory<>(Control.getClassCssMetaData());
-
-    /// CSS metadata for track height.
+    /// CSS metadata for track height; settable checks must not instantiate the property.
     private static final CssMetaData<M3Switch, Number> SIZE =
-            STYLEABLES.createSizeCssMetaData("-m3-size", control -> control.size, 32.0);
+            new CssMetaData<>("-m3-size", SizeConverter.getInstance(), 32.0) {
+                /// Allows CSS assignment only when the optional property is not bound.
+                @Override
+                public boolean isSettable(M3Switch control) {
+                    return control.size == null || !control.size.isBound();
+                }
+
+                /// Allocates the property only when CSS needs to access it.
+                @Override
+                public StyleableProperty<Number> getStyleableProperty(M3Switch control) {
+                    return control.sizeProperty();
+                }
+            };
 
     /// Switch and inherited CSS metadata.
-    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS_META_DATA =
-            List.copyOf(STYLEABLES.getCssMetaData());
+    private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS_META_DATA;
+
+    static {
+        List<CssMetaData<? extends Styleable, ?>> metadata = new ArrayList<>(Control.getClassCssMetaData());
+        metadata.add(SIZE);
+        CSS_META_DATA = List.copyOf(metadata);
+    }
 
     /// Returns immutable CSS metadata, including inherited control properties.
     public static @Unmodifiable List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
