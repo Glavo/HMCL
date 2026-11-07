@@ -3,6 +3,17 @@
 package org.jackhuang.hmcl.ui.instances;
 
 import com.jfoenix.controls.*;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.lang.ref.WeakReference;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -52,6 +63,7 @@ import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jackhuang.hmcl.util.Lazy;
 import org.jackhuang.hmcl.util.Pair;
 import org.jackhuang.hmcl.util.StringUtils;
@@ -65,17 +77,6 @@ import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.lang.ref.WeakReference;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
 import static org.jackhuang.hmcl.ui.FXUtils.ignoreEvent;
 import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
@@ -765,7 +766,8 @@ public final class ModListPage extends ListPageBase<ModListPage.ModInfoObject> i
         private final JFXButton restoreButton = FXUtils.newToggleButton4(SVG.RESTORE);
         private final JFXButton revealButton = FXUtils.newToggleButton4(SVG.FOLDER);
         private final JFXButton infoButton = FXUtils.newToggleButton4(SVG.INFO);
-        private final JFXSwitch activeSwitch = new JFXSwitch();
+        /// Toggles whether this item is active.
+        private final M3Switch activeSwitch = new M3Switch();
 
         private final InvalidationListener activeListener = obs -> activeSwitch.setSelected(getItem().getModInfo().isActive());
         private final WeakInvalidationListener weakActiveListener = new WeakInvalidationListener(activeListener);

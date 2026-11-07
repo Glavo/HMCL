@@ -1,0 +1,128 @@
+/* Baseline MD3 buttons. HMCL overrides these fallback colors with its Monet palette. */
+.m3-button {
+    -m3-primary: #6750a4;
+    -m3-on-primary: #ffffff;
+    -m3-secondary-container: #e8def8;
+    -m3-on-secondary-container: #1d192b;
+    -m3-surface-container-low: #f7f2fa;
+    -m3-on-surface: #1d1b20;
+    -m3-outline: #79747e;
+    -m3-container: -m3-primary;
+    -m3-content: -m3-on-primary;
+    -m3-border: transparent;
+    -fx-background-color: transparent;
+    -fx-padding: 0 24;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -m3-content;
+    -fx-graphic-text-gap: 8;
+    -fx-cursor: hand;
+}
+
+.m3-button:tonal {
+    -m3-container: -m3-secondary-container;
+    -m3-content: -m3-on-secondary-container;
+}
+
+.m3-button:outlined {
+    -m3-container: transparent;
+    -m3-content: -m3-primary;
+    -m3-border: -m3-outline;
+}
+
+.m3-button:text {
+    -m3-container: transparent;
+    -m3-content: -m3-primary;
+    -fx-padding: 0 12;
+}
+
+.m3-button:elevated {
+    -m3-container: -m3-surface-container-low;
+    -m3-content: -m3-primary;
+}
+
+.m3-button > .button-container {
+    -fx-background-color: -m3-container;
+    -fx-background-radius: 999;
+    -fx-border-color: -m3-border;
+    -fx-border-radius: 999;
+    -fx-border-width: 1;
+}
+
+.m3-button:elevated > .button-container {
+    -fx-effect: dropshadow(gaussian, #00000030, 3, 0, 0, 1);
+}
+
+.m3-button:elevated:hover > .button-container {
+    -fx-effect: dropshadow(gaussian, #00000030, 6, 0, 0, 2);
+}
+
+.m3-button:elevated:armed > .button-container {
+    -fx-effect: dropshadow(gaussian, #00000030, 3, 0, 0, 1);
+}
+
+.m3-button > .button-state-layer {
+    -fx-background-color: -m3-content;
+    -fx-background-radius: 999;
+    -fx-opacity: 0;
+}
+
+.m3-button:hover > .button-state-layer {
+    -fx-opacity: 0.08;
+}
+
+.m3-button:visual-focused > .button-state-layer,
+.m3-button:armed > .button-state-layer {
+    -fx-opacity: 0.12;
+}
+
+.m3-button > .button-focus-ring {
+    -fx-background-color: transparent;
+    -fx-border-color: -m3-primary;
+    -fx-border-radius: 999;
+    -fx-border-width: 2;
+    -fx-opacity: 0;
+}
+
+.m3-button:visual-focused > .button-focus-ring {
+    -fx-opacity: 1;
+}
+
+.m3-button .svg {
+    -fx-fill: -m3-content;
+}
+
+.m3-button:disabled {
+    -m3-container: -m3-on-surface;
+    -m3-content: -m3-on-surface;
+    -m3-border: transparent;
+    -fx-opacity: 1;
+    -fx-cursor: default;
+}
+
+.m3-button:disabled > * {
+    -fx-opacity: 0.38;
+}
+
+.m3-button:disabled > .button-container {
+    -fx-opacity: 0.12;
+    -fx-effect: null;
+}
+
+.m3-button:outlined:disabled,
+.m3-button:text:disabled {
+    -m3-container: transparent;
+}
+
+.m3-button:outlined:disabled {
+    -m3-border: -m3-on-surface;
+}
+
+.m3-button:disabled > .button-state-layer,
+.m3-button:disabled:hover > .button-state-layer,
+.m3-button:disabled:armed > .button-state-layer,
+.m3-button:disabled:visual-focused > .button-state-layer,
+.m3-button:disabled > .button-focus-ring,
+.m3-button:disabled:visual-focused > .button-focus-ring {
+    -fx-opacity: 0;
+}

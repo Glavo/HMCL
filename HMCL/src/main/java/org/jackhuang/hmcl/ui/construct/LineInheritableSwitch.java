@@ -3,7 +3,6 @@
 package org.jackhuang.hmcl.ui.construct;
 
 import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXSwitch;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -15,6 +14,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jetbrains.annotations.NotNullByDefault;
 
 /// A switch row that edits an inheritable boolean and displays its effective value.
@@ -39,7 +39,7 @@ public final class LineInheritableSwitch extends LineButtonBase {
     private final Tooltip inheritTooltip;
 
     /// The switch displaying the effective value.
-    private final JFXSwitch switchControl;
+    private final M3Switch switchControl;
 
     /// Creates an inheritable boolean switch row.
     public LineInheritableSwitch() {
@@ -66,7 +66,7 @@ public final class LineInheritableSwitch extends LineButtonBase {
             event.consume();
         });
 
-        this.switchControl = new JFXSwitch();
+        this.switchControl = new M3Switch();
         switchControl.accessibleTextProperty().bind(titleProperty());
         switchControl.setOnAction(event -> {
             // Override listeners may refresh the switch synchronously; preserve the requested value.

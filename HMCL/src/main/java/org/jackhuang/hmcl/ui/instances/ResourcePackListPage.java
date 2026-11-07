@@ -3,6 +3,13 @@
 package org.jackhuang.hmcl.ui.instances;
 
 import com.jfoenix.controls.*;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -43,19 +50,13 @@ import org.jackhuang.hmcl.ui.WeakListenerHolder;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jackhuang.hmcl.util.*;
 import org.jackhuang.hmcl.util.javafx.ItemPropertyAsyncCache;
 import org.jackhuang.hmcl.util.versioning.GameVersionNumber;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import static org.jackhuang.hmcl.ui.FXUtils.ignoreEvent;
 import static org.jackhuang.hmcl.ui.FXUtils.onEscPressed;
@@ -531,7 +532,8 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
         private final TwoLineListItem content = new TwoLineListItem();
         private final JFXButton btnReveal = FXUtils.newToggleButton4(SVG.FOLDER);
         private final JFXButton btnInfo = FXUtils.newToggleButton4(SVG.INFO);
-        private final JFXSwitch activeSwitch;
+        /// Toggles whether this item is active.
+        private final M3Switch activeSwitch;
 
         private BooleanProperty booleanProperty = null;
 
@@ -547,7 +549,7 @@ public final class ResourcePackListPage extends ListPageBase<ResourcePackListPag
             root.setAlignment(Pos.CENTER_LEFT);
             root.setPadding(new Insets(0, 8, 0, 8));
 
-            activeSwitch = new JFXSwitch() {
+            activeSwitch = new M3Switch() {
                 @Override
                 public void fire() {
                     if (!Boolean.TRUE.equals(SettingsManager.state().getShownTips().get(TIP_KEY)) && !isSelected() && getItem() != null && !getItem().getFile().isCompatible()) {

@@ -4,8 +4,14 @@ package org.jackhuang.hmcl.ui.instances;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXListView;
-import com.jfoenix.controls.JFXSwitch;
 import com.jfoenix.controls.JFXTextField;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.Predicate;
+import java.util.regex.PatternSyntaxException;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -36,19 +42,13 @@ import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.io.CompressingUtils;
 import org.jackhuang.hmcl.util.javafx.ItemPropertyAsyncCache;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.function.Predicate;
-import java.util.regex.PatternSyntaxException;
 
 import static org.jackhuang.hmcl.ui.ToolbarListPageSkin.createToolbarButton2;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -308,7 +308,8 @@ final class DataPackListPageSkin extends SkinBase<DataPackListPage> {
     }
 
     private static final class DataPackInfoListCell extends MDListCell<DataPackInfoObject> {
-        private final JFXSwitch activeSwitch = new JFXSwitch();
+        /// Toggles whether this item is active.
+        private final M3Switch activeSwitch = new M3Switch();
         ImageContainer imageContainer = new ImageContainer(32);
         final TwoLineListItem content = new TwoLineListItem();
 

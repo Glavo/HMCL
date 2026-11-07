@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
-package com.jfoenix.skins;
+package org.jackhuang.hmcl.ui.controls.skin;
 
-import com.jfoenix.controls.JFXSwitch;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -33,21 +35,19 @@ import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
+import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
 
 /// Renders a Material Design 3 switch and handles input.
 /// Geometry uses unscaled MD3 units and is mirrored in RTL layouts.
 @NotNullByDefault
-public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
+public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Track width in unscaled MD3 artwork coordinates.
     private static final double TRACK_WIDTH = 52;
 
-    /// Track height corresponding to the control's default `-jfx-size`.
+    /// Track height corresponding to the control's default `-m3-size`.
     private static final double TRACK_HEIGHT = 32;
 
     /// Unscaled interaction target height.
@@ -81,7 +81,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     private static final PseudoClass VISUAL_FOCUSED = PseudoClass.getPseudoClass("visual-focused");
 
     /// The rendered switch.
-    private final JFXSwitch control;
+    private final M3Switch control;
 
     /// Unmanaged switch artwork.
     private final Pane artwork = new Pane();
@@ -156,7 +156,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     private double pressCenter;
 
     /// Creates a skin for the switch.
-    public JFXSwitchSkin(JFXSwitch control) {
+    public M3SwitchSkin(M3Switch control) {
         super(control);
         this.control = control;
         artwork.getStyleClass().setAll("switch-artwork");
@@ -514,6 +514,7 @@ public final class JFXSwitchSkin extends SkinBase<JFXSwitch> {
     }
 
     /// Animates a solid paint while preserving CSS precedence.
+    @NotNullByDefault
     private final class CssColor implements ChangeListener<@Nullable Paint> {
 
         /// The animated paint property.

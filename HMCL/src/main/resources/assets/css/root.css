@@ -1197,128 +1197,128 @@
 
 /*******************************************************************************
  *                                                                             *
- * JFX Switch                                                                  *
+ * M3 Switch                                                                  *
  *                                                                             *
  ******************************************************************************/
 
-.jfx-switch {
-    -jfx-switch-primary: -monet-primary;
-    -jfx-switch-on-primary: -monet-on-primary;
-    -jfx-switch-primary-container: -monet-primary-container;
-    -jfx-switch-on-primary-container: -monet-on-primary-container;
-    -jfx-switch-surface: -monet-surface;
-    -jfx-switch-surface-container-highest: -monet-surface-container-highest;
-    -jfx-switch-on-surface: -monet-on-surface;
-    -jfx-switch-on-surface-variant: -monet-on-surface-variant;
-    -jfx-switch-outline: -monet-outline;
+.m3-switch {
+    -m3-switch-primary: -monet-primary;
+    -m3-switch-on-primary: -monet-on-primary;
+    -m3-switch-primary-container: -monet-primary-container;
+    -m3-switch-on-primary-container: -monet-on-primary-container;
+    -m3-switch-surface: -monet-surface;
+    -m3-switch-surface-container-highest: -monet-surface-container-highest;
+    -m3-switch-on-surface: -monet-on-surface;
+    -m3-switch-on-surface-variant: -monet-on-surface-variant;
+    -m3-switch-outline: -monet-outline;
     -fx-background-color: transparent;
     -fx-padding: 0;
     -fx-cursor: hand;
 }
 
-.jfx-switch > .switch-artwork > .switch-track {
-    -fx-fill: -jfx-switch-surface-container-highest;
-    -fx-stroke: -jfx-switch-outline;
+.m3-switch > .switch-artwork > .switch-track {
+    -fx-fill: -m3-switch-surface-container-highest;
+    -fx-stroke: -m3-switch-outline;
     -fx-stroke-width: 2;
     -fx-stroke-type: inside;
 }
 
-.jfx-switch:selected > .switch-artwork > .switch-track {
-    -fx-fill: -jfx-switch-primary;
+.m3-switch:selected > .switch-artwork > .switch-track {
+    -fx-fill: -m3-switch-primary;
     -fx-stroke: transparent;
 }
 
-.jfx-switch > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-outline;
+.m3-switch > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-outline;
 }
 
-.jfx-switch:selected > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-on-primary;
+.m3-switch:selected > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-on-primary;
 }
 
-.jfx-switch:hover > .switch-artwork > .switch-handle,
-.jfx-switch:visual-focused > .switch-artwork > .switch-handle,
-.jfx-switch:armed > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-on-surface-variant;
+.m3-switch:hover > .switch-artwork > .switch-handle,
+.m3-switch:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-on-surface-variant;
 }
 
-.jfx-switch:selected:hover > .switch-artwork > .switch-handle,
-.jfx-switch:selected:visual-focused > .switch-artwork > .switch-handle,
-.jfx-switch:selected:armed > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-primary-container;
+.m3-switch:selected:hover > .switch-artwork > .switch-handle,
+.m3-switch:selected:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:selected:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-primary-container;
 }
 
-.jfx-switch > .switch-artwork > .switch-state-layer {
-    -fx-fill: -jfx-switch-on-surface;
+.m3-switch > .switch-artwork > .switch-state-layer {
+    -fx-fill: -m3-switch-on-surface;
     -fx-opacity: 0;
 }
 
-.jfx-switch:selected > .switch-artwork > .switch-state-layer {
-    -fx-fill: -jfx-switch-primary;
+.m3-switch:selected > .switch-artwork > .switch-state-layer {
+    -fx-fill: -m3-switch-primary;
 }
 
-.jfx-switch:hover > .switch-artwork > .switch-state-layer {
+.m3-switch:hover > .switch-artwork > .switch-state-layer {
     -fx-opacity: 0.08;
 }
 
-.jfx-switch:visual-focused > .switch-artwork > .switch-state-layer,
-.jfx-switch:armed > .switch-artwork > .switch-state-layer {
+.m3-switch:visual-focused > .switch-artwork > .switch-state-layer,
+.m3-switch:armed > .switch-artwork > .switch-state-layer {
     -fx-opacity: 0.12;
 }
 
-.jfx-switch > .switch-artwork > .switch-icon {
-    -fx-fill: -jfx-switch-surface-container-highest;
+.m3-switch > .switch-artwork > .switch-icon {
+    -fx-fill: -m3-switch-surface-container-highest;
 }
 
-.jfx-switch:selected > .switch-artwork > .switch-icon {
-    -fx-fill: -jfx-switch-on-primary-container;
+.m3-switch:selected > .switch-artwork > .switch-icon {
+    -fx-fill: -m3-switch-on-primary-container;
 }
 
 /* Disabled opacity belongs to individual parts, never to the entire control. */
-.jfx-switch:disabled {
+.m3-switch:disabled {
     -fx-opacity: 1;
     -fx-cursor: default;
 }
 
-.jfx-switch:disabled > .switch-artwork > .switch-track {
-    -fx-fill: -jfx-switch-surface-container-highest;
-    -fx-stroke: -jfx-switch-on-surface;
+.m3-switch:disabled > .switch-artwork > .switch-track {
+    -fx-fill: -m3-switch-surface-container-highest;
+    -fx-stroke: -m3-switch-on-surface;
     -fx-opacity: 0.12;
 }
 
-.jfx-switch:selected:disabled > .switch-artwork > .switch-track {
-    -fx-fill: -jfx-switch-on-surface;
+.m3-switch:selected:disabled > .switch-artwork > .switch-track {
+    -fx-fill: -m3-switch-on-surface;
     -fx-stroke: transparent;
 }
 
-.jfx-switch:disabled > .switch-artwork > .switch-handle,
-.jfx-switch:disabled:hover > .switch-artwork > .switch-handle,
-.jfx-switch:disabled:visual-focused > .switch-artwork > .switch-handle,
-.jfx-switch:disabled:armed > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-on-surface;
+.m3-switch:disabled > .switch-artwork > .switch-handle,
+.m3-switch:disabled:hover > .switch-artwork > .switch-handle,
+.m3-switch:disabled:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:disabled:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-on-surface;
     -fx-opacity: 0.38;
 }
 
-.jfx-switch:selected:disabled > .switch-artwork > .switch-handle,
-.jfx-switch:selected:disabled:hover > .switch-artwork > .switch-handle,
-.jfx-switch:selected:disabled:visual-focused > .switch-artwork > .switch-handle,
-.jfx-switch:selected:disabled:armed > .switch-artwork > .switch-handle {
-    -fx-fill: -jfx-switch-surface;
+.m3-switch:selected:disabled > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:hover > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:visual-focused > .switch-artwork > .switch-handle,
+.m3-switch:selected:disabled:armed > .switch-artwork > .switch-handle {
+    -fx-fill: -m3-switch-surface;
     -fx-opacity: 1;
 }
 
-.jfx-switch:disabled > .switch-artwork > .switch-icon {
+.m3-switch:disabled > .switch-artwork > .switch-icon {
     -fx-opacity: 0.38;
 }
 
-.jfx-switch:selected:disabled > .switch-artwork > .switch-icon {
-    -fx-fill: -jfx-switch-on-surface;
+.m3-switch:selected:disabled > .switch-artwork > .switch-icon {
+    -fx-fill: -m3-switch-on-surface;
 }
 
-.jfx-switch:disabled > .switch-artwork > .switch-state-layer,
-.jfx-switch:disabled:hover > .switch-artwork > .switch-state-layer,
-.jfx-switch:disabled:visual-focused > .switch-artwork > .switch-state-layer,
-.jfx-switch:disabled:armed > .switch-artwork > .switch-state-layer {
+.m3-switch:disabled > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:hover > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:visual-focused > .switch-artwork > .switch-state-layer,
+.m3-switch:disabled:armed > .switch-artwork > .switch-state-layer {
     -fx-opacity: 0;
 }
 
@@ -2040,8 +2040,8 @@
     -fx-text-fill: -monet-primary-transparent-80;
 }
 
-.line-switch .jfx-switch {
-    -jfx-size: 24;
+.line-switch .m3-switch {
+    -m3-size: 24;
     -fx-min-height: 30;
     -fx-pref-height: 30;
     -fx-max-height: 30;
@@ -2174,4 +2174,19 @@
 
 .date-picker-popup .title {
     -fx-text-fill: -monet-on-surface-variant;
+}
+
+/* Material Design 3 command buttons follow the active Monet theme. */
+.m3-button {
+    -m3-primary: -monet-primary;
+    -m3-on-primary: -monet-on-primary;
+    -m3-secondary-container: -monet-secondary-container;
+    -m3-on-secondary-container: -monet-on-secondary-container;
+    -m3-surface-container-low: -monet-surface-container-low;
+    -m3-on-surface: -monet-on-surface;
+    -m3-outline: -monet-outline;
+}
+
+.m3-button .svg {
+    -fx-fill: -m3-content;
 }

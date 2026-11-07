@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
-package com.jfoenix.controls;
+package org.jackhuang.hmcl.ui.controls;
 
-import com.jfoenix.skins.JFXSwitchSkin;
+import org.jackhuang.hmcl.ui.controls.skin.M3SwitchSkin;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -34,11 +34,11 @@ import java.util.List;
 /// Supports clicking, dragging, and Space-key activation. Labels belong to the surrounding layout;
 /// supply an accessible text description. Size and colors are configurable through CSS.
 @NotNullByDefault
-public class JFXSwitch extends Control {
+public class M3Switch extends Control {
 
     /// Creates an unselected switch.
-    public JFXSwitch() {
-        getStyleClass().setAll("jfx-switch");
+    public M3Switch() {
+        getStyleClass().setAll("m3-switch");
         setFocusTraversable(true);
         setAccessibleRole(AccessibleRole.TOGGLE_BUTTON);
     }
@@ -135,7 +135,7 @@ public class JFXSwitch extends Control {
         return size.get();
     }
 
-    /// Track height in logical pixels, styled by `-jfx-size`; the default is 32.
+    /// Track height in logical pixels, styled by `-m3-size`; the default is 32.
     /// Scales the artwork and interaction target proportionally; nonpositive or nonfinite sizes render at the default size.
     public final StyleableDoubleProperty sizeProperty() {
         return size;
@@ -226,7 +226,7 @@ public class JFXSwitch extends Control {
     /// Creates the default switch skin.
     @Override
     protected Skin<?> createDefaultSkin() {
-        return new JFXSwitchSkin(this);
+        return new M3SwitchSkin(this);
     }
 
     /// Creates a property that updates the skin, optionally settling active animations.
@@ -236,7 +236,7 @@ public class JFXSwitch extends Control {
             @Override
             protected void invalidated() {
                 get();
-                if (getSkin() instanceof JFXSwitchSkin skin)
+                if (getSkin() instanceof M3SwitchSkin skin)
                     skin.updateOptions(finishAnimation);
             }
         };
@@ -249,12 +249,12 @@ public class JFXSwitch extends Control {
     private static final PseudoClass ARMED = PseudoClass.getPseudoClass("armed");
 
     /// Factory for switch CSS metadata.
-    private static final StyleablePropertyFactory<JFXSwitch> STYLEABLES =
+    private static final StyleablePropertyFactory<M3Switch> STYLEABLES =
             new StyleablePropertyFactory<>(Control.getClassCssMetaData());
 
     /// CSS metadata for track height.
-    private static final CssMetaData<JFXSwitch, Number> SIZE =
-            STYLEABLES.createSizeCssMetaData("-jfx-size", control -> control.size, 32.0);
+    private static final CssMetaData<M3Switch, Number> SIZE =
+            STYLEABLES.createSizeCssMetaData("-m3-size", control -> control.size, 32.0);
 
     /// Switch and inherited CSS metadata.
     private static final @Unmodifiable List<CssMetaData<? extends Styleable, ?>> CSS_META_DATA =
