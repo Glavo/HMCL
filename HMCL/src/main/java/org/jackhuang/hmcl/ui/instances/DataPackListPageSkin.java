@@ -38,7 +38,6 @@ import org.jackhuang.hmcl.addon.datapack.DataPack;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
-import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
 import org.jackhuang.hmcl.ui.construct.*;
@@ -352,7 +351,6 @@ final class DataPackListPageSkin extends SkinBase<DataPackListPage> {
 
             DataPack.Pack packInfo = dataItem.getPackInfo();
             (observedActiveProperty = packInfo.activeProperty()).addListener(weakActiveListener);
-            activeSwitch.setDisableAnimation(true);
             activeSwitch.setSelected(packInfo.isActive());
             activeSwitch.setOnAction(event -> {
                 try {
@@ -364,7 +362,6 @@ final class DataPackListPageSkin extends SkinBase<DataPackListPage> {
                     activeSwitch.setSelected(packInfo.isActive());
                 }
             });
-            activeSwitch.setDisableAnimation(!AnimationUtils.isAnimationEnabled());
             dataItem.iconCache.attachValue(imageContainer.imageProperty(), new WeakReference<>(this.itemProperty()));
         }
     }

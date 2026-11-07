@@ -10,6 +10,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import org.jackhuang.hmcl.ui.FXUtils;
+import org.jackhuang.hmcl.ui.controls.M3Animations;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class MDListCell<T> extends ListCell<T> {
     private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
@@ -38,27 +40,29 @@ public abstract class MDListCell<T> extends ListCell<T> {
         }
     }
 
+    /// Refreshes reusable content without animating item changes, including while its graphic is detached.
     @Override
-    protected void updateItem(T item, boolean empty) {
-        T oldItem = getItem();
-        boolean oldEmpty = isEmpty();
-
-        super.updateItem(item, empty);
-
-        if (oldItem == item && oldEmpty == empty) {
+    protected void updateItem(@Nullable T item, boolean empty) {
+        if (getItem() == item && isEmpty() == empty) {
+            super.updateItem(item, empty);
             updateLastPseudoClass(empty);
             return;
         }
 
-        ripplerContainer.resetFeedback();
-
-        updateControl(item, empty);
-        if (empty || item == null) {
-            setGraphic(null);
-        } else {
-            setGraphic(root);
+        M3Animations.suspend(root);
+        try {
+            super.updateItem(item, empty);
+            ripplerContainer.resetFeedback();
+            updateControl(item, empty);
+            if (empty || item == null) {
+                setGraphic(null);
+            } else {
+                setGraphic(root);
+            }
+            updateLastPseudoClass(empty || item == null);
+        } finally {
+            M3Animations.resume(root);
         }
-        updateLastPseudoClass(empty || item == null);
     }
 
     /// Updates the `:last` pseudo-class so the trailing divider can be suppressed in CSS.

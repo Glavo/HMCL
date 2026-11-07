@@ -64,6 +64,33 @@ import static org.junit.jupiter.api.Assertions.*;
 @Isolated("Temporarily supplies settings while initializing the cached animation policy")
 public final class M3SwitchTest {
 
+    /// Subtree suppression settles transitions without interrupting pointer-driven dragging.
+    @Test
+    void draggingWhileAnimationsAreSuspended() throws Exception {
+        onFxThread(() -> {
+            M3Switch control = new M3Switch();
+            control.setDisableAnimation(false);
+            VBox root = scene(control);
+            AtomicInteger actions = new AtomicInteger();
+            control.setOnAction(event -> actions.incrementAndGet());
+            M3Animations.suspend(root);
+            try {
+                mouse(control, MouseEvent.MOUSE_PRESSED, 16, true);
+                mouse(control, MouseEvent.MOUSE_DRAGGED, 36, true);
+                assertEquals(36, part(control, "handle").getBoundsInParent().getCenterX());
+                assertFalse(control.isSelected());
+                M3Animations.suspend(control);
+                M3Animations.resume(control);
+                assertEquals(36, part(control, "handle").getBoundsInParent().getCenterX());
+                mouse(control, MouseEvent.MOUSE_RELEASED, 36, false);
+                assertTrue(control.isSelected());
+                assertEquals(1, actions.get());
+            } finally {
+                M3Animations.resume(root);
+            }
+        });
+    }
+
     /// Skin installation and input do not force selection, activation, size, or optional property allocation.
     @Test
     void lazyPropertiesAndSelectionBinding() throws Exception {

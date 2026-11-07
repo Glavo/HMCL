@@ -35,6 +35,7 @@ import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
+import org.jackhuang.hmcl.ui.controls.M3Animations;
 import org.jackhuang.hmcl.ui.controls.M3Switch;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -43,7 +44,7 @@ import org.jetbrains.annotations.Nullable;
 /// Renders a Material Design 3 switch and handles input.
 /// Geometry uses unscaled MD3 units and is mirrored in RTL layouts.
 @NotNullByDefault
-public final class M3SwitchSkin extends SkinBase<M3Switch> {
+public final class M3SwitchSkin extends SkinBase<M3Switch> implements M3AnimatedSkin {
 
     // Constants
 
@@ -136,6 +137,9 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Prevents control-property callbacks from restarting a disposed skin.
     private boolean disposed;
 
+    /// Prevents recursive settling when applying final geometry invalidates its animated properties.
+    private boolean finishingAnimations;
+
     /// Whether a selection color update is pending.
     private boolean animateColors;
 
@@ -227,13 +231,31 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         update(finishAnimation);
     }
 
+    /// Settles visual transitions while preserving selection, local settings, and pointer-driven dragging.
+    @Override
+    public void finishAnimations() {
+        if (disposed || finishingAnimations)
+            return;
+        finishingAnimations = true;
+        try {
+            if (geometryTransition != null)
+                geometryTransition.stop();
+            finishColors();
+            update(true);
+        } finally {
+            finishingAnimations = false;
+        }
+    }
+
     /// Updates geometry and schedules selection colors for the next CSS pass.
     public void updateSelection() {
         if (disposed)
             return;
-        update(false);
-        if (control.isDisableAnimation() || control.isDisabled() || control.getScene() == null)
+        if (!canAnimate()) {
+            finishAnimations();
             return;
+        }
+        update(false);
         if (colors.isEmpty()) {
             colors.add(new CssColor(track.fillProperty()));
             colors.add(new CssColor(handle.fillProperty()));
@@ -262,6 +284,8 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
     /// Centers the scaled artwork within the control and starts pending color transitions.
     @Override
     protected void layoutChildren(double x, double y, double w, double h) {
+        if (M3Animations.isSuspended(control))
+            finishAnimations();
         double scale = sizeScale();
         artworkScale.setX(scale);
         artworkScale.setY(scale);
@@ -447,7 +471,7 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         double targetDiameter = pressed ? PRESSED_DIAMETER : selected || hasIcon ? ON_DIAMETER : OFF_DIAMETER;
         double targetCenter = selected ? ON_CENTER : OFF_CENTER;
         updateIcon(selected, hasIcon);
-        if (immediate || control.isDisableAnimation() || control.getScene() == null
+        if (immediate || !canAnimate()
                 || currentCenter == targetCenter && currentDiameter == targetDiameter) {
             center.set(targetCenter);
             diameter.set(targetDiameter);
@@ -493,6 +517,9 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
 
     /// Positions and sizes the handle and its overlays.
     private void layoutHandle() {
+        // Reparenting an ancestor may move an already-running transition into a suspended subtree.
+        if (!finishingAnimations && M3Animations.isSuspended(control))
+            finishAnimations();
         double cx = center.get();
         stateLayer.setCenterX(cx);
         handle.setCenterX(cx);
@@ -508,6 +535,12 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
         return Double.isFinite(size) && size > 0 ? size / TRACK_HEIGHT : 1;
     }
 
+    /// Resolves local policy and the current subtree scope without allocating observable state.
+    private boolean canAnimate() {
+        return !control.isDisableAnimation() && !control.isDisabled()
+                && control.getScene() != null && !M3Animations.isSuspended(control);
+    }
+
     /// Returns the shared color animation, creating it if needed.
     private Transition colorTransition() {
         if (colorTransition == null) {
@@ -520,6 +553,10 @@ public final class M3SwitchSkin extends SkinBase<M3Switch> {
                 /// Updates only paints with a pending CSS target.
                 @Override
                 protected void interpolate(double fraction) {
+                    if (M3Animations.isSuspended(control)) {
+                        finishAnimations();
+                        return;
+                    }
                     for (CssColor color : colors)
                         color.interpolate(fraction);
                 }
