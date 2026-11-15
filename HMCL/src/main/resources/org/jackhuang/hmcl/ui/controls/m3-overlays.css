@@ -1,0 +1,123 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (C) 2026 The HMCL Authors
+ * SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
+ */
+
+.m3-dialog-overlay {
+    -fx-background-color: rgba(0, 0, 0, 0.32);
+    -fx-padding: 24px;
+}
+
+.m3-dialog {
+    -fx-background-color: -monet-surface-container-high;
+    -fx-background-radius: 28px;
+    -fx-padding: 24px;
+    -fx-pref-width: 400px;
+    -fx-spacing: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.22), 12, 0.12, 0, 4);
+}
+
+.m3-dialog-headline {
+    -fx-font-size: 24px;
+    -fx-text-fill: -monet-on-surface;
+    -fx-padding: 0 0 16px 0;
+}
+
+.m3-dialog-graphic {
+    -fx-padding: 0 0 16px 0;
+    -fx-alignment: center;
+}
+
+.m3-dialog-graphic .svg {
+    -fx-fill: -monet-secondary;
+}
+
+.m3-dialog-content,
+.m3-dialog-content > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.m3-dialog-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: -monet-on-surface-variant;
+}
+
+.m3-dialog-actions {
+    -fx-padding: 24px 0 0 0;
+}
+
+.m3-dialog-actions > .button,
+.m3-snackbar-action,
+.m3-snackbar-close {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 20px;
+    -fx-border-color: transparent;
+    -fx-border-radius: 20px;
+    -fx-border-width: 2px;
+    -fx-padding: 6px 10px;
+    -fx-min-height: 40px;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -monet-primary;
+    -fx-cursor: hand;
+}
+
+.m3-dialog-actions > .button:hover {
+    -fx-background-color: -monet-primary-container;
+}
+
+.m3-dialog-actions > .button:focused {
+    -fx-border-color: -monet-primary;
+}
+
+.m3-dialog-actions > .button:pressed {
+    -fx-background-color: -monet-secondary-container;
+}
+
+.m3-snackbar {
+    -fx-background-color: -monet-inverse-surface;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 16px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.22), 6, 0.18, 0, 3);
+}
+
+.m3-snackbar-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: -monet-inverse-on-surface;
+}
+
+.m3-snackbar-action {
+    -fx-text-fill: -monet-inverse-primary;
+    -fx-min-height: 32px;
+    -fx-padding: 2px 10px;
+}
+
+.m3-snackbar-close {
+    -fx-text-fill: -monet-inverse-on-surface;
+    -fx-font-size: 24px;
+    -fx-font-weight: normal;
+    -fx-min-width: 40px;
+    -fx-pref-width: 40px;
+    -fx-padding: 0;
+}
+
+.m3-snackbar-action:hover,
+.m3-snackbar-close:hover {
+    -fx-background-color: rgba(128, 128, 128, 0.16);
+}
+
+.m3-snackbar-action:pressed,
+.m3-snackbar-close:pressed {
+    -fx-background-color: rgba(128, 128, 128, 0.24);
+}
+
+.m3-snackbar-action:focused {
+    -fx-border-color: -monet-inverse-primary;
+}
+
+.m3-snackbar-close:focused {
+    -fx-border-color: -monet-inverse-on-surface;
+}
