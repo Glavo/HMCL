@@ -131,6 +131,87 @@ final class M3OverlaysTest {
         });
     }
 
+    /// Retained nodes from a detached overlay cannot dismiss or activate a later presentation.
+    @Test
+    void detachedOverlayCannotAffectReopenedDialog() throws Exception {
+        onFx(() -> {
+            StackPane host = host();
+            M3Dialog dialog = new M3Dialog();
+            dialog.setAnimated(false);
+            Button action = new Button("Confirm");
+            action.setDefaultButton(true);
+            AtomicInteger invocations = new AtomicInteger();
+            action.setOnAction(event -> invocations.incrementAndGet());
+            dialog.getActions().add(action);
+            dialog.show(host);
+            Node previousOverlay = dialog.getParent();
+            dialog.close();
+            dialog.show(host);
+            click(previousOverlay, MouseButton.PRIMARY);
+            key(previousOverlay, KeyCode.ENTER, false);
+            assertTrue(dialog.isShowing());
+            assertEquals(0, invocations.get());
+            assertEquals(1, host.getChildren().size());
+            return true;
+        });
+    }
+
+    /// An entrance interrupted by a showing listener cannot resume after that listener reopens the dialog.
+    @Test
+    void showingListenerCanReplacePresentation() throws Exception {
+        onFx(() -> {
+            StackPane host = host();
+            M3Dialog dialog = new M3Dialog();
+            dialog.setAnimated(false);
+            AtomicInteger shown = new AtomicInteger();
+            AtomicInteger openings = new AtomicInteger();
+            dialog.setOnShown(event -> shown.incrementAndGet());
+            dialog.showingProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue && openings.incrementAndGet() == 1) {
+                    dialog.close();
+                    dialog.show(host);
+                }
+            });
+            dialog.show(host);
+            assertTrue(dialog.isShowing());
+            assertEquals(2, openings.get());
+            assertEquals(1, shown.get());
+            assertEquals(1, host.getChildren().size());
+            return true;
+        });
+    }
+
+    /// Cleanup must not restore old focus over the focus selected by a replacement presentation.
+    @Test
+    void hiddenStateListenerPreservesReplacementFocus() throws Exception {
+        onFx(() -> {
+            StackPane host = host();
+            Button background = new Button("Background");
+            host.getChildren().add(background);
+            background.requestFocus();
+            M3Dialog dialog = new M3Dialog();
+            dialog.setAnimated(false);
+            TextField input = new TextField();
+            dialog.setContent(input);
+            dialog.setOnShown(event -> {
+                // The ScrollPane skin must attach its content before it can receive focus.
+                host.applyCss();
+                host.layout();
+                input.requestFocus();
+            });
+            dialog.show(host);
+            AtomicInteger closures = new AtomicInteger();
+            dialog.showingProperty().addListener((observable, oldValue, newValue) -> {
+                if (!newValue && closures.incrementAndGet() == 1)
+                    dialog.show(host);
+            });
+            dialog.close();
+            assertTrue(dialog.isShowing());
+            assertSame(input, host.getScene().getFocusOwner());
+            return true;
+        });
+    }
+
     /// Keeps Tab and Enter inside the dialog and lets content consume Escape before dismissal.
     @Test
     void dialogKeyboardIsolation() throws Exception {
