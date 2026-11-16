@@ -19,12 +19,16 @@ final class M3OverlaySupport implements AutoCloseable {
 
     /// The host whose scene must remain unchanged.
     private final StackPane host;
+
     /// The scene that owns the overlay.
     private final Scene scene;
+
     /// The window whose disappearance ends the presentation.
     private final Window window;
+
     /// The node installed in the host.
     private final Node layer;
+
     /// Removes the presentation when its host becomes unavailable.
     private final ChangeListener<Object> unavailable;
 

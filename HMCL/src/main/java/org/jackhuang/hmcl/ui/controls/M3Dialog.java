@@ -75,52 +75,49 @@ public final class M3Dialog extends VBox {
 
     /// Reserves one modal presentation per scene.
     private static final Object MODAL_KEY = new Object();
+
     /// The optional leading graphic's container.
     private final StackPane graphicPane = new StackPane();
+
     /// The headline label.
     private final Label header = new Label();
+
     /// The supporting-text label used when custom content is absent.
     private final Label text = new Label();
+
     /// The scrollable content region, leaving actions visible on short windows.
     private final ScrollPane scroll = new ScrollPane();
+
     /// The wrapping, trailing-aligned action row.
     private final FlowPane actions = new FlowPane(8, 8);
-    /// The custom content, or `null` to display supporting text.
-    private final ObjectProperty<@Nullable Node> content = new SimpleObjectProperty<>(this, "content");
-    /// The optional leading graphic.
-    private final ObjectProperty<@Nullable Node> graphic = new SimpleObjectProperty<>(this, "graphic");
-    /// Whether Escape requests dismissal.
-    private final BooleanProperty closeOnEscape = new SimpleBooleanProperty(this, "closeOnEscape", true);
-    /// Whether primary scrim activation requests dismissal.
-    private final BooleanProperty dismissOnScrimClick = new SimpleBooleanProperty(this, "dismissOnScrimClick", true);
-    /// Whether transitions run; initially follows HMCL's animation preference.
-    private final BooleanProperty animated = new SimpleBooleanProperty(this, "animated", AnimationUtils.isAnimationEnabled());
-    /// Whether the dialog is attached, including its exit transition.
-    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
-    /// The optional singleton handler for [M3DialogEvent#SHOWN].
-    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onShown = new SimpleObjectProperty<>(this, "onShown");
-    /// The optional singleton handler for [M3DialogEvent#CLOSE_REQUEST].
-    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onCloseRequest = new SimpleObjectProperty<>(this, "onCloseRequest");
-    /// The optional singleton handler for [M3DialogEvent#HIDDEN].
-    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onHidden = new SimpleObjectProperty<>(this, "onHidden");
+
     /// The active host, or `null` while hidden.
     private @Nullable StackPane host;
+
     /// The modal layer, or `null` while hidden.
     private @Nullable StackPane layer;
+
     /// The scene whose input and focus are constrained.
     private @Nullable Scene scene;
+
     /// The focus owner to restore on removal.
     private @Nullable Node previousFocus;
+
     /// The active lifetime observation.
     private @Nullable M3OverlaySupport observation;
+
     /// The current entrance or exit transition.
     private @Nullable FadeTransition transition;
+
     /// Prevents recursive close requests and repeated actions during dismissal.
     private boolean closing;
+
     /// The action retained through an accepted exit transition.
     private @Nullable Button closingAction;
+
     /// Restricts keyboard input to the modal subtree.
     private final EventHandler<KeyEvent> keyFilter = this::filterKey;
+
     /// Redirects programmatic focus requests outside the modal subtree.
     private final ChangeListener<@Nullable Node> focusListener = (observable, oldValue, newValue) -> {
         if (!M3OverlaySupport.contains(this, newValue))
@@ -136,31 +133,38 @@ public final class M3Dialog extends VBox {
         setFocusTraversable(true);
         setMaxSize(560, USE_PREF_SIZE);
         setMinSize(0, 0);
+
         header.getStyleClass().add("m3-dialog-headline");
         header.setWrapText(true);
         header.setMinWidth(0);
         header.setMaxWidth(Double.MAX_VALUE);
+
         text.getStyleClass().add("m3-dialog-text");
         text.setWrapText(true);
         text.setMinWidth(0);
         text.setMaxWidth(Double.MAX_VALUE);
+
         graphicPane.getStyleClass().add("m3-dialog-graphic");
+
         scroll.getStyleClass().add("m3-dialog-content");
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scroll.setMinHeight(0);
         scroll.setContent(text);
+
         actions.getStyleClass().add("m3-dialog-actions");
         actions.setAlignment(Pos.CENTER_RIGHT);
         actions.setMinHeight(USE_PREF_SIZE);
         actions.visibleProperty().bind(javafx.beans.binding.Bindings.isNotEmpty(actions.getChildren()));
         actions.managedProperty().bind(actions.visibleProperty());
+
         header.visibleProperty().bind(header.textProperty().isNotEmpty());
         header.managedProperty().bind(header.visibleProperty());
         graphicPane.visibleProperty().bind(graphic.isNotNull());
         graphicPane.managedProperty().bind(graphicPane.visibleProperty());
         scroll.visibleProperty().bind(content.isNotNull().or(text.textProperty().isNotEmpty()));
         scroll.managedProperty().bind(scroll.visibleProperty());
+
         content.addListener((observable, oldValue, newValue) -> scroll.setContent(newValue == null ? text : newValue));
         graphic.addListener((observable, oldValue, newValue) -> {
             graphicPane.getChildren().clear();
@@ -171,7 +175,9 @@ public final class M3Dialog extends VBox {
         onShown.addListener((observable, oldValue, newValue) -> setEventHandler(M3DialogEvent.SHOWN, newValue));
         onCloseRequest.addListener((observable, oldValue, newValue) -> setEventHandler(M3DialogEvent.CLOSE_REQUEST, newValue));
         onHidden.addListener((observable, oldValue, newValue) -> setEventHandler(M3DialogEvent.HIDDEN, newValue));
+
         getChildren().addAll(graphicPane, header, scroll, actions);
+
         addEventFilter(ActionEvent.ACTION, event -> {
             if (closing)
                 event.consume();
@@ -205,10 +211,197 @@ public final class M3Dialog extends VBox {
         });
     }
 
+    /// Returns the headline, or `null` when unset.
+    public @Nullable String getHeaderText() {
+        return header.getText();
+    }
+
+    /// Sets the headline; `null` and empty strings hide the text region.
+    public void setHeaderText(@Nullable String value) {
+        header.setText(value);
+    }
+
+    /// Returns the bindable headline property, initially empty.
+    public StringProperty headerTextProperty() {
+        return header.textProperty();
+    }
+
+    /// Returns the supporting text, or `null` when unset.
+    public @Nullable String getContentText() {
+        return text.getText();
+    }
+
+    /// Sets the supporting text; `null` and empty strings hide the text region.
+    public void setContentText(@Nullable String value) {
+        text.setText(value);
+    }
+
+    /// Returns the bindable supporting text property, initially empty.
+    public StringProperty contentTextProperty() {
+        return text.textProperty();
+    }
+
+    /// The custom content, or `null` to display supporting text.
+    private final ObjectProperty<@Nullable Node> content = new SimpleObjectProperty<>(this, "content");
+
+    /// Returns the custom content; `null` selects the supporting text.
+    public @Nullable Node getContent() {
+        return content.get();
+    }
+
+    /// Sets the custom content; `null` selects the supporting text. The node must not belong to another parent.
+    public void setContent(@Nullable Node value) {
+        content.set(value);
+    }
+
+    /// Returns the bindable content property, initially `null`.
+    public ObjectProperty<@Nullable Node> contentProperty() {
+        return content;
+    }
+
+    /// The optional leading graphic.
+    private final ObjectProperty<@Nullable Node> graphic = new SimpleObjectProperty<>(this, "graphic");
+
+    /// Returns the leading graphic; `null` hides it.
+    public @Nullable Node getGraphic() {
+        return graphic.get();
+    }
+
+    /// Sets the leading graphic; `null` hides it. The node must not belong to another parent.
+    public void setGraphic(@Nullable Node value) {
+        graphic.set(value);
+    }
+
+    /// Returns the bindable graphic property, initially `null`.
+    public ObjectProperty<@Nullable Node> graphicProperty() {
+        return graphic;
+    }
+
     /// Returns the mutable list of action nodes, in reading order. Prefer text [Button] instances.
     /// Direct button actions automatically request dismissal unless their event is consumed.
     public ObservableList<Node> getActions() {
         return actions.getChildren();
+    }
+
+    /// Whether Escape requests dismissal.
+    private final BooleanProperty closeOnEscape = new SimpleBooleanProperty(this, "closeOnEscape", true);
+
+    /// Returns whether Escape requests dismissal.
+    public boolean isCloseOnEscape() {
+        return closeOnEscape.get();
+    }
+
+    /// Sets whether Escape requests dismissal. Animation changes apply to the next transition.
+    public void setCloseOnEscape(boolean value) {
+        closeOnEscape.set(value);
+    }
+
+    /// Returns the bindable property controlling whether Escape requests dismissal; initially true.
+    public BooleanProperty closeOnEscapeProperty() {
+        return closeOnEscape;
+    }
+
+    /// Whether primary scrim activation requests dismissal.
+    private final BooleanProperty dismissOnScrimClick = new SimpleBooleanProperty(this, "dismissOnScrimClick", true);
+
+    /// Returns whether primary scrim clicks request dismissal.
+    public boolean isDismissOnScrimClick() {
+        return dismissOnScrimClick.get();
+    }
+
+    /// Sets whether primary scrim clicks request dismissal. Animation changes apply to the next transition.
+    public void setDismissOnScrimClick(boolean value) {
+        dismissOnScrimClick.set(value);
+    }
+
+    /// Returns the bindable property controlling whether primary scrim clicks request dismissal; initially true.
+    public BooleanProperty dismissOnScrimClickProperty() {
+        return dismissOnScrimClick;
+    }
+
+    /// Whether transitions run; initially follows HMCL's animation preference.
+    private final BooleanProperty animated = new SimpleBooleanProperty(this, "animated", AnimationUtils.isAnimationEnabled());
+
+    /// Returns whether presentation transitions are animated.
+    public boolean isAnimated() {
+        return animated.get();
+    }
+
+    /// Sets whether presentation transitions are animated. Animation changes apply to the next transition.
+    public void setAnimated(boolean value) {
+        animated.set(value);
+    }
+
+    /// Returns the bindable property controlling whether presentation transitions are animated; initially the HMCL animation preference.
+    public BooleanProperty animatedProperty() {
+        return animated;
+    }
+
+    /// Whether the dialog is attached, including its exit transition.
+    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
+
+    /// Returns whether the dialog is attached, including entrance and exit transitions.
+    public boolean isShowing() {
+        return showing.get();
+    }
+
+    /// Returns the read-only presentation state, initially `false`.
+    public ReadOnlyBooleanProperty showingProperty() {
+        return showing.getReadOnlyProperty();
+    }
+
+    /// The optional singleton handler for [M3DialogEvent#SHOWN].
+    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onShown = new SimpleObjectProperty<>(this, "onShown");
+
+    /// Returns the singleton handler for [M3DialogEvent#SHOWN], or `null` when absent.
+    public @Nullable EventHandler<M3DialogEvent> getOnShown() {
+        return onShown.get();
+    }
+
+    /// Sets the handler for [M3DialogEvent#SHOWN], or removes it when `null`.
+    public void setOnShown(@Nullable EventHandler<M3DialogEvent> handler) {
+        onShown.set(handler);
+    }
+
+    /// Returns the bindable handler for [M3DialogEvent#SHOWN], initially `null`.
+    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onShownProperty() {
+        return onShown;
+    }
+
+    /// The optional singleton handler for [M3DialogEvent#CLOSE_REQUEST].
+    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onCloseRequest = new SimpleObjectProperty<>(this, "onCloseRequest");
+
+    /// Returns the singleton handler for [M3DialogEvent#CLOSE_REQUEST], or `null` when absent.
+    public @Nullable EventHandler<M3DialogEvent> getOnCloseRequest() {
+        return onCloseRequest.get();
+    }
+
+    /// Sets the handler for [M3DialogEvent#CLOSE_REQUEST], or removes it when `null`.
+    public void setOnCloseRequest(@Nullable EventHandler<M3DialogEvent> handler) {
+        onCloseRequest.set(handler);
+    }
+
+    /// Returns the bindable handler for [M3DialogEvent#CLOSE_REQUEST], initially `null`.
+    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onCloseRequestProperty() {
+        return onCloseRequest;
+    }
+
+    /// The optional singleton handler for [M3DialogEvent#HIDDEN].
+    private final ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onHidden = new SimpleObjectProperty<>(this, "onHidden");
+
+    /// Returns the singleton handler for [M3DialogEvent#HIDDEN], or `null` when absent.
+    public @Nullable EventHandler<M3DialogEvent> getOnHidden() {
+        return onHidden.get();
+    }
+
+    /// Sets the handler for [M3DialogEvent#HIDDEN], or removes it when `null`.
+    public void setOnHidden(@Nullable EventHandler<M3DialogEvent> handler) {
+        onHidden.set(handler);
+    }
+
+    /// Returns the bindable handler for [M3DialogEvent#HIDDEN], initially `null`.
+    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onHiddenProperty() {
+        return onHidden;
     }
 
     /// Presents this dialog asynchronously and starts its entrance transition.
@@ -254,30 +447,6 @@ public final class M3Dialog extends VBox {
         requestClose(null);
     }
 
-    /// Dispatches a cancellable request and retains its initiating action through the exit transition.
-    private void requestClose(@Nullable Button action) {
-        M3OverlaySupport.checkThread();
-        if (!isShowing() || closing)
-            return;
-        StackPane requestedLayer = Objects.requireNonNull(layer);
-        closing = true;
-        M3DialogEvent event = new M3DialogEvent(this, M3DialogEvent.CLOSE_REQUEST, action);
-        try {
-            fireEvent(event);
-        } catch (RuntimeException | Error failure) {
-            closing = false;
-            throw failure;
-        }
-        if (layer != requestedLayer)
-            return;
-        if (event.isConsumed()) {
-            closing = false;
-            return;
-        }
-        closingAction = action;
-        animate(Objects.requireNonNull(layer).getOpacity(), 0, this::close);
-    }
-
     /// Immediately removes this dialog and releases listeners, even if a close request was rejected.
     /// Does nothing while hidden. Fires [M3DialogEvent#HIDDEN] after cleanup and permits reuse there.
     public void close() {
@@ -311,6 +480,30 @@ public final class M3Dialog extends VBox {
         if (focus != null && focus.getScene() == oldScene && focus.isVisible() && !focus.isDisabled())
             focus.requestFocus();
         fireEvent(new M3DialogEvent(this, M3DialogEvent.HIDDEN, action));
+    }
+
+    /// Dispatches a cancellable request and retains its initiating action through the exit transition.
+    private void requestClose(@Nullable Button action) {
+        M3OverlaySupport.checkThread();
+        if (!isShowing() || closing)
+            return;
+        StackPane requestedLayer = Objects.requireNonNull(layer);
+        closing = true;
+        M3DialogEvent event = new M3DialogEvent(this, M3DialogEvent.CLOSE_REQUEST, action);
+        try {
+            fireEvent(event);
+        } catch (RuntimeException | Error failure) {
+            closing = false;
+            throw failure;
+        }
+        if (layer != requestedLayer)
+            return;
+        if (event.isConsumed()) {
+            closing = false;
+            return;
+        }
+        closingAction = action;
+        animate(Objects.requireNonNull(layer).getOpacity(), 0, this::close);
     }
 
     /// Animates the entire presentation; disabled motion completes synchronously.
@@ -371,165 +564,5 @@ public final class M3Dialog extends VBox {
             if (child instanceof Parent nested)
                 collectFocusTargets(nested, targets);
         }
-    }
-
-    /// Returns whether the dialog is attached, including entrance and exit transitions.
-    public boolean isShowing() {
-        return showing.get();
-    }
-
-    /// Returns the read-only presentation state, initially `false`.
-    public ReadOnlyBooleanProperty showingProperty() {
-        return showing.getReadOnlyProperty();
-    }
-
-    /// Returns the headline, or `null` when unset.
-    public @Nullable String getHeaderText() {
-        return header.getText();
-    }
-
-    /// Sets the headline; `null` and empty strings hide the text region.
-    public void setHeaderText(@Nullable String value) {
-        header.setText(value);
-    }
-
-    /// Returns the bindable headline property, initially empty.
-    public StringProperty headerTextProperty() {
-        return header.textProperty();
-    }
-
-    /// Returns the supporting text, or `null` when unset.
-    public @Nullable String getContentText() {
-        return text.getText();
-    }
-
-    /// Sets the supporting text; `null` and empty strings hide the text region.
-    public void setContentText(@Nullable String value) {
-        text.setText(value);
-    }
-
-    /// Returns the bindable supporting text property, initially empty.
-    public StringProperty contentTextProperty() {
-        return text.textProperty();
-    }
-
-    /// Returns the custom content; `null` selects the supporting text.
-    public @Nullable Node getContent() {
-        return content.get();
-    }
-
-    /// Sets the custom content; `null` selects the supporting text. The node must not belong to another parent.
-    public void setContent(@Nullable Node value) {
-        content.set(value);
-    }
-
-    /// Returns the bindable content property, initially `null`.
-    public ObjectProperty<@Nullable Node> contentProperty() {
-        return content;
-    }
-
-    /// Returns the leading graphic; `null` hides it.
-    public @Nullable Node getGraphic() {
-        return graphic.get();
-    }
-
-    /// Sets the leading graphic; `null` hides it. The node must not belong to another parent.
-    public void setGraphic(@Nullable Node value) {
-        graphic.set(value);
-    }
-
-    /// Returns the bindable graphic property, initially `null`.
-    public ObjectProperty<@Nullable Node> graphicProperty() {
-        return graphic;
-    }
-
-    /// Returns whether Escape requests dismissal.
-    public boolean isCloseOnEscape() {
-        return closeOnEscape.get();
-    }
-
-    /// Sets whether Escape requests dismissal. Animation changes apply to the next transition.
-    public void setCloseOnEscape(boolean value) {
-        closeOnEscape.set(value);
-    }
-
-    /// Returns the bindable property controlling whether Escape requests dismissal; initially true.
-    public BooleanProperty closeOnEscapeProperty() {
-        return closeOnEscape;
-    }
-
-    /// Returns whether primary scrim clicks request dismissal.
-    public boolean isDismissOnScrimClick() {
-        return dismissOnScrimClick.get();
-    }
-
-    /// Sets whether primary scrim clicks request dismissal. Animation changes apply to the next transition.
-    public void setDismissOnScrimClick(boolean value) {
-        dismissOnScrimClick.set(value);
-    }
-
-    /// Returns the bindable property controlling whether primary scrim clicks request dismissal; initially true.
-    public BooleanProperty dismissOnScrimClickProperty() {
-        return dismissOnScrimClick;
-    }
-
-    /// Returns whether presentation transitions are animated.
-    public boolean isAnimated() {
-        return animated.get();
-    }
-
-    /// Sets whether presentation transitions are animated. Animation changes apply to the next transition.
-    public void setAnimated(boolean value) {
-        animated.set(value);
-    }
-
-    /// Returns the bindable property controlling whether presentation transitions are animated; initially the HMCL animation preference.
-    public BooleanProperty animatedProperty() {
-        return animated;
-    }
-
-    /// Sets the handler for [M3DialogEvent#SHOWN], or removes it when `null`.
-    public void setOnShown(@Nullable EventHandler<M3DialogEvent> handler) {
-        onShown.set(handler);
-    }
-
-    /// Sets the handler for [M3DialogEvent#CLOSE_REQUEST], or removes it when `null`.
-    public void setOnCloseRequest(@Nullable EventHandler<M3DialogEvent> handler) {
-        onCloseRequest.set(handler);
-    }
-
-    /// Sets the handler for [M3DialogEvent#HIDDEN], or removes it when `null`.
-    public void setOnHidden(@Nullable EventHandler<M3DialogEvent> handler) {
-        onHidden.set(handler);
-    }
-
-    /// Returns the singleton handler for [M3DialogEvent#SHOWN], or `null` when absent.
-    public @Nullable EventHandler<M3DialogEvent> getOnShown() {
-        return onShown.get();
-    }
-
-    /// Returns the bindable handler for [M3DialogEvent#SHOWN], initially `null`.
-    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onShownProperty() {
-        return onShown;
-    }
-
-    /// Returns the singleton handler for [M3DialogEvent#CLOSE_REQUEST], or `null` when absent.
-    public @Nullable EventHandler<M3DialogEvent> getOnCloseRequest() {
-        return onCloseRequest.get();
-    }
-
-    /// Returns the bindable handler for [M3DialogEvent#CLOSE_REQUEST], initially `null`.
-    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onCloseRequestProperty() {
-        return onCloseRequest;
-    }
-
-    /// Returns the singleton handler for [M3DialogEvent#HIDDEN], or `null` when absent.
-    public @Nullable EventHandler<M3DialogEvent> getOnHidden() {
-        return onHidden.get();
-    }
-
-    /// Returns the bindable handler for [M3DialogEvent#HIDDEN], initially `null`.
-    public ObjectProperty<@Nullable EventHandler<M3DialogEvent>> onHiddenProperty() {
-        return onHidden;
     }
 }

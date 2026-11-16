@@ -62,22 +62,16 @@ public final class M3Snackbar extends Region {
 
     /// Identifies the queue owned by a host without maintaining a global host registry.
     private static final Object QUEUE_KEY = new Object();
+
     /// The wrapping supporting-text label.
     private final Label label = new Label();
+
     /// The optional text action.
     private final Button actionButton = new Button();
+
     /// The optional close affordance.
     private final Button closeButton = new Button("\u00d7");
-    /// The callback executed after action dismissal.
-    private final ObjectProperty<@Nullable Runnable> action = new SimpleObjectProperty<>(this, "action");
-    /// Whether the close affordance is shown.
-    private final BooleanProperty closeButtonVisible = new SimpleBooleanProperty(this, "closeButtonVisible");
-    /// The timeout for plain messages; must remain positive or indefinite.
-    private final ObjectProperty<Duration> duration = new SimpleObjectProperty<>(this, "duration", Duration.seconds(4));
-    /// Whether entrance motion is enabled; initially follows HMCL's preference.
-    private final BooleanProperty animated = new SimpleBooleanProperty(this, "animated", AnimationUtils.isAnimationEnabled());
-    /// Whether this message is currently attached, including entrance motion.
-    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
+
     /// The queue holding this message, or `null` when neither pending nor shown.
     private @Nullable SnackbarQueue queue;
 
@@ -92,19 +86,23 @@ public final class M3Snackbar extends Region {
         accessibleTextProperty().bind(label.textProperty());
         setMaxSize(560, USE_PREF_SIZE);
         setMinWidth(0);
+
         label.getStyleClass().add("m3-snackbar-text");
         label.setWrapText(true);
         label.setMinWidth(0);
+
         actionButton.getStyleClass().add("m3-snackbar-action");
         actionButton.visibleProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(() -> {
             @Nullable String value = actionButton.getText();
             return value != null && !value.isBlank();
         }, actionButton.textProperty()));
         actionButton.managedProperty().bind(actionButton.visibleProperty());
+
         closeButton.getStyleClass().add("m3-snackbar-close");
         closeButton.setAccessibleText(i18n("button.close"));
         closeButton.visibleProperty().bind(closeButtonVisible);
         closeButton.managedProperty().bind(closeButton.visibleProperty());
+
         actionButton.setOnAction(event -> {
             @Nullable Runnable callback = getAction();
             dismiss();
@@ -112,7 +110,9 @@ public final class M3Snackbar extends Region {
                 callback.run();
         });
         closeButton.setOnAction(event -> dismiss());
+
         getChildren().addAll(label, actionButton, closeButton);
+
         actionButton.textProperty().addListener(observable -> restartTimeout());
         closeButtonVisible.addListener(observable -> restartTimeout());
         duration.addListener(observable -> {
@@ -128,6 +128,121 @@ public final class M3Snackbar extends Region {
             notifyAccessibleAttributeChanged(AccessibleAttribute.TEXT);
         });
         setText(text);
+    }
+
+    /// Returns the non-blank supporting text.
+    public String getText() {
+        return Objects.requireNonNull(label.getText());
+    }
+
+    /// Sets supporting text; rejects null or blank values before changing the message.
+    public void setText(String value) {
+        label.setText(requireText(value));
+    }
+
+    /// Returns the bindable text property. Callers and bindings must supply non-blank, non-null text.
+    public StringProperty textProperty() {
+        return label.textProperty();
+    }
+
+    /// Returns the optional action label; null or blank text hides the action.
+    public @Nullable String getActionText() {
+        return actionButton.getText();
+    }
+
+    /// Sets the action label; null or blank text hides the action and enables the plain-message timeout.
+    public void setActionText(@Nullable String value) {
+        actionButton.setText(value);
+    }
+
+    /// Returns the bindable action label, initially empty. Prefer a short, non-blank label.
+    public StringProperty actionTextProperty() {
+        return actionButton.textProperty();
+    }
+
+    /// The callback executed after action dismissal.
+    private final ObjectProperty<@Nullable Runnable> action = new SimpleObjectProperty<>(this, "action");
+
+    /// Returns the action callback, or null when activation only dismisses the snackbar.
+    public @Nullable Runnable getAction() {
+        return action.get();
+    }
+
+    /// Sets the callback invoked after action dismissal; null performs no callback.
+    public void setAction(@Nullable Runnable value) {
+        action.set(value);
+    }
+
+    /// Returns the bindable action callback, initially null. It does not control button visibility.
+    public ObjectProperty<@Nullable Runnable> actionProperty() {
+        return action;
+    }
+
+    /// Whether the close affordance is shown.
+    private final BooleanProperty closeButtonVisible = new SimpleBooleanProperty(this, "closeButtonVisible");
+
+    /// Returns whether the close affordance is visible.
+    public boolean isCloseButtonVisible() {
+        return closeButtonVisible.get();
+    }
+
+    /// Sets whether the close affordance is visible.
+    public void setCloseButtonVisible(boolean value) {
+        closeButtonVisible.set(value);
+    }
+
+    /// Returns the bindable property controlling whether the close affordance is visible; initially false.
+    public BooleanProperty closeButtonVisibleProperty() {
+        return closeButtonVisible;
+    }
+
+    /// The timeout for plain messages; must remain positive or indefinite.
+    private final ObjectProperty<Duration> duration = new SimpleObjectProperty<>(this, "duration", Duration.seconds(4));
+
+    /// Returns the display duration for plain messages, initially four seconds.
+    public Duration getDuration() {
+        return duration.get();
+    }
+
+    /// Sets a positive display duration or Duration.INDEFINITE; rejects null, zero, negative and unknown values.
+    public void setDuration(Duration value) {
+        duration.set(requireDuration(value));
+    }
+
+    /// Returns the bindable duration. Callers and bindings must supply a positive or indefinite value.
+    public ObjectProperty<Duration> durationProperty() {
+        return duration;
+    }
+
+    /// Whether entrance motion is enabled; initially follows HMCL's preference.
+    private final BooleanProperty animated = new SimpleBooleanProperty(this, "animated", AnimationUtils.isAnimationEnabled());
+
+    /// Returns whether entrance motion is enabled.
+    public boolean isAnimated() {
+        return animated.get();
+    }
+
+    /// Sets whether entrance motion is enabled.
+    public void setAnimated(boolean value) {
+        animated.set(value);
+    }
+
+    /// Returns the bindable property controlling whether entrance motion is enabled; initially the HMCL animation preference.
+    public BooleanProperty animatedProperty() {
+        return animated;
+    }
+
+    /// Whether this message is currently attached, including entrance motion.
+    private final ReadOnlyBooleanWrapper showing = new ReadOnlyBooleanWrapper(this, "showing");
+
+    /// Returns whether this message is currently attached, including entrance motion.
+    public boolean isShowing() {
+        return showing.get();
+    }
+
+    /// Returns the read-only current-message state, initially `false`.
+    public ReadOnlyBooleanProperty showingProperty() {
+        return showing.getReadOnlyProperty();
     }
 
     /// Adds this message to the host's queue without blocking or moving focus.
@@ -161,39 +276,6 @@ public final class M3Snackbar extends Region {
     /// Returns whether this message is pending or currently shown.
     public boolean isQueued() {
         return queue != null;
-    }
-
-    /// Returns whether this message is currently attached, including entrance motion.
-    public boolean isShowing() {
-        return showing.get();
-    }
-
-    /// Returns the read-only current-message state, initially `false`.
-    public ReadOnlyBooleanProperty showingProperty() {
-        return showing.getReadOnlyProperty();
-    }
-
-    /// Restarts the active message's timeout after a configuration change.
-    private void restartTimeout() {
-        requestLayout();
-        if (queue != null && queue.current == this)
-            queue.restartTimer();
-    }
-
-    /// Returns whether the text action requires its own row at the given inner width.
-    private boolean stackAction(double width) {
-        return actionButton.isVisible() && actionButton.prefWidth(-1) > width * 0.4;
-    }
-
-    /// Returns the horizontal space reserved for a visible close button.
-    private double closeWidth() {
-        return closeButton.isVisible() ? closeButton.prefWidth(-1) + 8 : 0;
-    }
-
-    /// Returns the supporting-text width after reserving space for inline affordances.
-    private double textWidth(double width) {
-        return Math.max(1, width - closeWidth()
-                - (actionButton.isVisible() && !stackAction(width) ? actionButton.prefWidth(-1) + 16 : 0));
     }
 
     /// Makes parent layouts calculate the wrapped height from the allocated width.
@@ -256,6 +338,29 @@ public final class M3Snackbar extends Region {
         }
     }
 
+    /// Restarts the active message's timeout after a configuration change.
+    private void restartTimeout() {
+        requestLayout();
+        if (queue != null && queue.current == this)
+            queue.restartTimer();
+    }
+
+    /// Returns whether the text action requires its own row at the given inner width.
+    private boolean stackAction(double width) {
+        return actionButton.isVisible() && actionButton.prefWidth(-1) > width * 0.4;
+    }
+
+    /// Returns the horizontal space reserved for a visible close button.
+    private double closeWidth() {
+        return closeButton.isVisible() ? closeButton.prefWidth(-1) + 8 : 0;
+    }
+
+    /// Returns the supporting-text width after reserving space for inline affordances.
+    private double textWidth(double width) {
+        return Math.max(1, width - closeWidth()
+                - (actionButton.isVisible() && !stackAction(width) ? actionButton.prefWidth(-1) + 16 : 0));
+    }
+
     /// Validates required supporting text before assigning it.
     private static String requireText(@Nullable String value) {
         Objects.requireNonNull(value, "text");
@@ -278,18 +383,25 @@ public final class M3Snackbar extends Region {
 
         /// The container holding the presentation layer.
         private final StackPane host;
+
         /// The transparent layer that leaves input outside the snackbar unblocked.
         private final StackPane layer = new StackPane();
+
         /// Messages waiting to enter, in submission order.
         private final Deque<M3Snackbar> pending = new ArrayDeque<>();
+
         /// The timeout for the current plain message.
         private final PauseTransition timer = new PauseTransition();
+
         /// Releases the queue if its host or window disappears.
         private final M3OverlaySupport observation;
+
         /// The message currently attached to the layer.
         private @Nullable M3Snackbar current;
+
         /// The current entrance transition, or `null` after entrance.
         private @Nullable FadeTransition entrance;
+
         /// Prevents queue advancement during forced teardown.
         private boolean disposed;
 
@@ -408,95 +520,5 @@ public final class M3Snackbar extends Region {
                 message.showing.set(false);
             }
         }
-    }
-
-    /// Returns the non-blank supporting text.
-    public String getText() {
-        return Objects.requireNonNull(label.getText());
-    }
-
-    /// Sets supporting text; rejects null or blank values before changing the message.
-    public void setText(String value) {
-        label.setText(requireText(value));
-    }
-
-    /// Returns the bindable text property. Callers and bindings must supply non-blank, non-null text.
-    public StringProperty textProperty() {
-        return label.textProperty();
-    }
-
-    /// Returns the optional action label; null or blank text hides the action.
-    public @Nullable String getActionText() {
-        return actionButton.getText();
-    }
-
-    /// Sets the action label; null or blank text hides the action and enables the plain-message timeout.
-    public void setActionText(@Nullable String value) {
-        actionButton.setText(value);
-    }
-
-    /// Returns the bindable action label, initially empty. Prefer a short, non-blank label.
-    public StringProperty actionTextProperty() {
-        return actionButton.textProperty();
-    }
-
-    /// Returns the action callback, or null when activation only dismisses the snackbar.
-    public @Nullable Runnable getAction() {
-        return action.get();
-    }
-
-    /// Sets the callback invoked after action dismissal; null performs no callback.
-    public void setAction(@Nullable Runnable value) {
-        action.set(value);
-    }
-
-    /// Returns the bindable action callback, initially null. It does not control button visibility.
-    public ObjectProperty<@Nullable Runnable> actionProperty() {
-        return action;
-    }
-
-    /// Returns the display duration for plain messages, initially four seconds.
-    public Duration getDuration() {
-        return duration.get();
-    }
-
-    /// Sets a positive display duration or Duration.INDEFINITE; rejects null, zero, negative and unknown values.
-    public void setDuration(Duration value) {
-        duration.set(requireDuration(value));
-    }
-
-    /// Returns the bindable duration. Callers and bindings must supply a positive or indefinite value.
-    public ObjectProperty<Duration> durationProperty() {
-        return duration;
-    }
-
-    /// Returns whether the close affordance is visible.
-    public boolean isCloseButtonVisible() {
-        return closeButtonVisible.get();
-    }
-
-    /// Sets whether the close affordance is visible.
-    public void setCloseButtonVisible(boolean value) {
-        closeButtonVisible.set(value);
-    }
-
-    /// Returns the bindable property controlling whether the close affordance is visible; initially false.
-    public BooleanProperty closeButtonVisibleProperty() {
-        return closeButtonVisible;
-    }
-
-    /// Returns whether entrance motion is enabled.
-    public boolean isAnimated() {
-        return animated.get();
-    }
-
-    /// Sets whether entrance motion is enabled.
-    public void setAnimated(boolean value) {
-        animated.set(value);
-    }
-
-    /// Returns the bindable property controlling whether entrance motion is enabled; initially the HMCL animation preference.
-    public BooleanProperty animatedProperty() {
-        return animated;
     }
 }

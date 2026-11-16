@@ -14,10 +14,13 @@ public final class M3DialogEvent extends Event {
 
     /// The parent of all Material dialog events.
     public static final EventType<M3DialogEvent> ANY = new EventType<>(Event.ANY, "M3_DIALOG");
+
     /// Fired after the entrance transition completes.
     public static final EventType<M3DialogEvent> SHOWN = new EventType<>(ANY, "M3_DIALOG_SHOWN");
+
     /// Fired before dismissal; consuming this event keeps the dialog open.
     public static final EventType<M3DialogEvent> CLOSE_REQUEST = new EventType<>(ANY, "M3_DIALOG_CLOSE_REQUEST");
+
     /// Fired after removal, including forced removal when the host disappears.
     public static final EventType<M3DialogEvent> HIDDEN = new EventType<>(ANY, "M3_DIALOG_HIDDEN");
 
