@@ -5,6 +5,7 @@ package org.jackhuang.hmcl.ui.controls;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.scene.AccessibleAttribute;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -15,6 +16,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -43,8 +45,8 @@ final class M3OverlaysTest {
     private final List<Stage> windows = new ArrayList<>();
 
     /// Creates a themed host in a showing test window.
-    private StackPane host() {
-        StackPane host = new StackPane();
+    private M3OverlayPane host() {
+        M3OverlayPane host = new M3OverlayPane();
         host.setStyle("-monet-surface-container-high: #ece6f0; -monet-on-surface: #1d1b20; "
                 + "-monet-on-surface-variant: #49454f; -monet-secondary: #625b71; -monet-primary: #6750a4; "
                 + "-monet-primary-container: #eaddff; -monet-secondary-container: #e8def8; "
@@ -70,9 +72,9 @@ final class M3OverlaysTest {
     @Test
     void dialogActionsAndFocus() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             Button background = new Button("Background");
-            host.getChildren().add(background);
+            host.setContent(background);
             background.requestFocus();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
@@ -85,7 +87,7 @@ final class M3OverlaysTest {
                 assertNull(dialog.getParent());
                 hidden.incrementAndGet();
             });
-            dialog.show(host);
+            host.showDialog(dialog);
             assertSame(dialog, host.getScene().getFocusOwner());
             background.requestFocus();
             assertSame(dialog, host.getScene().getFocusOwner());
@@ -110,20 +112,20 @@ final class M3OverlaysTest {
     @Test
     void reentrantCloseRequestAndReuse() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
-            dialog.show(host);
+            host.showDialog(dialog);
             dialog.setOnCloseRequest(event -> {
                 dialog.close();
                 dialog.setOnCloseRequest(null);
-                dialog.show(host);
+                host.showDialog(dialog);
             });
             dialog.requestClose();
             assertTrue(dialog.isShowing());
             dialog.close();
-            dialog.setOnHidden(event -> dialog.show(host));
-            dialog.show(host);
+            dialog.setOnHidden(event -> host.showDialog(dialog));
+            host.showDialog(dialog);
             dialog.close();
             assertTrue(dialog.isShowing());
             dialog.setOnHidden(null);
@@ -135,7 +137,7 @@ final class M3OverlaysTest {
     @Test
     void detachedOverlayCannotAffectReopenedDialog() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
             Button action = new Button("Confirm");
@@ -143,15 +145,15 @@ final class M3OverlaysTest {
             AtomicInteger invocations = new AtomicInteger();
             action.setOnAction(event -> invocations.incrementAndGet());
             dialog.getActions().add(action);
-            dialog.show(host);
+            host.showDialog(dialog);
             Node previousOverlay = dialog.getParent();
             dialog.close();
-            dialog.show(host);
+            host.showDialog(dialog);
             click(previousOverlay, MouseButton.PRIMARY);
             key(previousOverlay, KeyCode.ENTER, false);
             assertTrue(dialog.isShowing());
             assertEquals(0, invocations.get());
-            assertEquals(1, host.getChildren().size());
+            assertEquals(2, host.getChildrenUnmodifiable().size());
             return true;
         });
     }
@@ -160,7 +162,7 @@ final class M3OverlaysTest {
     @Test
     void showingListenerCanReplacePresentation() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
             AtomicInteger shown = new AtomicInteger();
@@ -169,14 +171,14 @@ final class M3OverlaysTest {
             dialog.showingProperty().addListener((observable, oldValue, newValue) -> {
                 if (newValue && openings.incrementAndGet() == 1) {
                     dialog.close();
-                    dialog.show(host);
+                    host.showDialog(dialog);
                 }
             });
-            dialog.show(host);
+            host.showDialog(dialog);
             assertTrue(dialog.isShowing());
             assertEquals(2, openings.get());
             assertEquals(1, shown.get());
-            assertEquals(1, host.getChildren().size());
+            assertEquals(2, host.getChildrenUnmodifiable().size());
             return true;
         });
     }
@@ -185,9 +187,9 @@ final class M3OverlaysTest {
     @Test
     void hiddenStateListenerPreservesReplacementFocus() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             Button background = new Button("Background");
-            host.getChildren().add(background);
+            host.setContent(background);
             background.requestFocus();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
@@ -199,11 +201,11 @@ final class M3OverlaysTest {
                 host.layout();
                 input.requestFocus();
             });
-            dialog.show(host);
+            host.showDialog(dialog);
             AtomicInteger closures = new AtomicInteger();
             dialog.showingProperty().addListener((observable, oldValue, newValue) -> {
                 if (!newValue && closures.incrementAndGet() == 1)
-                    dialog.show(host);
+                    host.showDialog(dialog);
             });
             dialog.close();
             assertTrue(dialog.isShowing());
@@ -216,18 +218,18 @@ final class M3OverlaysTest {
     @Test
     void dialogKeyboardIsolation() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             AtomicInteger backgroundActions = new AtomicInteger();
             Button background = new Button("Background default");
             background.setDefaultButton(true);
             background.setOnAction(event -> backgroundActions.incrementAndGet());
-            host.getChildren().add(background);
+            host.setContent(background);
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
             Button first = new Button("First");
             Button last = new Button("Last");
             dialog.getActions().addAll(first, last);
-            dialog.show(host);
+            host.showDialog(dialog);
             host.applyCss();
             host.layout();
             key(dialog, KeyCode.ENTER, false);
@@ -251,21 +253,21 @@ final class M3OverlaysTest {
         });
     }
 
-    /// Enforces one modal per scene and releases the reservation after external layer removal.
+    /// Rejects concurrent reuse and releases modal presentations when the host is cleared or hidden.
     @Test
     void dialogHostRemoval() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog first = new M3Dialog();
             M3Dialog second = new M3Dialog();
             first.setAnimated(false);
             second.setAnimated(false);
-            first.show(host);
-            assertThrows(IllegalStateException.class, () -> second.show(host));
-            host.getChildren().clear();
+            host.showDialog(first);
+            assertThrows(IllegalStateException.class, () -> host.showDialog(first));
+            host.clear();
             assertFalse(first.isShowing());
             assertNull(first.getParent());
-            second.show(host);
+            host.showDialog(second);
             windows.get(0).hide();
             assertFalse(second.isShowing());
             return true;
@@ -276,20 +278,20 @@ final class M3OverlaysTest {
     @Test
     void snackbarQueueAndAction() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Snackbar first = new M3Snackbar("First");
             M3Snackbar pending = new M3Snackbar("Pending");
             M3Snackbar last = new M3Snackbar("Last");
             first.setAnimated(false);
             last.setAnimated(false);
             first.setActionText("Undo");
-            first.show(host);
-            pending.show(host);
-            last.show(host);
+            host.showSnackbar(first);
+            host.showSnackbar(pending);
+            host.showSnackbar(last);
             assertTrue(first.isShowing());
             assertFalse(last.isShowing());
             assertTrue(last.isQueued());
-            assertThrows(IllegalStateException.class, () -> first.show(host));
+            assertThrows(IllegalStateException.class, () -> host.showSnackbar(first));
             pending.dismiss();
             AtomicInteger actions = new AtomicInteger();
             first.setAction(() -> {
@@ -302,8 +304,9 @@ final class M3OverlaysTest {
             assertEquals(1, actions.get());
             assertFalse(pending.isQueued());
             last.dismiss();
-            assertTrue(host.getChildren().isEmpty());
-            first.show(host);
+            assertNull(host.getSnackbar());
+            assertTrue(host.getSnackbarQueue().isEmpty());
+            host.showSnackbar(first);
             assertTrue(first.isShowing());
             return true;
         });
@@ -315,7 +318,7 @@ final class M3OverlaysTest {
         CountDownLatch hidden = new CountDownLatch(1);
         CountDownLatch remained = new CountDownLatch(1);
         M3Snackbar snackbar = onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Snackbar message = new M3Snackbar("Saved");
             message.setAnimated(false);
             message.setDuration(Duration.millis(60));
@@ -324,7 +327,7 @@ final class M3OverlaysTest {
                 if (!newValue)
                     hidden.countDown();
             });
-            message.show(host);
+            host.showSnackbar(message);
             PauseTransition pause = new PauseTransition(Duration.millis(180));
             pause.setOnFinished(event -> remained.countDown());
             pause.play();
@@ -344,19 +347,20 @@ final class M3OverlaysTest {
     @Test
     void snackbarWindowCleanupAndReuse() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Snackbar current = new M3Snackbar("Current");
             M3Snackbar pending = new M3Snackbar("Pending");
             current.setAnimated(true);
-            current.show(host);
-            pending.show(host);
+            host.showSnackbar(current);
+            host.showSnackbar(pending);
             windows.get(0).hide();
             assertFalse(current.isShowing());
             assertFalse(current.isQueued());
             assertFalse(pending.isQueued());
-            assertTrue(host.getChildren().isEmpty());
+            assertNull(host.getSnackbar());
+            assertTrue(host.getSnackbarQueue().isEmpty());
             windows.get(0).show();
-            pending.show(host);
+            host.showSnackbar(pending);
             assertTrue(pending.isShowing());
             return true;
         });
@@ -382,12 +386,12 @@ final class M3OverlaysTest {
     @Test
     void responsiveLayoutAndTheme() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Snackbar snackbar = new M3Snackbar("A supporting message that wraps on a narrow window");
             snackbar.setActionText("A longer action label");
             snackbar.setCloseButtonVisible(true);
             snackbar.setAnimated(false);
-            snackbar.show(host);
+            host.showSnackbar(snackbar);
             host.applyCss();
             snackbar.resize(240, snackbar.prefHeight(240));
             snackbar.layout();
@@ -404,7 +408,7 @@ final class M3OverlaysTest {
             dialog.setHeaderText("A headline");
             dialog.setContent(new Label("Long content\n".repeat(100)));
             dialog.getActions().add(new Button("Confirm"));
-            dialog.show(host);
+            host.showDialog(dialog);
             host.applyCss();
             dialog.resize(300, 220);
             dialog.layout();
@@ -420,7 +424,7 @@ final class M3OverlaysTest {
     @Test
     void customContentHandlesEnter() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
             TextField input = new TextField();
@@ -430,7 +434,7 @@ final class M3OverlaysTest {
                 event.consume();
             });
             dialog.setContent(input);
-            dialog.show(host);
+            host.showDialog(dialog);
             host.applyCss();
             input.requestFocus();
             key(input, KeyCode.ENTER, false);
@@ -444,10 +448,10 @@ final class M3OverlaysTest {
     @Test
     void scrimDismissal() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
-            dialog.show(host);
+            host.showDialog(dialog);
             Node overlay = dialog.getParent();
             click(overlay, MouseButton.SECONDARY);
             assertTrue(dialog.isShowing());
@@ -467,14 +471,14 @@ final class M3OverlaysTest {
     @Test
     void animatedExitBlocksRepeatedActions() throws Exception {
         onFx(() -> {
-            StackPane host = host();
+            M3OverlayPane host = host();
             M3Dialog dialog = new M3Dialog();
             dialog.setAnimated(false);
             Button action = new Button("Apply");
             AtomicInteger invocations = new AtomicInteger();
             action.setOnAction(event -> invocations.incrementAndGet());
             dialog.getActions().add(action);
-            dialog.show(host);
+            host.showDialog(dialog);
             dialog.setAnimated(true);
             action.fire();
             assertTrue(dialog.isShowing());
@@ -482,6 +486,210 @@ final class M3OverlaysTest {
             assertEquals(1, invocations.get());
             dialog.close();
             assertFalse(dialog.isShowing());
+            return true;
+        });
+    }
+
+    /// Nested dialogs isolate lower-layer actions and restore focus through the modal stack.
+    @Test
+    void nestedDialogsShareOneModalStack() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            Button background = new Button("Background");
+            host.setContent(background);
+            background.requestFocus();
+            M3Dialog first = new M3Dialog();
+            M3Dialog second = new M3Dialog();
+            first.setAnimated(false);
+            second.setAnimated(false);
+            Button firstAction = new Button("First action");
+            AtomicInteger actions = new AtomicInteger();
+            firstAction.setOnAction(event -> actions.incrementAndGet());
+            first.getActions().add(firstAction);
+            host.showDialog(first);
+            firstAction.requestFocus();
+            host.showDialog(second);
+            assertSame(second, host.getScene().getFocusOwner());
+            firstAction.fire();
+            assertEquals(0, actions.get());
+            assertTrue(first.isShowing());
+            firstAction.requestFocus();
+            assertSame(second, host.getScene().getFocusOwner());
+            assertEquals(List.of(second.getParent()), host.queryAccessibleAttribute(AccessibleAttribute.CHILDREN));
+            second.close();
+            assertSame(firstAction, host.getScene().getFocusOwner());
+            first.close();
+            assertSame(background, host.getScene().getFocusOwner());
+            return true;
+        });
+    }
+
+    /// Removing a covered dialog must not leave the top dialog's restoration target detached.
+    @Test
+    void removingLowerModalPreservesFocusRestoration() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            Button background = new Button("Background");
+            host.setContent(background);
+            background.requestFocus();
+            M3Dialog first = new M3Dialog();
+            M3Dialog second = new M3Dialog();
+            first.setAnimated(false);
+            second.setAnimated(false);
+            host.showDialog(first);
+            host.showDialog(second);
+            first.close();
+            assertTrue(second.isShowing());
+            assertSame(second, host.getScene().getFocusOwner());
+            second.close();
+            assertSame(background, host.getScene().getFocusOwner());
+            return true;
+        });
+    }
+
+    /// Presentation layers retain fixed ordering without contributing to the host's preferred size.
+    @Test
+    void genericLayersPreserveContentSizingAndOrder() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            Region content = new Region();
+            content.setPrefSize(320, 240);
+            host.setContent(content);
+            Region overlay = new Region();
+            overlay.setPrefSize(2000, 2000);
+            M3OverlayPane.OverlayHandle regular = host.showOverlay(overlay);
+            M3Snackbar message = new M3Snackbar("Saved");
+            message.setAnimated(false);
+            message.setDuration(Duration.INDEFINITE);
+            host.showSnackbar(message);
+            StackPane modal = new StackPane(new Button("Dismiss"));
+            M3OverlayPane.OverlayHandle top = host.showModalOverlay(modal);
+            assertSame(host, host.getScene().getRoot());
+            assertEquals(320, host.prefWidth(-1));
+            assertEquals(240, host.prefHeight(-1));
+            assertEquals(List.of(content, overlay, message.getParent(), modal), host.getChildrenUnmodifiable());
+            assertThrows(UnsupportedOperationException.class, () -> host.getSnackbarQueue().add(new M3Snackbar("Pending")));
+            assertTrue(top.hide());
+            assertFalse(top.hide());
+            assertTrue(regular.hide());
+            assertFalse(regular.hide());
+            return true;
+        });
+    }
+
+    /// A modal pauses automatic snackbar dismissal and resumes it after the final modal is removed.
+    @Test
+    void modalPausesSnackbarTimeout() throws Exception {
+        CountDownLatch paused = new CountDownLatch(1);
+        CountDownLatch hidden = new CountDownLatch(1);
+        M3Dialog dialog = onFx(() -> {
+            M3OverlayPane host = host();
+            M3Snackbar message = new M3Snackbar("Saved");
+            message.setAnimated(false);
+            message.setDuration(Duration.millis(80));
+            message.showingProperty().addListener((observable, oldValue, newValue) -> {
+                if (!newValue)
+                    hidden.countDown();
+            });
+            M3Dialog modal = new M3Dialog();
+            modal.setAnimated(false);
+            host.showDialog(modal);
+            host.showSnackbar(message);
+            PauseTransition interval = new PauseTransition(Duration.millis(240));
+            interval.setOnFinished(event -> paused.countDown());
+            interval.play();
+            return modal;
+        });
+        assertTrue(paused.await(5, TimeUnit.SECONDS));
+        assertEquals(1, hidden.getCount());
+        onFx(() -> {
+            dialog.close();
+            return true;
+        });
+        assertTrue(hidden.await(5, TimeUnit.SECONDS));
+    }
+
+    /// Snackbar actions remain blocked while a modal is present, then become usable again.
+    @Test
+    void modalBlocksSnackbarActions() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            M3Snackbar message = new M3Snackbar("Deleted");
+            message.setAnimated(false);
+            message.setActionText("Undo");
+            AtomicInteger actions = new AtomicInteger();
+            message.setAction(actions::incrementAndGet);
+            host.showSnackbar(message);
+            M3Dialog dialog = new M3Dialog();
+            dialog.setAnimated(false);
+            host.showDialog(dialog);
+            host.applyCss();
+            Button undo = (Button) message.lookup(".m3-snackbar-action");
+            undo.fire();
+            assertEquals(0, actions.get());
+            assertTrue(message.isShowing());
+            dialog.close();
+            undo.fire();
+            assertEquals(1, actions.get());
+            assertFalse(message.isQueued());
+            return true;
+        });
+    }
+
+    /// Detaching the host releases every layer and queue entry without replacing application content.
+    @Test
+    void hostDetachmentReleasesAllPresentations() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            Label content = new Label("Application");
+            host.setContent(content);
+            M3Dialog dialog = new M3Dialog();
+            dialog.setAnimated(true);
+            M3Snackbar current = new M3Snackbar("Current");
+            M3Snackbar pending = new M3Snackbar("Pending");
+            M3OverlayPane.OverlayHandle handle = host.showDialog(dialog);
+            host.showSnackbar(current);
+            host.showSnackbar(pending);
+            Scene scene = host.getScene();
+            scene.setRoot(new StackPane());
+            assertFalse(dialog.isShowing());
+            assertFalse(handle.isShowing());
+            assertFalse(current.isQueued());
+            assertFalse(pending.isQueued());
+            assertSame(content, host.getContent());
+            scene.setRoot(host);
+            host.showDialog(dialog);
+            host.showSnackbar(pending);
+            assertFalse(handle.hide());
+            assertTrue(dialog.isShowing());
+            assertTrue(pending.isShowing());
+            return true;
+        });
+    }
+
+    /// A throwing hidden callback must not leave other layers attached during bulk cleanup.
+    @Test
+    void cleanupContinuesAfterHiddenCallbackFailure() throws Exception {
+        onFx(() -> {
+            M3OverlayPane host = host();
+            M3Dialog first = new M3Dialog();
+            M3Dialog second = new M3Dialog();
+            first.setAnimated(false);
+            second.setAnimated(false);
+            host.showDialog(first);
+            host.showDialog(second);
+            IllegalStateException failure = new IllegalStateException("Hidden callback failed");
+            second.setOnHidden(event -> {
+                throw failure;
+            });
+            assertSame(failure, assertThrows(IllegalStateException.class, host::clear));
+            assertFalse(first.isShowing());
+            assertFalse(second.isShowing());
+            assertNull(first.getParent());
+            assertNull(second.getParent());
+            second.setOnHidden(null);
+            host.showDialog(first);
+            assertTrue(first.isShowing());
             return true;
         });
     }

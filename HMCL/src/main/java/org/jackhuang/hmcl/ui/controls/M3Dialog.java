@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH AdditionRef-HMCL
 package org.jackhuang.hmcl.ui.controls;
 
-import javafx.animation.FadeTransition;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -10,41 +9,28 @@ import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
-import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
-/// Presents a Material Design 3 basic dialog inside an existing [StackPane].
+/// Defines the content and dismissal events of a Material Design 3 basic dialog.
 ///
 /// Configure the headline, optional 24px graphic, supporting text or custom content, and action buttons,
-/// then call [#show(StackPane)] on the JavaFX application thread. The host must fill the interaction area
-/// and belong to a showing window. At most one `M3Dialog` may be shown in a scene at a time.
-/// The host supplies the HMCL theme; this control loads its own component stylesheet.
+/// then present it with [M3OverlayPane#showDialog(M3Dialog)] on the JavaFX application thread.
+/// The overlay pane owns stacking, focus containment and host lifetime observation. Nested dialogs
+/// share that host; only its uppermost modal layer receives input. The host supplies the HMCL theme.
 ///
 /// An unconsumed action from a button directly in [#getActions()] requests dismissal. Consuming its
 /// action event or [M3DialogEvent#CLOSE_REQUEST] prevents dismissal. Escape and primary scrim clicks
@@ -68,13 +54,10 @@ import java.util.Objects;
 ///         deleteItem();
 ///     }
 /// });
-/// dialog.show(host);
+/// overlayPane.showDialog(dialog);
 /// ```
 @NotNullByDefault
 public final class M3Dialog extends VBox {
-
-    /// Reserves one modal presentation per scene.
-    private static final Object MODAL_KEY = new Object();
 
     /// The optional leading graphic's container.
     private final StackPane graphicPane = new StackPane();
@@ -92,7 +75,7 @@ public final class M3Dialog extends VBox {
     private final FlowPane actions = new FlowPane(8, 8);
 
     /// The current display lifetime, or `null` while hidden.
-    private @Nullable Presentation presentation;
+    private @Nullable M3DialogPresentation presentation;
 
     /// Creates an empty dialog; actions and empty content regions are initially hidden.
     public M3Dialog() {
@@ -177,7 +160,7 @@ public final class M3Dialog extends VBox {
         return graphic;
     }
 
-    /// Returns the mutable list of action nodes, in reading order. Prefer text [Button] instances.
+    /// Returns the mutable list of action nodes, in reading order. Prefer text [javafx.scene.control.Button] instances.
     /// Direct button actions automatically request dismissal unless their event is consumed.
     public ObservableList<Node> getActions() {
         return actions.getChildren();
@@ -304,24 +287,9 @@ public final class M3Dialog extends VBox {
         return onHidden;
     }
 
-    /// Presents this dialog asynchronously and starts its entrance transition.
-    ///
-    /// @param host the container to cover with a scrim and this dialog
-    /// @throws IllegalStateException if called off the FX thread, the host window is not showing,
-    ///         this control is already parented, or another Material dialog occupies the scene
-    public void show(StackPane host) {
-        M3OverlaySupport.checkHost(host);
-        Scene scene = Objects.requireNonNull(host.getScene());
-        if (presentation != null || getParent() != null || scene.getProperties().containsKey(MODAL_KEY))
-            throw new IllegalStateException("The dialog or scene is already occupied");
-        Presentation current = new Presentation(host, scene);
-        presentation = current;
-        current.show();
-    }
-
     /// Requests a cancellable dismissal. Repeated requests while hidden or closing have no effect.
     public void requestClose() {
-        M3OverlaySupport.checkThread();
+        M3OverlayPane.checkThread();
         if (presentation != null)
             presentation.requestClose(null);
     }
@@ -329,9 +297,9 @@ public final class M3Dialog extends VBox {
     /// Immediately removes this dialog and releases listeners, even if a close request was rejected.
     /// Does nothing while hidden. Fires [M3DialogEvent#HIDDEN] after cleanup and permits reuse there.
     public void close() {
-        M3OverlaySupport.checkThread();
+        M3OverlayPane.checkThread();
         if (presentation != null)
-            presentation.close();
+            presentation.hide();
     }
 
     /// Configures the content regions and installs them in reading order.
@@ -381,211 +349,9 @@ public final class M3Dialog extends VBox {
         });
     }
 
-    /// Collects enabled, visible traversal targets in scene-graph order.
-    private static void collectFocusTargets(Parent parent, List<Node> targets) {
-        for (Node child : parent.getChildrenUnmodifiable()) {
-            if (!child.isVisible() || child.isDisabled())
-                continue;
-            if (child.isFocusTraversable())
-                targets.add(child);
-            if (child instanceof Parent nested)
-                collectFocusTargets(nested, targets);
-        }
-    }
-
-    /// Owns the overlay, input isolation and cleanup for exactly one display lifetime.
-    @NotNullByDefault
-    private final class Presentation {
-
-        /// The host that receives this presentation's overlay.
-        private final StackPane host;
-
-        /// The scene whose input and focus are constrained until removal.
-        private final Scene scene;
-
-        /// The scrim and content container belonging only to this presentation.
-        private final StackPane layer = new StackPane();
-
-        /// The focus owner captured before presentation, if any.
-        private final @Nullable Node previousFocus;
-
-        /// The transition reused for entrance and accepted dismissal.
-        private final FadeTransition transition = new FadeTransition();
-
-        /// The lifetime observation, installed after attachment and released during cleanup.
-        private @Nullable M3OverlaySupport observation;
-
-        /// Whether a close request is being dispatched or an accepted exit is running.
-        private boolean closing;
-
-        /// The initiating action retained until an accepted dismissal completes.
-        private @Nullable Button closingAction;
-
-        /// Blocks background keyboard input and keeps Tab traversal within the dialog.
-        private final EventHandler<KeyEvent> keyFilter = this::filterKey;
-
-        /// Redirects focus requests outside this presentation's dialog subtree.
-        private final ChangeListener<@Nullable Node> focusListener = (observable, oldValue, newValue) -> {
-            if (presentation == this && !M3OverlaySupport.contains(M3Dialog.this, newValue))
-                requestFocus();
-        };
-
-        /// Captures the display context and configures an unattached overlay.
-        private Presentation(StackPane host, Scene scene) {
-            this.host = host;
-            this.scene = scene;
-            previousFocus = scene.getFocusOwner();
-            transition.setNode(layer);
-            layer.getStyleClass().add("m3-dialog-overlay");
-            layer.getStylesheets().addAll(getStylesheets());
-            layer.setViewOrder(-100);
-            layer.setOnMouseClicked(event -> {
-                if (event.getTarget() == layer && event.getButton() == MouseButton.PRIMARY && isDismissOnScrimClick())
-                    requestClose(null);
-                event.consume();
-            });
-            layer.addEventFilter(ActionEvent.ACTION, event -> {
-                if (closing)
-                    event.consume();
-            });
-            layer.addEventFilter(MouseEvent.ANY, event -> {
-                if (closing)
-                    event.consume();
-            });
-            layer.addEventHandler(ActionEvent.ACTION, event -> {
-                if (event.getTarget() instanceof Button button && actions.getChildren().contains(button))
-                    requestClose(button);
-            });
-            layer.addEventHandler(KeyEvent.KEY_PRESSED, this::handleKey);
-        }
-
-        /// Attaches the dialog and starts entrance unless a callback has already removed it.
-        private void show() {
-            scene.getProperties().put(MODAL_KEY, this);
-            layer.getChildren().add(M3Dialog.this);
-            if (presentation != this)
-                return;
-            host.getChildren().add(layer);
-            if (presentation != this)
-                return;
-            if (layer.getParent() != host) {
-                close();
-                return;
-            }
-            observation = new M3OverlaySupport(host, layer, this::close);
-            scene.addEventFilter(KeyEvent.ANY, keyFilter);
-            scene.focusOwnerProperty().addListener(focusListener);
-            showing.set(true);
-            if (presentation != this)
-                return;
-            requestFocus();
-            animate(0, 1, () -> fireEvent(new M3DialogEvent(M3Dialog.this, M3DialogEvent.SHOWN, null)));
-        }
-
-        /// Dispatches a cancellable close request belonging only to this presentation.
-        private void requestClose(@Nullable Button action) {
-            if (presentation != this || closing)
-                return;
-            closing = true;
-            M3DialogEvent event = new M3DialogEvent(M3Dialog.this, M3DialogEvent.CLOSE_REQUEST, action);
-            try {
-                fireEvent(event);
-            } catch (RuntimeException | Error failure) {
-                closing = false;
-                throw failure;
-            }
-            if (presentation != this)
-                return;
-            if (event.isConsumed()) {
-                closing = false;
-                return;
-            }
-            closingAction = action;
-            animate(layer.getOpacity(), 0, this::close);
-        }
-
-        /// Releases this presentation before notifying observers that the dialog can be reused.
-        private void close() {
-            if (presentation != this)
-                return;
-            transition.stop();
-            if (observation != null)
-                observation.close();
-            scene.removeEventFilter(KeyEvent.ANY, keyFilter);
-            scene.focusOwnerProperty().removeListener(focusListener);
-            scene.getProperties().remove(MODAL_KEY);
-            // Mark this lifetime detached before scene-graph listeners can reenter cleanup.
-            presentation = null;
-            host.getChildren().remove(layer);
-            layer.getChildren().clear();
-            if (presentation == null)
-                showing.set(false);
-            if (presentation == null && previousFocus != null && previousFocus.getScene() == scene
-                    && previousFocus.isVisible() && !previousFocus.isDisabled())
-                previousFocus.requestFocus();
-            fireEvent(new M3DialogEvent(M3Dialog.this, M3DialogEvent.HIDDEN, closingAction));
-        }
-
-        /// Animates this overlay, ignoring work belonging to a presentation that has already ended.
-        private void animate(double from, double to, Runnable finished) {
-            if (presentation != this)
-                return;
-            transition.stop();
-            layer.setOpacity(from);
-            if (!isAnimated()) {
-                layer.setOpacity(to);
-                finished.run();
-                return;
-            }
-            transition.setDuration(to == 1 ? Motion.MEDIUM2 : Motion.SHORT3);
-            transition.setFromValue(from);
-            transition.setToValue(to);
-            transition.setInterpolator(to == 1 ? Motion.STANDARD_DECELERATE : Motion.STANDARD_ACCELERATE);
-            transition.setOnFinished(event -> {
-                if (presentation == this)
-                    finished.run();
-            });
-            transition.play();
-        }
-
-        /// Intercepts background input and Tab traversal before a child handles the event.
-        private void filterKey(KeyEvent event) {
-            if (closing || !M3OverlaySupport.contains(M3Dialog.this,
-                    event.getTarget() instanceof Node node ? node : null)) {
-                event.consume();
-            } else if (event.getEventType() == KeyEvent.KEY_PRESSED && event.getCode() == KeyCode.TAB
-                    && !event.isControlDown() && !event.isAltDown() && !event.isMetaDown()) {
-                List<Node> candidates = new ArrayList<>();
-                collectFocusTargets(M3Dialog.this, candidates);
-                if (!candidates.isEmpty()) {
-                    int index = candidates.indexOf(scene.getFocusOwner());
-                    int next = index < 0 ? (event.isShiftDown() ? candidates.size() - 1 : 0)
-                            : Math.floorMod(index + (event.isShiftDown() ? -1 : 1), candidates.size());
-                    candidates.get(next).requestFocus();
-                }
-                event.consume();
-            }
-        }
-
-        /// Handles Escape and Enter only after the focused content has had an opportunity to consume them.
-        private void handleKey(KeyEvent event) {
-            if (presentation != this)
-                return;
-            if (event.getCode() == KeyCode.ESCAPE) {
-                if (isCloseOnEscape())
-                    requestClose(null);
-                event.consume();
-            } else if (event.getCode() == KeyCode.ENTER && !(event.getTarget() instanceof TextArea)) {
-                if (scene.getFocusOwner() instanceof Button button) {
-                    button.fire();
-                } else {
-                    actions.getChildren().stream().filter(Button.class::isInstance).map(Button.class::cast)
-                            .filter(button -> button.isDefaultButton() && !button.isDisabled() && button.isVisible())
-                            .findFirst().ifPresent(Button::fire);
-                }
-                // Stop background default-button accelerators after content has handled the press.
-                event.consume();
-            }
-        }
+    /// Updates the host-owned presentation before notifying observers of its attachment state.
+    void setPresentation(@Nullable M3DialogPresentation value) {
+        presentation = value;
+        showing.set(value != null);
     }
 }
