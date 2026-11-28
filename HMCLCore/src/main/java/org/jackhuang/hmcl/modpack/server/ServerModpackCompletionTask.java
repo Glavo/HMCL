@@ -51,6 +51,9 @@ public class ServerModpackCompletionTask extends Task<@Nullable Void> {
     /// The supplied configuration, or `null` to load the installed configuration during execution.
     private final @Nullable ModpackConfiguration<ServerModpackManifest> manifest;
 
+    /// The remote manifest whose components were just installed, if this is the file phase of an installation.
+    private final @Nullable ServerModpackManifest builtManifest;
+
     /// Creates a task that loads the installed configuration from disk.
     ///
     /// @param dependencyManager the dependency manager
@@ -68,11 +71,19 @@ public class ServerModpackCompletionTask extends Task<@Nullable Void> {
             DefaultDependencyManager dependencyManager,
             DefaultGameInstance instance,
             @Nullable ModpackConfiguration<ServerModpackManifest> manifest) {
+        this(dependencyManager, instance, manifest, null);
+    }
+
+    /// Completes files against an already built manifest, or checks the server for an update when absent.
+    ServerModpackCompletionTask(DefaultDependencyManager dependencyManager, DefaultGameInstance instance,
+                                @Nullable ModpackConfiguration<ServerModpackManifest> manifest,
+                                @Nullable ServerModpackManifest builtManifest) {
         dependencyManager.validateGameInstance(instance);
         this.dependencyManager = dependencyManager;
         this.instance = instance;
         this.configurationFile = instance.getModpackConfigurationFile();
         this.manifest = manifest;
+        this.builtManifest = builtManifest;
 
         setSignificance(TaskSignificance.MODERATE);
     }
@@ -101,14 +112,16 @@ public class ServerModpackCompletionTask extends Task<@Nullable Void> {
         }
         if (installed == null || StringUtils.isBlank(installed.getManifest().getFileApi())) return null;
 
-        String json = context.run(new GetTask(WebURL.parse(installed.getManifest().getFileApi() + "/server-manifest.json")));
-        ServerModpackManifest remoteManifest;
-        try {
-            remoteManifest = JsonUtils.fromNonNullJson(json, ServerModpackManifest.class);
-        } catch (JsonParseException e) {
-            throw new IOException(e);
+        if (builtManifest != null) {
+            try (var draft = instance.getRepository().openDraft()) {
+                var current = draft.getBaseSnapshot().getInstance(instance.getId());
+                if (current.getManifest() != instance.getManifest())
+                    throw new IllegalStateException("Game instance changed before file synchronization: " + instance.getId());
+                syncFiles(context, installed, builtManifest, true);
+            }
+            return null;
         }
-
+        ServerModpackManifest remoteManifest = fetchManifest(context, installed.getManifest().getFileApi());
         if (!toMap(installed.getManifest().getAddons()).equals(toMap(remoteManifest.getAddons()))) {
             try (var builder = dependencyManager.newGameBuilder(instance)) {
                 for (ServerModpackManifest.Addon addon : remoteManifest.getAddons()) {
@@ -129,6 +142,16 @@ public class ServerModpackCompletionTask extends Task<@Nullable Void> {
             syncFiles(context, installed, remoteManifest, true);
         }
         return null;
+    }
+
+    /// Reads the current manifest from a server pack's file API.
+    static ServerModpackManifest fetchManifest(TaskExecutionContext context, String fileApi) throws Exception {
+        String json = context.run(new GetTask(WebURL.parse(fileApi + "/server-manifest.json")));
+        try {
+            return JsonUtils.fromNonNullJson(json, ServerModpackManifest.class);
+        } catch (JsonParseException e) {
+            throw new IOException(e);
+        }
     }
 
     /// Records installed file hashes even if the batch fails or a component build is still pending.

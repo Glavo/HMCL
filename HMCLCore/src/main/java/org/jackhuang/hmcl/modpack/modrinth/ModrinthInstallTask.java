@@ -150,36 +150,28 @@ public class ModrinthInstallTask extends Task<@Nullable Void> {
     ///                               declares an unsupported mod loader
     @Override
     public @Nullable Void execute(TaskExecutionContext context) throws Exception {
-        Modpack.installWithGameBuilder(context, dependencyManager, instanceId, updateTarget, true, builder -> install(context, builder));
+        var components = new EnumMap<GameComponentType, String>(GameComponentType.class);
+        manifest.getDependencies().forEach((key, version) -> {
+            GameComponentType type = switch (key) {
+                case "minecraft" -> GameComponentType.GAME;
+                case "forge" -> GameComponentType.FORGE;
+                case "neoforge", "neo-forge" -> GameComponentType.NEO_FORGE;
+                case "fabric-loader" -> GameComponentType.FABRIC;
+                case "quilt-loader" -> GameComponentType.QUILT;
+                default -> throw new IllegalStateException("Unsupported mod loader " + key);
+            };
+            components.put(type, version);
+        });
+        Modpack.installWithGameBuilder(context, dependencyManager, instanceId, updateTarget, true, builder -> {
+            builder.enableIsolation();
+            components.forEach(builder::component);
+            install(context, builder);
+        });
         return null;
     }
 
     /// Installs the Modrinth pack into the target reserved by the builder.
     private void install(TaskExecutionContext context, DefaultGameBuilder builder) throws Exception {
-        builder.enableIsolation();
-        builder.component(GameComponentType.GAME, manifest.getGameVersion());
-        for (Map.Entry<String, String> modLoader : manifest.getDependencies().entrySet()) {
-            switch (modLoader.getKey()) {
-                case "minecraft":
-                    break;
-                case "forge":
-                    builder.component(GameComponentType.FORGE, modLoader.getValue());
-                    break;
-                case "neoforge":
-                // https://github.com/HMCL-dev/HMCL/pull/5170
-                case "neo-forge":
-                    builder.component(GameComponentType.NEO_FORGE, modLoader.getValue());
-                    break;
-                case "fabric-loader":
-                    builder.component(GameComponentType.FABRIC, modLoader.getValue());
-                    break;
-                case "quilt-loader":
-                    builder.component(GameComponentType.QUILT, modLoader.getValue());
-                    break;
-                default:
-                    throw new IllegalStateException("Unsupported mod loader " + modLoader.getKey());
-            }
-        }
         List<Task<?>> preparation = new ArrayList<>(4);
         List<String> subDirectories = Arrays.asList("/client-overrides", "/overrides");
         preparation.add(new ModpackInstallTask<>(zipFile, run, subDirectories, any -> true, config).withStage(InstallStages.MODPACK));

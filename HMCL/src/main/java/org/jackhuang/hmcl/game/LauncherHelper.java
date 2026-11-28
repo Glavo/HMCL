@@ -167,6 +167,13 @@ public final class LauncherHelper {
 
         JavaVersionType javaVersionType = setting.getInheritable(GameSettings::javaTypeProperty);
         boolean skipJavaCheck = setting.getInheritable(GameSettings::notCheckJVMProperty);
+        boolean skipGameCheck = setting.getInheritable(GameSettings::notCheckGameProperty);
+        List<TaskStage.Hint> stageHints = new ArrayList<>(4);
+        stageHints.add(new TaskStage.Hint(JAVA_STAGE));
+        if (!skipGameCheck)
+            stageHints.add(new TaskStage.Hint(DEPENDENCIES_STAGE, List.of(InstallStages.ASSETS, InstallStages.LIBRARIES, InstallStages.MODPACK_DOWNLOAD)));
+        stageHints.add(new TaskStage.Hint(LOGIN_STAGE));
+        stageHints.add(new TaskStage.Hint(LAUNCH_STAGE));
         Task<?> task = Task.composeAsync(() -> {
                     context.launchManifest = LaunchManifestNormalizer.repairForLaunch(gameInstance.getResolvedManifest());
                     return checkGameState(context.launchManifest, javaVersionType, skipJavaCheck);
@@ -185,7 +192,7 @@ public final class LauncherHelper {
                     }
 
                     context.launchManifest = NativePatcher.patchNative(gameInstance, context.launchManifest, java, setting, javaArguments);
-                    if (setting.getInheritable(GameSettings::notCheckGameProperty))
+                    if (skipGameCheck)
                         return null;
                     return Task.allOf(
                             dependencyManager.checkGameCompletionAsync(gameInstance, context.launchManifest, integrityCheck),
@@ -335,11 +342,7 @@ public final class LauncherHelper {
                         new TaskName.Simple(i18n("message.doing")),
                         () -> launchingLatch.getCount() == 0, 6.95
                 ).withStage(LAUNCH_STAGE))
-                .withStageHints(
-                        new TaskStage.Hint(JAVA_STAGE),
-                        new TaskStage.Hint(DEPENDENCIES_STAGE, List.of(InstallStages.ASSETS, InstallStages.LIBRARIES, InstallStages.MODPACK_DOWNLOAD)),
-                        new TaskStage.Hint(LOGIN_STAGE),
-                        new TaskStage.Hint(LAUNCH_STAGE));
+                .withStageHints(stageHints);
         launchingStepsPane.setTask(task, false);
         task.addTaskListener(new TaskListener() {
 

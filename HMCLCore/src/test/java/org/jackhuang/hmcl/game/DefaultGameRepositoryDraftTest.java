@@ -26,6 +26,7 @@ import org.jackhuang.hmcl.modpack.ModpackCompletionException;
 import org.jackhuang.hmcl.modpack.ModpackConfiguration;
 import org.jackhuang.hmcl.modpack.mcbbs.McbbsModpackCompletionTask;
 import org.jackhuang.hmcl.modpack.mcbbs.McbbsModpackManifest;
+import org.jackhuang.hmcl.modpack.modrinth.ModrinthModpackProvider;
 import org.jackhuang.hmcl.modpack.server.ServerModpackCompletionTask;
 import org.jackhuang.hmcl.modpack.server.ServerModpackManifest;
 import org.jackhuang.hmcl.modpack.server.ServerModpackRemoteInstallTask;
@@ -564,15 +565,48 @@ public final class DefaultGameRepositoryDraftTest {
         }
     }
 
-    /// Cancellation from the final child's completion rolls back the newly built instance.
+    /// An unsupported Modrinth loader is rejected before backing up or restoring the instance.
     @Test
-    void cancellationDuringFinalInstallNotificationRollsBack(@TempDir Path directory) throws IOException {
+    void unsupportedModrinthUpdateLeavesInstanceUntouched(@TempDir Path directory) throws Exception {
         TestRepository repository = new TestRepository(directory);
         GameInstanceID id = new GameInstanceID("instance");
-        String version = "1.21.2";
-        ServerModpackManifest manifest = new ServerModpackManifest("pack", "", "1", "", "", List.of(),
-                List.of(new ServerModpackManifest.Addon("game", version)));
-        Task<?> install = new ServerModpackRemoteInstallTask(createOfflineGameInstaller(repository, id, version), manifest, id);
+        repository.save(new GameInstanceManifest(id));
+        var instance = repository.getInstance(id);
+        Path archive = directory.resolve("pack.mrpack");
+        try (var zip = new Zipper(archive)) {
+            zip.putTextFile("""
+                    {"game":"minecraft","formatVersion":1,"versionId":"2","name":"pack","files":[],
+                     "dependencies":{"minecraft":"1.21","unknown-loader":"1"}}
+                    """, "modrinth.index.json");
+        }
+        Modpack pack;
+        try (var zip = CompressingUtils.openZipFile(archive)) {
+            pack = ModrinthModpackProvider.INSTANCE.readManifest(zip, archive);
+        }
+        JsonUtils.writeToJsonFile(instance.getModpackConfigurationFile(),
+                new ModpackConfiguration<>(pack.getManifest(), "Modrinth", "pack", "1", List.of()));
+        var update = ModrinthModpackProvider.INSTANCE.createUpdateTask(createDependencyManager(repository), instance, archive, pack, null);
+        assertEquals("Unsupported mod loader unknown-loader", assertThrows(IllegalStateException.class, update::run).getMessage());
+        assertTrue(Files.notExists(directory.resolve("backup")));
+    }
+
+    /// Cancellation after synchronizing a newer server manifest restores the state before installation.
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void cancellationDuringFinalInstallNotificationRollsBack(boolean update, @TempDir Path directory) throws IOException {
+        TestRepository repository = new TestRepository(directory);
+        GameInstanceID id = new GameInstanceID("instance");
+        var selected = publishServerUpdate(directory, List.of(), List.of());
+        var manager = createOfflineGameInstaller(repository, id, "1.21");
+        Task<?> install;
+        if (update) {
+            repository.save(new GameInstanceManifest(id).withMainClass("original.Main"));
+            var instance = repository.getInstance(id);
+            JsonUtils.writeToJsonFile(instance.getModpackConfigurationFile(), selected);
+            install = new ServerModpackRemoteInstallTask(manager, selected.getManifest(), instance);
+        } else {
+            install = new ServerModpackRemoteInstallTask(manager, selected.getManifest(), id);
+        }
         install.addTaskListener(new TaskListener() {
             /// Requests cancellation after the final child has published success.
             @Override
@@ -582,8 +616,13 @@ public final class DefaultGameRepositoryDraftTest {
             }
         });
         assertThrows(CancellationException.class, install::run);
-        assertFalse(repository.hasInstance(id));
-        assertFalse(Files.exists(repository.getLayout().getInstanceRoot(id)));
+        if (update) {
+            assertEquals("original.Main", repository.getInstanceManifest(id).mainClass());
+            assertEquals("1.20", readServerManifest(repository.getInstance(id)).getAddons().get(0).getVersion());
+        } else {
+            assertFalse(repository.hasInstance(id));
+            assertTrue(Files.notExists(repository.getLayout().getInstanceRoot(id)));
+        }
     }
 
     /// Runs an installation or update with its task's cancellation boundary.

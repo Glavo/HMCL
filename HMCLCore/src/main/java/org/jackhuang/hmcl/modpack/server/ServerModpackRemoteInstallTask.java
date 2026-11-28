@@ -9,6 +9,7 @@ import org.jackhuang.hmcl.modpack.Modpack;
 import org.jackhuang.hmcl.modpack.ModpackConfiguration;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutionContext;
+import org.jackhuang.hmcl.util.StringUtils;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -94,9 +95,11 @@ public class ServerModpackRemoteInstallTask extends Task<@Nullable Void> {
     ///                               is no longer the exact published instance
     @Override
     public @Nullable Void execute(TaskExecutionContext context) throws Exception {
+        ServerModpackManifest target = StringUtils.isBlank(manifest.getFileApi())
+                ? manifest : ServerModpackCompletionTask.fetchManifest(context, manifest.getFileApi());
         Modpack.installWithGameBuilder(context, dependency, instanceId, updateTarget, false, builder -> {
             builder.enableIsolation();
-            for (ServerModpackManifest.Addon addon : manifest.getAddons()) {
+            for (ServerModpackManifest.Addon addon : target.getAddons()) {
                 @Nullable GameComponentType componentType = GameComponentType.fromPatchId(addon.getId());
                 if (componentType != null)
                     builder.component(componentType, addon.getVersion());
@@ -105,7 +108,8 @@ public class ServerModpackRemoteInstallTask extends Task<@Nullable Void> {
             context.run(new ServerModpackCompletionTask(
                     dependency,
                     instance,
-                    new ModpackConfiguration<>(manifest, MODPACK_TYPE, manifest.getName(), manifest.getVersion(), Collections.emptyList())));
+                    new ModpackConfiguration<>(manifest, MODPACK_TYPE, target.getName(), target.getVersion(), Collections.emptyList()),
+                    target));
         });
         return null;
     }
